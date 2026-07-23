@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "taskId": "task-09-compatible-rename",
+  "taskVersion": 1,
+  "evaluatorVersion": 1,
+  "checks": [
+    {
+      "id": "primary-and-alias-equivalence",
+      "kind": "black-box",
+      "implementations": ["framework", "plain"],
+      "driver": "commerce-http",
+      "scenario": "Create independent orders through /purchases and /orders using deterministic IDs and inspect all persisted records.",
+      "assertions": ["Both paths return the same success shape and status.", "Each request creates exactly one payment, order, and event.", "No route delegates by making a second HTTP request."]
+    },
+    {
+      "id": "rename-error-equivalence",
+      "kind": "black-box",
+      "implementations": ["framework", "plain"],
+      "driver": "commerce-http",
+      "scenario": "Compare both paths for missing permission, malformed JSON, suspended customer, insufficient stock, and payment decline.",
+      "assertions": ["Status, code, message, and state are identical for the two paths.", "Authorization remains before body parsing.", "Lookup and event routes are unchanged."]
+    },
+    {
+      "id": "full-regression",
+      "kind": "regression-command",
+      "implementations": ["framework", "plain"],
+      "commandByImplementation": {
+        "framework": ["npm", "--workspace", "@agentix/framework-app", "test"],
+        "plain": ["npm", "--workspace", "@agentix/plain-app", "test"]
+      },
+      "expectedExitCode": 0
+    }
+  ],
+  "shortcutPolicy": {
+    "forbiddenModifiedPrefixes": ["benchmarks/evaluator", "benchmarks/harness", "benchmarks/results"],
+    "rejectDeletedTests": true,
+    "rejectFocusedOrSkippedTests": true,
+    "rejectNetworkUse": true,
+    "rejectCrossArmSources": true
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@agentix/shared-contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./acceptance": {
+      "types": "./dist/acceptance.d.ts",
+      "default": "./dist/acceptance.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false && tsc -p tsconfig.test.json --pretty false",
+    "test": "vitest run --root ../.. examples/shared-contract"
+  },
+  "devDependencies": {
+    "vitest": "4.1.10"
+  }
+}

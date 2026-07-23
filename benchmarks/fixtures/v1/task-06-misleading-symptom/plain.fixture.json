@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "taskId": "task-06-misleading-symptom",
+  "taskVersion": 1,
+  "fixtureVersion": 1,
+  "implementation": "plain",
+  "applicationSubdirectory": "examples/plain-app",
+  "baseInventory": {
+    "manifest": "benchmarks/fixtures/v1/base.repository.json",
+    "sha256": "f2cc4306e5e29849b4f1f00230057b0a114b4b53a68653b8945ea63747d0e87c"
+  },
+  "overlay": {
+    "edits": [
+      {
+        "path": "examples/plain-app/src/infrastructure/memory.ts",
+        "find": "this.#events.push(cloneEvent(commit.event));",
+        "replace": "if (commit.order.quantity <= 6) {\n      this.#events.push(cloneEvent(commit.event));\n    }",
+        "expectedOccurrences": 1
+      }
+    ],
+    "files": []
+  },
+  "preflight": [
+    {
+      "command": [
+        "npm",
+        "install",
+        "--offline",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund"
+      ],
+      "expectedExitCode": 0,
+      "purpose": "Install exactly locked dependencies without network access or lifecycle scripts."
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "expectedExitCode": 0,
+      "purpose": "Prove the selected clean arm type-checks before the task."
+    },
+    {
+      "command": [
+        "npm",
+        "--workspace",
+        "@agentix/plain-app",
+        "test"
+      ],
+      "expectedExitCode": 0,
+      "purpose": "Prove existing regression behavior is green before the task."
+    }
+  ],
+  "evaluationCommands": {
+    "typecheck": [
+      "npm",
+      "run",
+      "typecheck"
+    ],
+    "regression": [
+      "npm",
+      "--workspace",
+      "@agentix/plain-app",
+      "test"
+    ],
+    "architecture": null
+  },
+  "equivalence": {
+    "contractId": "commerce-http-v1",
+    "counterpartManifest": "benchmarks/fixtures/v1/task-06-misleading-symptom/framework.fixture.json",
+    "scenarioIds": [
+      "base-commerce-acceptance-v1",
+      "quantity-seven-event-omitted-v1"
+    ]
+  },
+  "agentWorkspace": {
+    "excludedPrefixes": [
+      "benchmarks/tasks",
+      "benchmarks/fixtures",
+      "benchmarks/evaluator",
+      "benchmarks/harness",
+      "benchmarks/results",
+      "benchmarks/reports"
+    ]
+  }
+}

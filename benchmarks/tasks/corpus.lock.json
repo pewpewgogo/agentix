@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "corpusId": "agentix-commerce-maintenance-v1",
+  "corpusVersion": 1,
+  "hashAlgorithm": "sha256",
+  "files": [
+    {
+      "path": "benchmarks/evaluator/hidden/v1/task-01-simple-feature.hidden.json",
+      "sha256": "994fbf82b37bc202bbee6319c2fb6edb00a90ef1d15a4a39327a2bf9e35312f3"
+    },
+    {
+      "path": "benchmarks/evaluator/hidden/v1/task-02-field-propagation.hidden.json",
+      "sha256": "ea2c89b98f891ecb2ce41dda6606ecfb899aac4e0539a027992f43c2b0cb89b0"
+    },
+    {
+      "path": "benchmarks/evaluator/hidden/v1/task-03-cross-feature-rule.hidden.json",
+      "sha256": "b669148e509598549392dafd9f0e9838157cd4f556da7b2d509eab8b6638f50f"
+    },
+    {
+      "path": "benchmarks/evaluator/hidden/v1/task-04-external-adapter.hidden.json",
+      "sha256": "d10be7ee0078863be8ea3592ad1407db71b9c6d9ee6214c0b22f8abc1a03057e"
+    },
+    {
+      "path": "benchmarks/evaluator/hidden/v1/task-05-localized-defect.hidden.json",
+      "sha256": "f800275c1c5664abbff6664c26a855f6d4e9cc0f3edf16964cc2a4238a427b47"
+    },
+    {
+      "path": "benchmarks/evaluator/hidden/v1/task-06-misleading-symptom.hidden.json",
+      "sha256": "e8147c4672795eadb018e34b9ccfd7473c5c07f66ac09c1a0e53c232b0ffd40b"
+    },
+    {
+      "path": "benchmarks/evaluator/hidden/v1/task-07-authorization-change.hidden.json",
+      "sha256": "6ce703ae8f45937c21e4b7b093f747ffce2f464e3725b10c147b1cb32a62f8e7"
+    },
+    {
+      "path": "benchmarks/evaluator/hidden/v1/task-08-schema-migration.hidden.json",
+      "sha256": "fdea79216e0d8b1963761ed5479cd5fc85355c19d26588c04cf48fc717cbbc4c"
+    },
+    {
+      "path": "benchmarks/evaluator/hidden/v1/task-09-compatible-rename.hidden.json",
+      "sha256": "33f0c845b3ad84b606b83e10b7a6dbd0db87f052931b12df5534013670018fcc"
+    },
+    {
+      "path": "benchmarks/evaluator/hidden/v1/task-10-architecture-question.hidden.json",
+      "sha256": "81a972e83a27d2f796d0aa4b60ef9c0e49a71b370c84f51423a03e27b7d10e25"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/base.repository.json",
+      "sha256": "f2cc4306e5e29849b4f1f00230057b0a114b4b53a68653b8945ea63747d0e87c"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-01-simple-feature/framework.fixture.json",
+      "sha256": "d1d90865a2632e4d51eb5521ad22d34dfc0bd2180f32c5c46ddb1c4413ccc962"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-01-simple-feature/plain.fixture.json",
+      "sha256": "c89264ea28db9a427567f25b837880f4adad6cb3b79f8390a9489eb92ee41edc"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-02-field-propagation/framework.fixture.json",
+      "sha256": "fb093b0ceafaf95e0c0498b637fd4ec8e3a5893304bd2f599d95635d834765eb"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-02-field-propagation/plain.fixture.json",
+      "sha256": "d09e38fe2d9e3706c0bd909624891b288b3012669365a4e3075e6e2b4c14739b"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-03-cross-feature-rule/framework.fixture.json",
+      "sha256": "77d52a74036c888e4b6eecc6b652a1266aab29d4109281c1a34c1e7ceb50da04"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-03-cross-feature-rule/plain.fixture.json",
+      "sha256": "debd96f3114aa6c40ea8b6b916e79899620dff7d48d61993b1fa30fa6bb848df"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-04-external-adapter/framework.fixture.json",
+      "sha256": "7b43c82e9ea7bdd8b7a32230ec2b6a04a972f58932b6b626988e732e5e0ae09c"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-04-external-adapter/plain.fixture.json",
+      "sha256": "adc006dcba2b3f850d7ccb578c6c1ac3d8cf51f786622562b9dcb56d7714009c"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-05-localized-defect/framework.fixture.json",
+      "sha256": "f083aa510ae9d991fdab565f10664cac77b9fcfd8cfe337aa6c4f34d46362daf"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-05-localized-defect/plain.fixture.json",
+      "sha256": "4404ba9ee48319a8b6a1337aeca2ae91216c27edef451f70397c841e1e485d9a"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-06-misleading-symptom/framework.fixture.json",
+      "sha256": "5765ad0776ce053552f73e5730618c64367ea6cd585ea8da1a1579655c1afd92"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-06-misleading-symptom/plain.fixture.json",
+      "sha256": "3aa95ec210fc05701ea56eba50625fbd8736bb95a5a1ca08c535f23d877a4bcc"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-07-authorization-change/framework.fixture.json",
+      "sha256": "808043010d6f80dfe3dbdd24270344c56b3df17a2596d40a2a634b44f569611e"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-07-authorization-change/plain.fixture.json",
+      "sha256": "8bdd6d81978cb5a936767d41fa1aba3d2eeac24448d3a26ed3c55ba64d9e4003"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-08-schema-migration/data/products.v1.json",
+      "sha256": "bb6fff76421c21161910b44c938b83bea15d90ba23976981110926f142bf6865"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-08-schema-migration/framework.fixture.json",
+      "sha256": "e90636f83c46575f2d5e9ced6573c0f602fd5d7a750c9b311e2a74f4a6fe50a7"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-08-schema-migration/plain.fixture.json",
+      "sha256": "3a1c6e66cd3613c7f69f5379fa0ebae101c928749f4c779ef28c4f5cf0138fde"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-09-compatible-rename/framework.fixture.json",
+      "sha256": "838559860cf25250669937c9b35b8d62a91c6b1357521dec69ad236b1d94e4ea"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-09-compatible-rename/plain.fixture.json",
+      "sha256": "e9ce9fb822880025ab402bbf2c8119d65f7812f6ff1f28a58fd6e5e0f972bf09"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-10-architecture-question/framework.fixture.json",
+      "sha256": "f8d99c06523e93792a838edf9c225cfc75d4f6a43a19a11da806cf993619d492"
+    },
+    {
+      "path": "benchmarks/fixtures/v1/task-10-architecture-question/plain.fixture.json",
+      "sha256": "13c600f9e66a98ef89564b43be62f71c986d1f568e45a64ddab729fec232d510"
+    },
+    {
+      "path": "benchmarks/tasks/v1/task-01-simple-feature.task.json",
+      "sha256": "ef08096d374be37717667fceab5056efd47543e7479be342c67a6182a6f11cb1"
+    },
+    {
+      "path": "benchmarks/tasks/v1/task-02-field-propagation.task.json",
+      "sha256": "b24cd819354a0eb736f0e0c23f18f6f5ce79bd4845bf4547bc46fa35ead05ddb"
+    },
+    {
+      "path": "benchmarks/tasks/v1/task-03-cross-feature-rule.task.json",
+      "sha256": "1cff6f4b0e572a7a84ac9c9a91e652603138ecb219dc4b45c9006ad28b07dcf1"
+    },
+    {
+      "path": "benchmarks/tasks/v1/task-04-external-adapter.task.json",
+      "sha256": "b07a0ddfff4ea0482c359e027fa847355af31904c7f4ba31f3ba6bae9c3699a5"
+    },
+    {
+      "path": "benchmarks/tasks/v1/task-05-localized-defect.task.json",
+      "sha256": "27a52d05fab3c6e983328665a89d0e1da29a6772e53bbe4099741742de108b7b"
+    },
+    {
+      "path": "benchmarks/tasks/v1/task-06-misleading-symptom.task.json",
+      "sha256": "ef62fb59d3ee2116ded36a056bc851ce0d1ebe69b33be08b95f398f1ee8c90ce"
+    },
+    {
+      "path": "benchmarks/tasks/v1/task-07-authorization-change.task.json",
+      "sha256": "2844600197b0173b95c4f0843980e0d6679a5908aac24133750603c74a94b024"
+    },
+    {
+      "path": "benchmarks/tasks/v1/task-08-schema-migration.task.json",
+      "sha256": "56376ce807b4cf7d167dd9d8cf18b00c26a34682b379e243f36edc1a73c0238b"
+    },
+    {
+      "path": "benchmarks/tasks/v1/task-09-compatible-rename.task.json",
+      "sha256": "67bd31d8d1419c86ab471b7263ca63dc6728b0c09536a7ab69957ae1e64762d4"
+    },
+    {
+      "path": "benchmarks/tasks/v1/task-10-architecture-question.task.json",
+      "sha256": "37d4dce7f199a88b83fb50c29fba3ef9abb9dc78a1ae8231634d48e89ff743c8"
+    }
+  ]
+}

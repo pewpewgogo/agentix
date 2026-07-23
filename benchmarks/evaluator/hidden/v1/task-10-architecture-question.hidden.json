@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "taskId": "task-10-architecture-question",
+  "taskVersion": 1,
+  "evaluatorVersion": 1,
+  "checks": [
+    {
+      "id": "timestamp-architecture-rubric",
+      "kind": "answer-rubric",
+      "implementations": ["framework", "plain"],
+      "requiredConceptsByImplementation": {
+        "framework": ["system option selects the clock", "clock capability is bound at composition", "customer operation declares and invokes time", "storage and HTTP return the produced timestamp", "tests inject deterministic now", "tenant selection belongs at composition or dispatch boundary"],
+        "plain": ["system option selects the clock", "clock is constructor-injected", "customer service invokes time", "repository and HTTP return the produced timestamp", "tests inject deterministic now", "tenant selection belongs at composition or request boundary"]
+      },
+      "forbiddenClaims": ["domain code should call Date.now directly", "tests need real time", "timestamp originates in storage"],
+      "requireNoWorkspaceChanges": true
+    },
+    {
+      "id": "read-only-regression",
+      "kind": "regression-command",
+      "implementations": ["framework", "plain"],
+      "commandByImplementation": {
+        "framework": ["npm", "--workspace", "@agentix/framework-app", "test"],
+        "plain": ["npm", "--workspace", "@agentix/plain-app", "test"]
+      },
+      "expectedExitCode": 0
+    }
+  ],
+  "shortcutPolicy": {
+    "forbiddenModifiedPrefixes": ["benchmarks/evaluator", "benchmarks/harness", "benchmarks/results"],
+    "rejectDeletedTests": true,
+    "rejectFocusedOrSkippedTests": true,
+    "rejectNetworkUse": true,
+    "rejectCrossArmSources": true
+  }
+}

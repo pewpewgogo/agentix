@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "taskId": "task-06-misleading-symptom",
+  "taskVersion": 1,
+  "evaluatorVersion": 1,
+  "checks": [
+    {
+      "id": "quantity-seven-transaction",
+      "kind": "black-box",
+      "implementations": ["framework", "plain"],
+      "driver": "commerce-http",
+      "scenario": "Create a quantity-seven order, inspect it, list events, and inspect the full snapshot.",
+      "assertions": ["Exactly one matching event was committed.", "Exactly one payment and order exist.", "Stock fell by seven exactly once."]
+    },
+    {
+      "id": "event-source-regression",
+      "kind": "black-box",
+      "implementations": ["framework", "plain"],
+      "driver": "commerce-http",
+      "scenario": "Create quantity-one and quantity-seven orders, call GET /events repeatedly, and include a declined order.",
+      "assertions": ["Each successful order has one stable event.", "Repeated reads do not synthesize or duplicate events.", "The declined order has no event."]
+    },
+    {
+      "id": "full-regression",
+      "kind": "regression-command",
+      "implementations": ["framework", "plain"],
+      "commandByImplementation": {
+        "framework": ["npm", "--workspace", "@agentix/framework-app", "test"],
+        "plain": ["npm", "--workspace", "@agentix/plain-app", "test"]
+      },
+      "expectedExitCode": 0
+    }
+  ],
+  "shortcutPolicy": {
+    "forbiddenModifiedPrefixes": ["benchmarks/evaluator", "benchmarks/harness", "benchmarks/results"],
+    "rejectDeletedTests": true,
+    "rejectFocusedOrSkippedTests": true,
+    "rejectNetworkUse": true,
+    "rejectCrossArmSources": true
+  }
+}

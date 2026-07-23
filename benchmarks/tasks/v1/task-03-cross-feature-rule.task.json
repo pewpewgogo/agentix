@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "task-03-cross-feature-rule",
+  "version": 1,
+  "category": "cross-feature-rule",
+  "userRequest": "Prevent a customer from buying the same product more than once. A later paid-order attempt for the same customer and product must fail before payment, while purchases of another product remain allowed.",
+  "publicAcceptanceCriteria": [
+    "The first paid order for a customer and product succeeds with the existing observable records.",
+    "A second order for the same customer and product returns 409 with code REPEAT_PURCHASE and does not consume a payment outcome or create state.",
+    "The customer can still order a different product, and a different customer can order the original product.",
+    "Concurrent duplicate attempts cannot both succeed."
+  ],
+  "expectedPublicSurfaces": [
+    {
+      "kind": "http",
+      "identifier": "POST /orders",
+      "behavior": "Enforce uniqueness of the customer-product purchase pair."
+    }
+  ],
+  "fixture": {
+    "framework": {
+      "manifest": "benchmarks/fixtures/v1/task-03-cross-feature-rule/framework.fixture.json",
+      "sha256": "77d52a74036c888e4b6eecc6b652a1266aab29d4109281c1a34c1e7ceb50da04"
+    },
+    "plain": {
+      "manifest": "benchmarks/fixtures/v1/task-03-cross-feature-rule/plain.fixture.json",
+      "sha256": "debd96f3114aa6c40ea8b6b916e79899620dff7d48d61993b1fa30fa6bb848df"
+    }
+  },
+  "evaluator": {
+    "kind": "workspace",
+    "commandByImplementation": {
+      "framework": [
+        "npm",
+        "--workspace",
+        "@agentix/framework-app",
+        "test"
+      ],
+      "plain": [
+        "npm",
+        "--workspace",
+        "@agentix/plain-app",
+        "test"
+      ]
+    },
+    "hiddenManifest": "benchmarks/evaluator/hidden/v1/task-03-cross-feature-rule.hidden.json",
+    "hiddenManifestSha256": "b669148e509598549392dafd9f0e9838157cd4f556da7b2d509eab8b6638f50f"
+  },
+  "maximumSeconds": 1800,
+  "prohibitedShortcuts": [
+    "hard-code-evaluator-output",
+    "modify-evaluator-or-harness",
+    "delete-or-disable-tests",
+    "bypass-public-api",
+    "network-or-prior-solution-access",
+    "cross-arm-source-access",
+    "fixture-specific-production-branch"
+  ],
+  "networkPolicy": "disabled"
+}

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "taskId": "task-02-field-propagation",
+  "taskVersion": 1,
+  "evaluatorVersion": 1,
+  "checks": [
+    {
+      "id": "description-round-trip",
+      "kind": "black-box",
+      "implementations": ["framework", "plain"],
+      "driver": "commerce-http",
+      "scenario": "Create products with an omitted description and with a padded description, then read and order both products.",
+      "assertions": ["The supplied description is trimmed and survives POST, GET, and snapshot boundaries.", "The omitted field remains backward compatible.", "Order totals and stock changes are unaffected."]
+    },
+    {
+      "id": "description-validation",
+      "kind": "black-box",
+      "implementations": ["framework", "plain"],
+      "driver": "commerce-http",
+      "scenario": "Submit blank, numeric, array, and unknown-extra-field description payloads.",
+      "assertions": ["Invalid descriptions return the standard 400 envelope.", "No invalid product is persisted."]
+    },
+    {
+      "id": "full-regression",
+      "kind": "regression-command",
+      "implementations": ["framework", "plain"],
+      "commandByImplementation": {
+        "framework": ["npm", "--workspace", "@agentix/framework-app", "test"],
+        "plain": ["npm", "--workspace", "@agentix/plain-app", "test"]
+      },
+      "expectedExitCode": 0
+    }
+  ],
+  "shortcutPolicy": {
+    "forbiddenModifiedPrefixes": ["benchmarks/evaluator", "benchmarks/harness", "benchmarks/results"],
+    "rejectDeletedTests": true,
+    "rejectFocusedOrSkippedTests": true,
+    "rejectNetworkUse": true,
+    "rejectCrossArmSources": true
+  }
+}

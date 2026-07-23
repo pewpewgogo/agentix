@@ -1,0 +1,30 @@
+{
+  "name": "@agentix/benchmark-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "agentix-runtime-benchmark": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -b && node ../../scripts/mark-binaries-executable.mjs dist/cli.js",
+    "typecheck": "tsc -b --pretty false && tsc -p tsconfig.test.json --pretty false",
+    "test": "vitest run --root ../.. benchmarks/runtime"
+  },
+  "dependencies": {
+    "@agentix/compiler": "0.0.0",
+    "@agentix/core": "0.0.0",
+    "@agentix/framework-app": "0.0.0",
+    "@agentix/plain-app": "0.0.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "vitest": "4.1.10"
+  }
+}

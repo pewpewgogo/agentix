@@ -1,0 +1,25 @@
+{
+  "name": "@agentix/plain-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false && tsc -p tsconfig.test.json --pretty false",
+    "test": "vitest run --root ../.. examples/plain-app"
+  },
+  "dependencies": {
+    "@agentix/shared-contract": "0.0.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "fast-check": "4.9.0",
+    "vitest": "4.1.10"
+  }
+}

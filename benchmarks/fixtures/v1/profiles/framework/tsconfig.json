@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/testing" },
+    { "path": "packages/compiler" },
+    { "path": "packages/cli" },
+    { "path": "packages/adapters-http" },
+    { "path": "examples/shared-contract" },
+    { "path": "examples/framework-app" }
+  ]
+}

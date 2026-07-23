@@ -1,0 +1,28 @@
+{
+  "name": "@agentix/framework-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false && tsc -p tsconfig.test.json --pretty false",
+    "test": "vitest run --root ../.. examples/framework-app"
+  },
+  "dependencies": {
+    "@agentix/adapters-http": "0.0.0",
+    "@agentix/core": "0.0.0",
+    "@agentix/shared-contract": "0.0.0"
+  },
+  "devDependencies": {
+    "@agentix/compiler": "0.0.0",
+    "@agentix/testing": "0.0.0",
+    "fast-check": "4.9.0",
+    "vitest": "4.1.10"
+  }
+}

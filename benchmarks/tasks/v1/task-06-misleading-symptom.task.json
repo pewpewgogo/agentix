@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "task-06-misleading-symptom",
+  "version": 1,
+  "category": "misleading-non-local-cause",
+  "userRequest": "Orders for quantity seven return success and appear in order lookup, but their order.created record is absent from GET /events. Diagnose the real cause and restore the event without duplicating payments, changing stock twice, or special-casing the events endpoint.",
+  "publicAcceptanceCriteria": [
+    "A successful quantity-seven order produces exactly one matching order.created record visible through GET /events.",
+    "The order has exactly one approved payment and stock decreases exactly once.",
+    "Quantity-one orders and existing failure paths remain unchanged.",
+    "The fix corrects event recording rather than synthesizing an event only when it is read."
+  ],
+  "expectedPublicSurfaces": [
+    {
+      "kind": "http",
+      "identifier": "GET /events",
+      "behavior": "Expose the event committed with every successful order."
+    }
+  ],
+  "fixture": {
+    "framework": {
+      "manifest": "benchmarks/fixtures/v1/task-06-misleading-symptom/framework.fixture.json",
+      "sha256": "5765ad0776ce053552f73e5730618c64367ea6cd585ea8da1a1579655c1afd92"
+    },
+    "plain": {
+      "manifest": "benchmarks/fixtures/v1/task-06-misleading-symptom/plain.fixture.json",
+      "sha256": "3aa95ec210fc05701ea56eba50625fbd8736bb95a5a1ca08c535f23d877a4bcc"
+    }
+  },
+  "evaluator": {
+    "kind": "workspace",
+    "commandByImplementation": {
+      "framework": [
+        "npm",
+        "--workspace",
+        "@agentix/framework-app",
+        "test"
+      ],
+      "plain": [
+        "npm",
+        "--workspace",
+        "@agentix/plain-app",
+        "test"
+      ]
+    },
+    "hiddenManifest": "benchmarks/evaluator/hidden/v1/task-06-misleading-symptom.hidden.json",
+    "hiddenManifestSha256": "e8147c4672795eadb018e34b9ccfd7473c5c07f66ac09c1a0e53c232b0ffd40b"
+  },
+  "maximumSeconds": 1800,
+  "prohibitedShortcuts": [
+    "hard-code-evaluator-output",
+    "modify-evaluator-or-harness",
+    "delete-or-disable-tests",
+    "bypass-public-api",
+    "network-or-prior-solution-access",
+    "cross-arm-source-access",
+    "fixture-specific-production-branch"
+  ],
+  "networkPolicy": "disabled"
+}

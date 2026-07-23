@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "task-08-schema-migration",
+  "version": 1,
+  "category": "data-schema-migration",
+  "userRequest": "Add an offline product-data migration from schema version 1 to version 2. Version 1 stores unitPrice as a decimal currency string; version 2 stores exact integer unitPriceCents. Provide the documented command-line interface and make migration atomic and idempotent.",
+  "publicAcceptanceCriteria": [
+    "npm run migrate:products -- --input <path> --output <path> converts the supplied version-1 fixture to schemaVersion 2 using exact cent values.",
+    "Running the migration on valid version-2 input preserves the data without a second conversion.",
+    "Values with more than two fractional digits, unsafe totals, duplicate product IDs, and unknown schema versions fail without writing a partial output file.",
+    "The application type-checks and existing HTTP behavior remains unchanged."
+  ],
+  "expectedPublicSurfaces": [
+    {
+      "kind": "command",
+      "identifier": "npm run migrate:products -- --input <path> --output <path>",
+      "behavior": "Atomically convert product datasets from version 1 to version 2."
+    }
+  ],
+  "fixture": {
+    "framework": {
+      "manifest": "benchmarks/fixtures/v1/task-08-schema-migration/framework.fixture.json",
+      "sha256": "e90636f83c46575f2d5e9ced6573c0f602fd5d7a750c9b311e2a74f4a6fe50a7"
+    },
+    "plain": {
+      "manifest": "benchmarks/fixtures/v1/task-08-schema-migration/plain.fixture.json",
+      "sha256": "3a1c6e66cd3613c7f69f5379fa0ebae101c928749f4c779ef28c4f5cf0138fde"
+    }
+  },
+  "evaluator": {
+    "kind": "workspace",
+    "commandByImplementation": {
+      "framework": [
+        "npm",
+        "--workspace",
+        "@agentix/framework-app",
+        "test"
+      ],
+      "plain": [
+        "npm",
+        "--workspace",
+        "@agentix/plain-app",
+        "test"
+      ]
+    },
+    "hiddenManifest": "benchmarks/evaluator/hidden/v1/task-08-schema-migration.hidden.json",
+    "hiddenManifestSha256": "fdea79216e0d8b1963761ed5479cd5fc85355c19d26588c04cf48fc717cbbc4c"
+  },
+  "maximumSeconds": 1800,
+  "prohibitedShortcuts": [
+    "hard-code-evaluator-output",
+    "modify-evaluator-or-harness",
+    "delete-or-disable-tests",
+    "bypass-public-api",
+    "network-or-prior-solution-access",
+    "cross-arm-source-access",
+    "fixture-specific-production-branch"
+  ],
+  "networkPolicy": "disabled"
+}

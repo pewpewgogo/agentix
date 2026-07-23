@@ -1,0 +1,26 @@
+{
+  "name": "@agentix/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "agentix": "./dist/bin.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b && node ../../scripts/mark-binaries-executable.mjs dist/bin.js",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run --root ../.. packages/cli"
+  },
+  "dependencies": {
+    "@agentix/compiler": "0.0.0"
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "taskId": "task-02-field-propagation",
+  "taskVersion": 1,
+  "fixtureVersion": 1,
+  "implementation": "framework",
+  "applicationSubdirectory": "examples/framework-app",
+  "baseInventory": {
+    "manifest": "benchmarks/fixtures/v1/base.repository.json",
+    "sha256": "f2cc4306e5e29849b4f1f00230057b0a114b4b53a68653b8945ea63747d0e87c"
+  },
+  "overlay": {
+    "edits": [],
+    "files": []
+  },
+  "preflight": [
+    {
+      "command": [
+        "npm",
+        "install",
+        "--offline",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund"
+      ],
+      "expectedExitCode": 0,
+      "purpose": "Install exactly locked dependencies without network access or lifecycle scripts."
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "expectedExitCode": 0,
+      "purpose": "Prove the selected clean arm type-checks before the task."
+    },
+    {
+      "command": [
+        "npm",
+        "--workspace",
+        "@agentix/framework-app",
+        "test"
+      ],
+      "expectedExitCode": 0,
+      "purpose": "Prove existing regression behavior is green before the task."
+    }
+  ],
+  "evaluationCommands": {
+    "typecheck": [
+      "npm",
+      "run",
+      "typecheck"
+    ],
+    "regression": [
+      "npm",
+      "--workspace",
+      "@agentix/framework-app",
+      "test"
+    ],
+    "architecture": [
+      "node",
+      "packages/cli/dist/bin.js",
+      "verify",
+      "products",
+      "--root",
+      "examples/framework-app",
+      "--json"
+    ]
+  },
+  "equivalence": {
+    "contractId": "commerce-http-v1",
+    "counterpartManifest": "benchmarks/fixtures/v1/task-02-field-propagation/plain.fixture.json",
+    "scenarioIds": [
+      "base-commerce-acceptance-v1",
+      "product-description-absent-in-both-v1"
+    ]
+  },
+  "agentWorkspace": {
+    "excludedPrefixes": [
+      "benchmarks/tasks",
+      "benchmarks/fixtures",
+      "benchmarks/evaluator",
+      "benchmarks/harness",
+      "benchmarks/results",
+      "benchmarks/reports"
+    ]
+  }
+}

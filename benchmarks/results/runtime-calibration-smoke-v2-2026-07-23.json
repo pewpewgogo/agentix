@@ -1,0 +1,3783 @@
+{
+  "schemaVersion": 1,
+  "kind": "runtime-benchmark",
+  "mode": "smoke",
+  "generatedAt": "2026-07-23T09:58:40.886Z",
+  "seed": "runtime-preregistered-v1",
+  "configuration": {
+    "warmupIterations": 10,
+    "measuredIterations": 30,
+    "toolchainIterations": 10,
+    "processMetrics": true,
+    "toolchainMetrics": false
+  },
+  "environment": {
+    "node": "v24.16.0",
+    "npm": "11.13.0",
+    "typescript": "Version 7.0.2",
+    "platform": "darwin",
+    "arch": "arm64",
+    "osRelease": "25.2.0",
+    "cpuModel": "Apple M4 Max",
+    "cpuCount": 16,
+    "totalMemoryBytes": 51539607552
+  },
+  "repository": {
+    "gitCommit": null,
+    "dirty": true,
+    "packageLockSha256": "7cd4bb8ad90cdfe88dbd2c0ba96bb32157e9253cbe3a527b4f07f35835dda5a4",
+    "runtimeSourceManifestSha256": "5938fed40b24acce81771686edfcf9a6e59133f27d69f369f436246158f0223b",
+    "applicationSourceManifestSha256": "021c5fa670fc10a688b3a8051095c6f3ba9fc279f2eb61ff7f7461a70e121a96"
+  },
+  "samples": [
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 219167,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 294792,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 1,
+      "value": 11583,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 1,
+      "value": 4125,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 2,
+      "value": 9417,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 2,
+      "value": 2958,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 3,
+      "value": 7250,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 3,
+      "value": 2166,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 4,
+      "value": 6125,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 4,
+      "value": 3083,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 5,
+      "value": 11792,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 5,
+      "value": 3667,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 6,
+      "value": 11459,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 6,
+      "value": 3709,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 7,
+      "value": 1958,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 7,
+      "value": 6958,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 8,
+      "value": 4417,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 8,
+      "value": 8000,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 9,
+      "value": 7834,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 9,
+      "value": 10375,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 14583,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 3291,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 1,
+      "value": 5083,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 1,
+      "value": 1333,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 2,
+      "value": 959,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 2,
+      "value": 4042,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 3,
+      "value": 2042,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 3,
+      "value": 1125,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 4,
+      "value": 2458,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 4,
+      "value": 917,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 5,
+      "value": 2750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 5,
+      "value": 1000,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 6,
+      "value": 2000,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 6,
+      "value": 875,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 7,
+      "value": 1750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 7,
+      "value": 833,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 8,
+      "value": 1792,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 8,
+      "value": 1167,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 9,
+      "value": 2125,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 9,
+      "value": 2292,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 10,
+      "value": 2125,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 10,
+      "value": 875,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 11,
+      "value": 667,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 11,
+      "value": 1792,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 12,
+      "value": 1750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 12,
+      "value": 2541,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 13,
+      "value": 1792,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 13,
+      "value": 667,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 14,
+      "value": 667,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 14,
+      "value": 1875,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 15,
+      "value": 708,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 15,
+      "value": 2917,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 16,
+      "value": 1667,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 16,
+      "value": 708,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 17,
+      "value": 1708,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 17,
+      "value": 667,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 18,
+      "value": 2875,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 18,
+      "value": 709,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 19,
+      "value": 1750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 19,
+      "value": 750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 20,
+      "value": 7291,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 20,
+      "value": 2917,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 21,
+      "value": 9875,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 21,
+      "value": 1125,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 22,
+      "value": 500,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 22,
+      "value": 3000,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 23,
+      "value": 625,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 23,
+      "value": 1416,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 24,
+      "value": 1167,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 24,
+      "value": 541,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 25,
+      "value": 2292,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 25,
+      "value": 542,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 26,
+      "value": 1166,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 26,
+      "value": 458,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 27,
+      "value": 375,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 27,
+      "value": 2125,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 28,
+      "value": 458,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 28,
+      "value": 1166,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 29,
+      "value": 1083,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 29,
+      "value": 1167,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 18375,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 167500,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 1,
+      "value": 4917,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 1,
+      "value": 2167,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 2,
+      "value": 1417,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 2,
+      "value": 4208,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 3,
+      "value": 2792,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 3,
+      "value": 1125,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 4,
+      "value": 4583,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 4,
+      "value": 1125,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 5,
+      "value": 958,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 5,
+      "value": 5916,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 6,
+      "value": 3042,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 6,
+      "value": 1208,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 7,
+      "value": 2583,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 7,
+      "value": 959,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 8,
+      "value": 15708,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 8,
+      "value": 1250,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 9,
+      "value": 1208,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 9,
+      "value": 8959,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 3500,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 1125,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 1,
+      "value": 666,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 1,
+      "value": 1500,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 2,
+      "value": 1833,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 2,
+      "value": 1291,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 3,
+      "value": 1375,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 3,
+      "value": 791,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 4,
+      "value": 1500,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 4,
+      "value": 708,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 5,
+      "value": 1666,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 5,
+      "value": 1208,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 6,
+      "value": 708,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 6,
+      "value": 1083,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 7,
+      "value": 708,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 7,
+      "value": 1042,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 8,
+      "value": 1625,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 8,
+      "value": 3334,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 9,
+      "value": 2958,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 9,
+      "value": 833,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 10,
+      "value": 1292,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 10,
+      "value": 709,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 11,
+      "value": 2000,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 11,
+      "value": 791,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 12,
+      "value": 625,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 12,
+      "value": 1041,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 13,
+      "value": 583,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 13,
+      "value": 875,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 14,
+      "value": 1625,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 14,
+      "value": 958,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 15,
+      "value": 666,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 15,
+      "value": 875,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 16,
+      "value": 750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 16,
+      "value": 709,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 17,
+      "value": 1667,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 17,
+      "value": 916,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 18,
+      "value": 750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 18,
+      "value": 875,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 19,
+      "value": 792,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 19,
+      "value": 708,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 20,
+      "value": 708,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 20,
+      "value": 959,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 21,
+      "value": 834,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 21,
+      "value": 709,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 22,
+      "value": 1500,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 22,
+      "value": 916,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 23,
+      "value": 708,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 23,
+      "value": 833,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 24,
+      "value": 666,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 24,
+      "value": 1166,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 25,
+      "value": 792,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 25,
+      "value": 1333,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 26,
+      "value": 709,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 26,
+      "value": 875,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 27,
+      "value": 667,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 27,
+      "value": 917,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 28,
+      "value": 708,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 28,
+      "value": 708,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 29,
+      "value": 666,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 29,
+      "value": 833,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 197500,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 35875,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 1,
+      "value": 24417,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 1,
+      "value": 9875,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 2,
+      "value": 7917,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 2,
+      "value": 16000,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 3,
+      "value": 17750,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 3,
+      "value": 3000,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 4,
+      "value": 21417,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 4,
+      "value": 4500,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 5,
+      "value": 1834,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 5,
+      "value": 16208,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 6,
+      "value": 12000,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 6,
+      "value": 3375,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 7,
+      "value": 1583,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 7,
+      "value": 10708,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 8,
+      "value": 3250,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 8,
+      "value": 16250,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 9,
+      "value": 18417,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 9,
+      "value": 2750,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 16667,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 2083,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 1,
+      "value": 13333,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 1,
+      "value": 1833,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 2,
+      "value": 1416,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 2,
+      "value": 10500,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 3,
+      "value": 1750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 3,
+      "value": 9375,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 4,
+      "value": 3417,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 4,
+      "value": 12125,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 5,
+      "value": 9958,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 5,
+      "value": 2292,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 6,
+      "value": 9459,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 6,
+      "value": 1834,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 7,
+      "value": 7541,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 7,
+      "value": 3041,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 8,
+      "value": 1458,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 8,
+      "value": 7584,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 9,
+      "value": 8292,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 9,
+      "value": 1667,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 10,
+      "value": 302250,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 10,
+      "value": 48959,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 11,
+      "value": 10167,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 11,
+      "value": 17291,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 12,
+      "value": 14542,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 12,
+      "value": 3542,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 13,
+      "value": 8917,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 13,
+      "value": 2208,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 14,
+      "value": 8000,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 14,
+      "value": 1875,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 15,
+      "value": 7625,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 15,
+      "value": 1833,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 16,
+      "value": 7167,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 16,
+      "value": 1750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 17,
+      "value": 1417,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 17,
+      "value": 12584,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 18,
+      "value": 2083,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 18,
+      "value": 7958,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 19,
+      "value": 1750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 19,
+      "value": 10291,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 20,
+      "value": 1917,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 20,
+      "value": 7750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 21,
+      "value": 1667,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 21,
+      "value": 21584,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 22,
+      "value": 9834,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 22,
+      "value": 2250,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 23,
+      "value": 1459,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 23,
+      "value": 7583,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 24,
+      "value": 1708,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 24,
+      "value": 7250,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 25,
+      "value": 2209,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 25,
+      "value": 6958,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 26,
+      "value": 6917,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 26,
+      "value": 1750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 27,
+      "value": 6958,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 27,
+      "value": 1625,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 28,
+      "value": 6750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 28,
+      "value": 1583,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 29,
+      "value": 1417,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 29,
+      "value": 6875,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 0,
+      "value": 63330500,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 1,
+      "value": 53026583,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 2,
+      "value": 49959250,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 3,
+      "value": 46254583,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 4,
+      "value": 46094209,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 5,
+      "value": 46240667,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 6,
+      "value": 47085041,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 7,
+      "value": 48223542,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 8,
+      "value": 50021167,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 9,
+      "value": 46938917,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 0,
+      "value": 47179042,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 1,
+      "value": 45330208,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 2,
+      "value": 45984625,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 3,
+      "value": 48614750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 4,
+      "value": 46296166,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 5,
+      "value": 46863833,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 6,
+      "value": 47387000,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 7,
+      "value": 49593500,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 8,
+      "value": 47453458,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 9,
+      "value": 52882833,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 10,
+      "value": 45966625,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 11,
+      "value": 45772500,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 12,
+      "value": 45007792,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 13,
+      "value": 43565041,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 14,
+      "value": 43408542,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 15,
+      "value": 45364042,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 16,
+      "value": 49317625,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 17,
+      "value": 45395000,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 18,
+      "value": 46713833,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 19,
+      "value": 45340416,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 20,
+      "value": 47750625,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 21,
+      "value": 46646208,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 22,
+      "value": 47341167,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 23,
+      "value": 47432541,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 24,
+      "value": 46305625,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 25,
+      "value": 46317041,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 26,
+      "value": 48285083,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 27,
+      "value": 43597833,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 28,
+      "value": 46538042,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 29,
+      "value": 45755916,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 31896833,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 45077291,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 1,
+      "value": 29154375,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 1,
+      "value": 40940583,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 2,
+      "value": 30241541,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 2,
+      "value": 42374166,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 3,
+      "value": 28324375,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 3,
+      "value": 41540209,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 4,
+      "value": 28290083,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 4,
+      "value": 40395375,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 5,
+      "value": 28575250,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 5,
+      "value": 40953417,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 6,
+      "value": 39981750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 6,
+      "value": 28527708,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 7,
+      "value": 41415333,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 7,
+      "value": 28677625,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 8,
+      "value": 39636250,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 8,
+      "value": 28169667,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 9,
+      "value": 28094833,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 9,
+      "value": 39690375,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 10,
+      "value": 27590125,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 10,
+      "value": 43874458,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 11,
+      "value": 41139958,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 11,
+      "value": 28463166,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 12,
+      "value": 28005458,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 12,
+      "value": 40608542,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 13,
+      "value": 28169250,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 13,
+      "value": 43609041,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 14,
+      "value": 42855125,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 14,
+      "value": 28074708,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 15,
+      "value": 46551791,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 15,
+      "value": 29653000,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 16,
+      "value": 26816750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 16,
+      "value": 41037917,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 17,
+      "value": 29732416,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 17,
+      "value": 43311875,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 18,
+      "value": 44646833,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 18,
+      "value": 28470375,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 19,
+      "value": 41294209,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 19,
+      "value": 27889042,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 20,
+      "value": 42723666,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 20,
+      "value": 29086541,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 21,
+      "value": 40962250,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 21,
+      "value": 27773625,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 22,
+      "value": 40698709,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 22,
+      "value": 28369875,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 23,
+      "value": 30250875,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 23,
+      "value": 41269542,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 24,
+      "value": 44079042,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 24,
+      "value": 30404958,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 25,
+      "value": 30093250,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 25,
+      "value": 43597167,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 26,
+      "value": 40822042,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 26,
+      "value": 27953459,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 27,
+      "value": 40849041,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 27,
+      "value": 30404250,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 28,
+      "value": 41607000,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 28,
+      "value": 28321125,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 29,
+      "value": 40946041,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 29,
+      "value": 26589125,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 278528,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 4096000,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 1,
+      "value": 196608,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 1,
+      "value": 4014080,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 2,
+      "value": 4276224,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 2,
+      "value": 327680,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 3,
+      "value": 376832,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 3,
+      "value": 4243456,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 4,
+      "value": 458752,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 4,
+      "value": 4177920,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 5,
+      "value": 196608,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 5,
+      "value": 4079616,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 6,
+      "value": 212992,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 6,
+      "value": 3899392,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 7,
+      "value": 114688,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 7,
+      "value": 4128768,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 8,
+      "value": 507904,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 8,
+      "value": 3964928,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 9,
+      "value": 344064,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 9,
+      "value": 4046848,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 10,
+      "value": 278528,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 10,
+      "value": 3981312,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 11,
+      "value": 4308992,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 11,
+      "value": 393216,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 12,
+      "value": 4030464,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 12,
+      "value": 180224,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 13,
+      "value": 311296,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 13,
+      "value": 4063232,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 14,
+      "value": 4177920,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 14,
+      "value": 131072,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 15,
+      "value": 3964928,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 15,
+      "value": 16384,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 16,
+      "value": 114688,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 16,
+      "value": 4145152,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 17,
+      "value": 3899392,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 17,
+      "value": 360448,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 18,
+      "value": 376832,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 18,
+      "value": 4407296,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 19,
+      "value": 4014080,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 19,
+      "value": 262144,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 20,
+      "value": 376832,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 20,
+      "value": 4079616,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 21,
+      "value": 360448,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 21,
+      "value": 4308992,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 22,
+      "value": 131072,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 22,
+      "value": 4145152,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 23,
+      "value": 4358144,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 23,
+      "value": 458752,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 24,
+      "value": 4112384,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 24,
+      "value": 327680,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 25,
+      "value": 360448,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 25,
+      "value": 4374528,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 26,
+      "value": 442368,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 26,
+      "value": 4489216,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 27,
+      "value": 327680,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 27,
+      "value": 4308992,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 28,
+      "value": 4161536,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 28,
+      "value": 409600,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "iteration": 29,
+      "value": 4521984,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "iteration": 29,
+      "value": 49152,
+      "unit": "bytes",
+      "phase": "measured"
+    }
+  ],
+  "summaries": [
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 30,
+        "min": 26589125,
+        "q1": 28079739.25,
+        "median": 28416520.5,
+        "q3": 29528343.75,
+        "p95": 30404639.4,
+        "max": 31896833,
+        "iqr": 1448604.5,
+        "samples": [
+          26589125,
+          26816750,
+          27590125,
+          27773625,
+          27889042,
+          27953459,
+          28005458,
+          28074708,
+          28094833,
+          28169250,
+          28169667,
+          28290083,
+          28321125,
+          28324375,
+          28369875,
+          28463166,
+          28470375,
+          28527708,
+          28575250,
+          28677625,
+          29086541,
+          29154375,
+          29653000,
+          29732416,
+          30093250,
+          30241541,
+          30250875,
+          30404250,
+          30404958,
+          31896833
+        ]
+      }
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 30,
+        "min": 39636250,
+        "q1": 40871926.5,
+        "median": 41281875.5,
+        "q3": 43197687.5,
+        "p95": 44883584.9,
+        "max": 46551791,
+        "iqr": 2325761,
+        "samples": [
+          39636250,
+          39690375,
+          39981750,
+          40395375,
+          40608542,
+          40698709,
+          40822042,
+          40849041,
+          40940583,
+          40946041,
+          40953417,
+          40962250,
+          41037917,
+          41139958,
+          41269542,
+          41294209,
+          41415333,
+          41540209,
+          41607000,
+          42374166,
+          42723666,
+          42855125,
+          43311875,
+          43597167,
+          43609041,
+          43874458,
+          44079042,
+          44646833,
+          45077291,
+          46551791
+        ]
+      }
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 30,
+        "min": 1083,
+        "q1": 1750,
+        "median": 2021,
+        "q3": 2843.75,
+        "p95": 8712.199999999993,
+        "max": 14583,
+        "iqr": 1093.75,
+        "samples": [
+          1083,
+          1166,
+          1166,
+          1167,
+          1416,
+          1667,
+          1708,
+          1750,
+          1750,
+          1750,
+          1792,
+          1792,
+          1792,
+          1875,
+          2000,
+          2042,
+          2125,
+          2125,
+          2292,
+          2292,
+          2458,
+          2750,
+          2875,
+          2917,
+          3000,
+          4042,
+          5083,
+          7291,
+          9875,
+          14583
+        ]
+      }
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 30,
+        "min": 375,
+        "q1": 667,
+        "median": 791.5,
+        "q3": 1125,
+        "p95": 2747.799999999999,
+        "max": 3291,
+        "iqr": 458,
+        "samples": [
+          375,
+          458,
+          458,
+          500,
+          541,
+          542,
+          625,
+          667,
+          667,
+          667,
+          667,
+          708,
+          708,
+          709,
+          750,
+          833,
+          875,
+          875,
+          917,
+          959,
+          1000,
+          1125,
+          1125,
+          1167,
+          1167,
+          1333,
+          2125,
+          2541,
+          2917,
+          3291
+        ]
+      }
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 30,
+        "min": 43408542,
+        "q1": 45485229,
+        "median": 46427541.5,
+        "q3": 47421155.75,
+        "p95": 49469356.25,
+        "max": 52882833,
+        "iqr": 1935926.75,
+        "samples": [
+          43408542,
+          43565041,
+          43597833,
+          45007792,
+          45330208,
+          45340416,
+          45364042,
+          45395000,
+          45755916,
+          45772500,
+          45966625,
+          45984625,
+          46296166,
+          46305625,
+          46317041,
+          46538042,
+          46646208,
+          46713833,
+          46863833,
+          47179042,
+          47341167,
+          47387000,
+          47432541,
+          47453458,
+          47750625,
+          48285083,
+          48614750,
+          49317625,
+          49593500,
+          52882833
+        ]
+      }
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "framework",
+      "unit": "bytes",
+      "distribution": {
+        "count": 30,
+        "min": 3899392,
+        "q1": 4034560,
+        "median": 4136960,
+        "q3": 4300800,
+        "p95": 4452352,
+        "max": 4521984,
+        "iqr": 266240,
+        "samples": [
+          3899392,
+          3899392,
+          3964928,
+          3964928,
+          3981312,
+          4014080,
+          4014080,
+          4030464,
+          4046848,
+          4063232,
+          4079616,
+          4079616,
+          4096000,
+          4112384,
+          4128768,
+          4145152,
+          4145152,
+          4161536,
+          4177920,
+          4177920,
+          4243456,
+          4276224,
+          4308992,
+          4308992,
+          4308992,
+          4358144,
+          4374528,
+          4407296,
+          4489216,
+          4521984
+        ]
+      }
+    },
+    {
+      "metric": "retained-rss-delta-100-systems",
+      "implementation": "plain",
+      "unit": "bytes",
+      "distribution": {
+        "count": 30,
+        "min": 16384,
+        "q1": 196608,
+        "median": 327680,
+        "q3": 376832,
+        "p95": 458752,
+        "max": 507904,
+        "iqr": 180224,
+        "samples": [
+          16384,
+          49152,
+          114688,
+          114688,
+          131072,
+          131072,
+          180224,
+          196608,
+          196608,
+          212992,
+          262144,
+          278528,
+          278528,
+          311296,
+          327680,
+          327680,
+          327680,
+          344064,
+          360448,
+          360448,
+          360448,
+          376832,
+          376832,
+          376832,
+          393216,
+          409600,
+          442368,
+          458752,
+          458752,
+          507904
+        ]
+      }
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 30,
+        "min": 1416,
+        "q1": 1667,
+        "median": 1833,
+        "q3": 2208.75,
+        "p95": 7185.749999999982,
+        "max": 302250,
+        "iqr": 541.75,
+        "samples": [
+          1416,
+          1417,
+          1417,
+          1458,
+          1459,
+          1583,
+          1625,
+          1667,
+          1667,
+          1708,
+          1750,
+          1750,
+          1750,
+          1750,
+          1833,
+          1833,
+          1834,
+          1875,
+          1917,
+          2083,
+          2083,
+          2208,
+          2209,
+          2250,
+          2292,
+          3041,
+          3417,
+          3542,
+          10167,
+          302250
+        ]
+      }
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 30,
+        "min": 6750,
+        "q1": 7551.5,
+        "median": 8604.5,
+        "q3": 11718.75,
+        "p95": 19652.149999999987,
+        "max": 48959,
+        "iqr": 4167.25,
+        "samples": [
+          6750,
+          6875,
+          6917,
+          6958,
+          6958,
+          7167,
+          7250,
+          7541,
+          7583,
+          7584,
+          7625,
+          7750,
+          7958,
+          8000,
+          8292,
+          8917,
+          9375,
+          9459,
+          9834,
+          9958,
+          10291,
+          10500,
+          12125,
+          12584,
+          13333,
+          14542,
+          16667,
+          17291,
+          21584,
+          48959
+        ]
+      }
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 30,
+        "min": 583,
+        "q1": 708,
+        "median": 709,
+        "q3": 822.75,
+        "p95": 1666.55,
+        "max": 1833,
+        "iqr": 114.75,
+        "samples": [
+          583,
+          625,
+          666,
+          666,
+          666,
+          666,
+          667,
+          708,
+          708,
+          708,
+          708,
+          708,
+          708,
+          708,
+          709,
+          709,
+          709,
+          709,
+          750,
+          791,
+          791,
+          792,
+          833,
+          1125,
+          1500,
+          1625,
+          1625,
+          1666,
+          1667,
+          1833
+        ]
+      }
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 30,
+        "min": 708,
+        "q1": 875,
+        "median": 1000,
+        "q3": 1322.75,
+        "p95": 3164.799999999999,
+        "max": 3500,
+        "iqr": 447.75,
+        "samples": [
+          708,
+          750,
+          792,
+          833,
+          833,
+          834,
+          875,
+          875,
+          875,
+          875,
+          916,
+          916,
+          917,
+          958,
+          959,
+          1041,
+          1042,
+          1083,
+          1166,
+          1208,
+          1291,
+          1292,
+          1333,
+          1375,
+          1500,
+          1500,
+          2000,
+          2958,
+          3334,
+          3500
+        ]
+      }
+    }
+  ],
+  "unavailable": [
+    {
+      "metric": "peak-rss",
+      "implementation": null,
+      "iteration": null,
+      "stage": "probe",
+      "reason": "The portable Node probe exposes retained RSS snapshots but not process peak RSS."
+    },
+    {
+      "metric": "clean-build",
+      "implementation": null,
+      "iteration": null,
+      "stage": "configuration",
+      "reason": "Toolchain metrics were not requested."
+    },
+    {
+      "metric": "full-typecheck",
+      "implementation": null,
+      "iteration": null,
+      "stage": "configuration",
+      "reason": "Toolchain metrics were not requested."
+    },
+    {
+      "metric": "incremental-verification",
+      "implementation": null,
+      "iteration": null,
+      "stage": "configuration",
+      "reason": "Toolchain metrics were not requested."
+    }
+  ]
+}

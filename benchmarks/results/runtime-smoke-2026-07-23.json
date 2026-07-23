@@ -1,0 +1,567 @@
+{
+  "schemaVersion": 1,
+  "kind": "runtime-benchmark",
+  "generatedAt": "2026-07-23T09:49:35.585Z",
+  "seed": "runtime-preregistered-v1",
+  "node": "v24.16.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "samples": [
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 221875,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 310792,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 14625,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 6750,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 1,
+      "value": 11666,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 1,
+      "value": 4083,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "iteration": 2,
+      "value": 2375,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "iteration": 2,
+      "value": 7709,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 28333,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 208875,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 7333,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 13875,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 1,
+      "value": 3958,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 1,
+      "value": 7000,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "iteration": 2,
+      "value": 1500,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "iteration": 2,
+      "value": 3833,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 231958,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 39917,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 33834,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 9583,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 1,
+      "value": 22792,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 1,
+      "value": 9000,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "iteration": 2,
+      "value": 2375,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "iteration": 2,
+      "value": 18917,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 0,
+      "value": 63091792,
+      "unit": "nanoseconds",
+      "phase": "warmup"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 0,
+      "value": 47622292,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 1,
+      "value": 47048917,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "iteration": 2,
+      "value": 45916500,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 34024583,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 46530916,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 1,
+      "value": 28560834,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 1,
+      "value": 42791667,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "iteration": 2,
+      "value": 30772292,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "iteration": 2,
+      "value": 42448291,
+      "unit": "nanoseconds",
+      "phase": "measured"
+    },
+    {
+      "metric": "resident-memory",
+      "implementation": "plain",
+      "iteration": 0,
+      "value": 475136,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "resident-memory",
+      "implementation": "framework",
+      "iteration": 0,
+      "value": 4161536,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "resident-memory",
+      "implementation": "plain",
+      "iteration": 1,
+      "value": 131072,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "resident-memory",
+      "implementation": "framework",
+      "iteration": 1,
+      "value": 4145152,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "resident-memory",
+      "implementation": "framework",
+      "iteration": 2,
+      "value": 4210688,
+      "unit": "bytes",
+      "phase": "measured"
+    },
+    {
+      "metric": "resident-memory",
+      "implementation": "plain",
+      "iteration": 2,
+      "value": 344064,
+      "unit": "bytes",
+      "phase": "measured"
+    }
+  ],
+  "summaries": [
+    {
+      "metric": "cold-start",
+      "implementation": "framework",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 3,
+        "min": 28560834,
+        "q1": 29666563,
+        "median": 30772292,
+        "q3": 32398437.5,
+        "p95": 33699353.9,
+        "max": 34024583,
+        "iqr": 2731874.5,
+        "samples": [
+          28560834,
+          30772292,
+          34024583
+        ]
+      }
+    },
+    {
+      "metric": "cold-start",
+      "implementation": "plain",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 3,
+        "min": 42448291,
+        "q1": 42619979,
+        "median": 42791667,
+        "q3": 44661291.5,
+        "p95": 46156991.1,
+        "max": 46530916,
+        "iqr": 2041312.5,
+        "samples": [
+          42448291,
+          42791667,
+          46530916
+        ]
+      }
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "framework",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 3,
+        "min": 7709,
+        "q1": 9687.5,
+        "median": 11666,
+        "q3": 13145.5,
+        "p95": 14329.1,
+        "max": 14625,
+        "iqr": 3458,
+        "samples": [
+          7709,
+          11666,
+          14625
+        ]
+      }
+    },
+    {
+      "metric": "command-dispatch",
+      "implementation": "plain",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 3,
+        "min": 2375,
+        "q1": 3229,
+        "median": 4083,
+        "q3": 5416.5,
+        "p95": 6483.299999999999,
+        "max": 6750,
+        "iqr": 2187.5,
+        "samples": [
+          2375,
+          4083,
+          6750
+        ]
+      }
+    },
+    {
+      "metric": "index-generation",
+      "implementation": "framework-only",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 3,
+        "min": 45916500,
+        "q1": 46482708.5,
+        "median": 47048917,
+        "q3": 47335604.5,
+        "p95": 47564954.5,
+        "max": 47622292,
+        "iqr": 852896,
+        "samples": [
+          45916500,
+          47048917,
+          47622292
+        ]
+      }
+    },
+    {
+      "metric": "resident-memory",
+      "implementation": "framework",
+      "unit": "bytes",
+      "distribution": {
+        "count": 3,
+        "min": 4145152,
+        "q1": 4153344,
+        "median": 4161536,
+        "q3": 4186112,
+        "p95": 4205772.8,
+        "max": 4210688,
+        "iqr": 32768,
+        "samples": [
+          4145152,
+          4161536,
+          4210688
+        ]
+      }
+    },
+    {
+      "metric": "resident-memory",
+      "implementation": "plain",
+      "unit": "bytes",
+      "distribution": {
+        "count": 3,
+        "min": 131072,
+        "q1": 237568,
+        "median": 344064,
+        "q3": 409600,
+        "p95": 462028.8,
+        "max": 475136,
+        "iqr": 172032,
+        "samples": [
+          131072,
+          344064,
+          475136
+        ]
+      }
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "framework",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 3,
+        "min": 2375,
+        "q1": 5687.5,
+        "median": 9000,
+        "q3": 9291.5,
+        "p95": 9524.7,
+        "max": 9583,
+        "iqr": 3604,
+        "samples": [
+          2375,
+          9000,
+          9583
+        ]
+      }
+    },
+    {
+      "metric": "schema-invalid",
+      "implementation": "plain",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 3,
+        "min": 18917,
+        "q1": 20854.5,
+        "median": 22792,
+        "q3": 28313,
+        "p95": 32729.8,
+        "max": 33834,
+        "iqr": 7458.5,
+        "samples": [
+          18917,
+          22792,
+          33834
+        ]
+      }
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "framework",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 3,
+        "min": 1500,
+        "q1": 2729,
+        "median": 3958,
+        "q3": 8916.5,
+        "p95": 12883.3,
+        "max": 13875,
+        "iqr": 6187.5,
+        "samples": [
+          1500,
+          3958,
+          13875
+        ]
+      }
+    },
+    {
+      "metric": "schema-valid",
+      "implementation": "plain",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 3,
+        "min": 3833,
+        "q1": 5416.5,
+        "median": 7000,
+        "q3": 7166.5,
+        "p95": 7299.7,
+        "max": 7333,
+        "iqr": 1750,
+        "samples": [
+          3833,
+          7000,
+          7333
+        ]
+      }
+    }
+  ],
+  "unavailable": [
+    {
+      "metric": "clean-build",
+      "reason": "Toolchain metrics were not requested."
+    },
+    {
+      "metric": "full-typecheck",
+      "reason": "Toolchain metrics were not requested."
+    },
+    {
+      "metric": "incremental-verification",
+      "reason": "Toolchain metrics were not requested."
+    }
+  ]
+}

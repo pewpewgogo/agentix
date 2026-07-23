@@ -1,0 +1,7 @@
+{
+  "files": [],
+  "references": [
+    { "path": "examples/shared-contract" },
+    { "path": "examples/plain-app" }
+  ]
+}

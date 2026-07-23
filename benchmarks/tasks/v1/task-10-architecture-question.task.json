@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "task-10-architecture-question",
+  "version": 1,
+  "category": "read-only-architecture-question",
+  "userRequest": "Without changing the workspace, explain where customer-creation timestamps originate, how tests replace that source deterministically, and the minimum production and test responsibilities that would change to select a different clock per tenant.",
+  "publicAcceptanceCriteria": [
+    "The answer traces the current timestamp path from system construction through customer creation to persisted and returned data.",
+    "The answer distinguishes production responsibilities from deterministic test replacement and names the relevant source locations.",
+    "The proposed per-tenant change preserves explicit dependency injection and does not introduce direct ambient time access in domain logic.",
+    "No workspace file is modified."
+  ],
+  "expectedPublicSurfaces": [
+    {
+      "kind": "answer",
+      "identifier": "final response",
+      "behavior": "A source-grounded read-only architecture explanation."
+    }
+  ],
+  "fixture": {
+    "framework": {
+      "manifest": "benchmarks/fixtures/v1/task-10-architecture-question/framework.fixture.json",
+      "sha256": "f8d99c06523e93792a838edf9c225cfc75d4f6a43a19a11da806cf993619d492"
+    },
+    "plain": {
+      "manifest": "benchmarks/fixtures/v1/task-10-architecture-question/plain.fixture.json",
+      "sha256": "13c600f9e66a98ef89564b43be62f71c986d1f568e45a64ddab729fec232d510"
+    }
+  },
+  "evaluator": {
+    "kind": "answer",
+    "answerFormat": "Concise explanation with repository-relative source locations and no patch.",
+    "hiddenManifest": "benchmarks/evaluator/hidden/v1/task-10-architecture-question.hidden.json",
+    "hiddenManifestSha256": "81a972e83a27d2f796d0aa4b60ef9c0e49a71b370c84f51423a03e27b7d10e25"
+  },
+  "maximumSeconds": 900,
+  "prohibitedShortcuts": [
+    "hard-code-evaluator-output",
+    "modify-evaluator-or-harness",
+    "delete-or-disable-tests",
+    "bypass-public-api",
+    "network-or-prior-solution-access",
+    "cross-arm-source-access",
+    "fixture-specific-production-branch"
+  ],
+  "networkPolicy": "disabled"
+}

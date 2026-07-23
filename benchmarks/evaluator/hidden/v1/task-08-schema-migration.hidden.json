@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "taskId": "task-08-schema-migration",
+  "taskVersion": 1,
+  "evaluatorVersion": 1,
+  "checks": [
+    {
+      "id": "migration-exactness-and-idempotence",
+      "kind": "black-box",
+      "implementations": ["framework", "plain"],
+      "driver": "migration-cli",
+      "scenario": "Migrate the supplied version-1 file, compare exact version-2 JSON values, then migrate that result again.",
+      "assertions": ["Decimal strings convert to exact integer cents without floating-point rounding.", "Ordering and business values are preserved.", "The second output is semantically identical to the first."]
+    },
+    {
+      "id": "migration-atomic-failures",
+      "kind": "black-box",
+      "implementations": ["framework", "plain"],
+      "driver": "migration-cli",
+      "scenario": "Run separate migrations with fractional mills, unsafe cents, duplicate IDs, malformed JSON, and an unknown version against a sentinel output file.",
+      "assertions": ["Every invalid input exits nonzero.", "The sentinel output is never truncated or replaced.", "No temporary file remains after failure."]
+    },
+    {
+      "id": "full-regression",
+      "kind": "regression-command",
+      "implementations": ["framework", "plain"],
+      "commandByImplementation": {
+        "framework": ["npm", "--workspace", "@agentix/framework-app", "test"],
+        "plain": ["npm", "--workspace", "@agentix/plain-app", "test"]
+      },
+      "expectedExitCode": 0
+    }
+  ],
+  "shortcutPolicy": {
+    "forbiddenModifiedPrefixes": ["benchmarks/evaluator", "benchmarks/harness", "benchmarks/results"],
+    "rejectDeletedTests": true,
+    "rejectFocusedOrSkippedTests": true,
+    "rejectNetworkUse": true,
+    "rejectCrossArmSources": true
+  }
+}

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+.agentix/index.json
+.agentix/source-manifest.json
+.agentix-tmp/
+benchmarks/.workspaces/
