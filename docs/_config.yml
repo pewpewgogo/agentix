@@ -1,0 +1,10 @@
+title: Agentix
+description: Explicit TypeScript architecture for bounded agent context.
+url: https://pewpewgogo.github.io
+baseurl: /agentix
+repository: pewpewgogo/agentix
+markdown: kramdown
+highlighter: rouge
+strict_front_matter: true
+exclude:
+  - README.md

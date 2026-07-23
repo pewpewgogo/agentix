@@ -31,6 +31,7 @@
     "benchmark:corpus:refresh": "node scripts/refresh-benchmark-freeze.mjs",
     "benchmark:harness:smoke": "vitest run benchmarks/harness/src/runner.test.ts",
     "benchmark:runtime:smoke": "npm run build && node benchmarks/runtime/dist/cli.js --smoke --no-process",
+    "benchmark:http-frameworks": "npm run build && node benchmarks/runtime/dist/http-comparison/cli.js",
     "verify": "npm run typecheck && npm test"
   },
   "devDependencies": {

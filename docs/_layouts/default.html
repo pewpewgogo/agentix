@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#102e36">
+    <meta name="description" content="{{ site.description | escape }}">
+    <title>{{ page.title | escape }} · {{ site.title | escape }}</title>
+    <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to documentation</a>
+
+    <div class="site-shell">
+      <aside class="rail">
+        <a class="brand" href="{{ '/' | relative_url }}" aria-label="Agentix documentation home">
+          <span class="brand-mark" aria-hidden="true">AX</span>
+          <span>
+            <strong>Agentix</strong>
+            <small>TypeScript framework</small>
+          </span>
+        </a>
+
+        <p class="rail-intro">
+          Explicit application architecture for people, tools, and coding agents.
+        </p>
+
+        <div class="status"><span></span> Research prototype · 0.0.0</div>
+
+        <details class="mobile-menu">
+          <summary>Documentation index</summary>
+          <div class="mobile-menu-content">
+            {% include navigation.html %}
+          </div>
+        </details>
+
+        <nav class="desktop-navigation" aria-label="Documentation">
+          {% include navigation.html %}
+        </nav>
+
+        <div class="rail-footer">
+          <a href="https://github.com/pewpewgogo/agentix">GitHub repository <span aria-hidden="true">↗</span></a>
+          <span>Ordinary TypeScript.<br>Machine-readable boundaries.</span>
+        </div>
+      </aside>
+
+      <main class="content" id="content">
+        <div class="content-meta">
+          <span>AGENT-ORIENTED APPLICATION FRAMEWORK</span>
+          {% if page.path == "index.md" %}
+            <a href="https://github.com/pewpewgogo/agentix/blob/main/docs/README.md">Edit this page <span aria-hidden="true">↗</span></a>
+          {% else %}
+            <a href="https://github.com/pewpewgogo/agentix/blob/main/docs/{{ page.path | escape }}">Edit this page <span aria-hidden="true">↗</span></a>
+          {% endif %}
+        </div>
+
+        <article class="prose">
+          {{ content }}
+        </article>
+
+        <footer class="content-footer">
+          <span>Agentix documentation</span>
+          <a href="{{ '/' | relative_url }}">Return to index ↑</a>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

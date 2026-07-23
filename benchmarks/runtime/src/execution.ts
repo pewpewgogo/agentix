@@ -96,6 +96,10 @@ export interface IsolatedRepository {
   dispose(): Promise<void>;
 }
 
+export interface IsolatedRepositoryOptions {
+  readonly includeInstalledDependencies?: boolean;
+}
+
 const isWithin = (parent: string, child: string): boolean => {
   const path = relative(parent, child);
   return path === "" || (!isAbsolute(path) && path !== ".." &&
@@ -231,6 +235,7 @@ const mirrorInstalledDependencies = async (
 
 export const createIsolatedRepository = async (
   repositoryRootInput: string,
+  options: IsolatedRepositoryOptions = {},
 ): Promise<IsolatedRepository> => {
   // Canonicalize first so macOS /var -> /private/var aliases cannot make a
   // repository-owned workspace symlink look external to the containment test.
@@ -250,7 +255,9 @@ export const createIsolatedRepository = async (
         return !(segments[0] === "benchmarks" && segments[1] === "results");
       },
     });
-    await mirrorInstalledDependencies(repositoryRoot, isolatedRoot);
+    if (options.includeInstalledDependencies !== false) {
+      await mirrorInstalledDependencies(repositoryRoot, isolatedRoot);
+    }
     return {
       root: isolatedRoot,
       async dispose() {
@@ -326,9 +333,15 @@ export const prepareBuiltArm = async (input: {
   readonly repositoryRoot: string;
   readonly arm: RuntimeArm;
   readonly executor?: RuntimeCommandExecutor;
+  readonly includeInstalledDependencies?: boolean;
 }): Promise<PreparedArmBuild> => {
   const executor = input.executor ?? systemCommandExecutor;
-  const isolated = await createIsolatedRepository(input.repositoryRoot);
+  const isolated = await createIsolatedRepository(
+    input.repositoryRoot,
+    input.includeInstalledDependencies === undefined
+      ? {}
+      : { includeInstalledDependencies: input.includeInstalledDependencies },
+  );
   const command = Object.freeze([
     "npm",
     "run",

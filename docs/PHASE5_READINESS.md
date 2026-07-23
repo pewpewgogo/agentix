@@ -104,13 +104,19 @@ The generated framework index was byte-identical across repeated generation:
 sha256 e99d9ea8e50b205a2497f1cb08c3d5a5894f377b5b37fe269dbae659289ab8b2
 ```
 
-The final corpus hashes are:
+The Phase 5 freeze hashes, before D-028 added isolated comparison dependencies,
+are:
 
 ```text
 base inventory f2cc4306e5e29849b4f1f00230057b0a114b4b53a68653b8945ea63747d0e87c
 corpus lock    48deddc989e7dab69eeab9fa88759484531a3b424e771d6d2ec5560a40aef08e
 package lock   2afb6c7e2c1f635d22f3481dd9ee9961e8acc927a131ac609267e5ad654d8c8e
 ```
+
+The current root package-lock SHA-256 after adding the D-028 exploratory
+Express/NestJS runner is
+`855bc97725ce43b3dbbfae4b7fa63f4ebd12c8365783a8654e86742769f46085`.
+The frozen fixture profile uses its own unchanged lockfile.
 
 ## Phase 6 blockers
 
