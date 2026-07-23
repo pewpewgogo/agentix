@@ -1,0 +1,24 @@
+<div class="nav-group">
+  <span class="nav-label">Start</span>
+  <a href="{{ '/' | relative_url }}"{% if page.url == '/' %} aria-current="page"{% endif %}>Documentation home</a>
+  <a href="{{ '/GETTING_STARTED.html' | relative_url }}"{% if page.url == '/GETTING_STARTED.html' %} aria-current="page"{% endif %}>Getting started</a>
+</div>
+
+<div class="nav-group">
+  <span class="nav-label">Build</span>
+  <a href="{{ '/CORE_CONCEPTS.html' | relative_url }}"{% if page.url == '/CORE_CONCEPTS.html' %} aria-current="page"{% endif %}>Core concepts</a>
+  <a href="{{ '/HTTP.html' | relative_url }}"{% if page.url == '/HTTP.html' %} aria-current="page"{% endif %}>HTTP adapter</a>
+  <a href="{{ '/TESTING.html' | relative_url }}"{% if page.url == '/TESTING.html' %} aria-current="page"{% endif %}>Testing</a>
+  <a href="{{ '/CLI.html' | relative_url }}"{% if page.url == '/CLI.html' %} aria-current="page"{% endif %}>CLI and index</a>
+  <a href="{{ '/API_REFERENCE.html' | relative_url }}"{% if page.url == '/API_REFERENCE.html' %} aria-current="page"{% endif %}>API reference</a>
+  <a href="{{ '/DEVELOPMENT.html' | relative_url }}"{% if page.url == '/DEVELOPMENT.html' %} aria-current="page"{% endif %}>Development</a>
+</div>
+
+<div class="nav-group">
+  <span class="nav-label">Research</span>
+  <a href="{{ '/HYPOTHESIS.html' | relative_url }}"{% if page.url == '/HYPOTHESIS.html' %} aria-current="page"{% endif %}>Hypothesis</a>
+  <a href="{{ '/BENCHMARK_PROTOCOL.html' | relative_url }}"{% if page.url == '/BENCHMARK_PROTOCOL.html' %} aria-current="page"{% endif %}>Benchmark protocol</a>
+  <a href="{{ '/HTTP_FRAMEWORK_BENCHMARK.html' | relative_url }}"{% if page.url == '/HTTP_FRAMEWORK_BENCHMARK.html' %} aria-current="page"{% endif %}>HTTP benchmark</a>
+  <a href="{{ '/LIMITATIONS.html' | relative_url }}"{% if page.url == '/LIMITATIONS.html' %} aria-current="page"{% endif %}>Limitations</a>
+  <a href="{{ '/DECISIONS.html' | relative_url }}"{% if page.url == '/DECISIONS.html' %} aria-current="page"{% endif %}>Decision log</a>
+</div>

@@ -88,3 +88,26 @@ create-only protocol provide the integrity check.
 Smoke numbers validate executability and can help set budgets before
 confirmatory agent results are observed. They are not confirmatory evidence for
 the primary hypothesis.
+
+## Exploratory HTTP-framework comparison
+
+The separate comparison runner exercises identical real loopback `POST /echo`
+endpoints on three configured stacks:
+
+- Agentix with its Node HTTP adapter;
+- Express 5.2.1;
+- NestJS 11.1.28 on its default Express adapter.
+
+```sh
+npm run benchmark:http-frameworks
+```
+
+The runner uses seeded three-stack blocks, a dedicated keep-alive client for
+each ready server, complete response consumption, fresh child processes for
+cold-ready and memory observations, and raw distributions for valid and invalid
+requests. Every report is explicitly exploratory and ineligible for use as a
+confirmatory result under the preregistered Agentix-versus-plain hypothesis.
+
+This microbenchmark measures the configured HTTP stacks, not framework cores.
+NestJS includes Express, loopback and JSON costs can dominate, and one echo
+route does not predict commerce-application or agent-maintenance performance.

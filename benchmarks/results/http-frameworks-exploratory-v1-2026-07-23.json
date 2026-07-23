@@ -1,0 +1,6587 @@
+{
+  "schemaVersion": 1,
+  "kind": "agentix-http-framework-comparison",
+  "classification": "exploratory",
+  "eligibleForConfirmatoryUse": false,
+  "generatedAt": "2026-07-23T11:48:39.828Z",
+  "seed": "agentix-http-frameworks-exploratory-v1-2026-07-23",
+  "configuration": {
+    "warmupIterations": 10,
+    "measuredIterations": 100,
+    "processIterations": 5,
+    "processMetrics": true
+  },
+  "environment": {
+    "node": "v24.16.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "osRelease": "25.2.0",
+    "cpuModel": "Apple M4 Max",
+    "cpuCount": 16,
+    "totalMemoryBytes": 51539607552
+  },
+  "repository": {
+    "gitCommit": "9ab2948002193426d9f0b0eb6d4d0ba8b87ed60a",
+    "dirty": true,
+    "packageLockSha256": "855bc97725ce43b3dbbfae4b7fa63f4ebd12c8365783a8654e86742769f46085",
+    "comparisonSourceSha256": "efcb6db8dfb4221f071488fc17adb80e3ba5bc594a79d3367f5b3bcf00a09d08"
+  },
+  "dependencies": {
+    "agentix": "0.0.0",
+    "express": "5.2.1",
+    "nestjsCore": "11.1.28",
+    "nestjsPlatformExpress": "11.1.28"
+  },
+  "measurementPlanSha256": "c90319d39da34a8872e986a66c632718a52278da883e7acfb22abecaf94c1664",
+  "samples": [
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 0,
+      "phase": "warmup",
+      "value": 6636125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 0,
+      "phase": "warmup",
+      "value": 1320791,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 0,
+      "phase": "warmup",
+      "value": 3595083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 1,
+      "phase": "warmup",
+      "value": 553708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 1,
+      "phase": "warmup",
+      "value": 883792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 1,
+      "phase": "warmup",
+      "value": 575292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 2,
+      "phase": "warmup",
+      "value": 813834,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 2,
+      "phase": "warmup",
+      "value": 529750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 2,
+      "phase": "warmup",
+      "value": 596875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 3,
+      "phase": "warmup",
+      "value": 528625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 3,
+      "phase": "warmup",
+      "value": 339208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 3,
+      "phase": "warmup",
+      "value": 296625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 4,
+      "phase": "warmup",
+      "value": 469250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 4,
+      "phase": "warmup",
+      "value": 324542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 4,
+      "phase": "warmup",
+      "value": 419625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 5,
+      "phase": "warmup",
+      "value": 536542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 5,
+      "phase": "warmup",
+      "value": 271958,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 5,
+      "phase": "warmup",
+      "value": 277416,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 6,
+      "phase": "warmup",
+      "value": 214250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 6,
+      "phase": "warmup",
+      "value": 372125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 6,
+      "phase": "warmup",
+      "value": 172375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 7,
+      "phase": "warmup",
+      "value": 172500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 7,
+      "phase": "warmup",
+      "value": 423292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 7,
+      "phase": "warmup",
+      "value": 219541,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 8,
+      "phase": "warmup",
+      "value": 864042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 8,
+      "phase": "warmup",
+      "value": 396792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 8,
+      "phase": "warmup",
+      "value": 270167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 9,
+      "phase": "warmup",
+      "value": 352041,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 9,
+      "phase": "warmup",
+      "value": 478125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 9,
+      "phase": "warmup",
+      "value": 266417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 0,
+      "phase": "measured",
+      "value": 340000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 0,
+      "phase": "measured",
+      "value": 243375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 0,
+      "phase": "measured",
+      "value": 241375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 1,
+      "phase": "measured",
+      "value": 185000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 1,
+      "phase": "measured",
+      "value": 199292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 1,
+      "phase": "measured",
+      "value": 258084,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 2,
+      "phase": "measured",
+      "value": 232666,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 2,
+      "phase": "measured",
+      "value": 232959,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 2,
+      "phase": "measured",
+      "value": 251750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 3,
+      "phase": "measured",
+      "value": 294708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 3,
+      "phase": "measured",
+      "value": 211959,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 3,
+      "phase": "measured",
+      "value": 223000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 4,
+      "phase": "measured",
+      "value": 221708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 4,
+      "phase": "measured",
+      "value": 735583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 4,
+      "phase": "measured",
+      "value": 223667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 5,
+      "phase": "measured",
+      "value": 204500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 5,
+      "phase": "measured",
+      "value": 302333,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 5,
+      "phase": "measured",
+      "value": 294666,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 6,
+      "phase": "measured",
+      "value": 217083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 6,
+      "phase": "measured",
+      "value": 350750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 6,
+      "phase": "measured",
+      "value": 304583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 7,
+      "phase": "measured",
+      "value": 173708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 7,
+      "phase": "measured",
+      "value": 253042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 7,
+      "phase": "measured",
+      "value": 158625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 8,
+      "phase": "measured",
+      "value": 136917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 8,
+      "phase": "measured",
+      "value": 212750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 8,
+      "phase": "measured",
+      "value": 262750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 9,
+      "phase": "measured",
+      "value": 153000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 9,
+      "phase": "measured",
+      "value": 209416,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 9,
+      "phase": "measured",
+      "value": 128750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 10,
+      "phase": "measured",
+      "value": 124000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 10,
+      "phase": "measured",
+      "value": 223625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 10,
+      "phase": "measured",
+      "value": 315083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 11,
+      "phase": "measured",
+      "value": 205291,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 11,
+      "phase": "measured",
+      "value": 301334,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 11,
+      "phase": "measured",
+      "value": 312666,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 12,
+      "phase": "measured",
+      "value": 186375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 12,
+      "phase": "measured",
+      "value": 161541,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 12,
+      "phase": "measured",
+      "value": 276417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 13,
+      "phase": "measured",
+      "value": 208458,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 13,
+      "phase": "measured",
+      "value": 351542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 13,
+      "phase": "measured",
+      "value": 232167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 14,
+      "phase": "measured",
+      "value": 215375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 14,
+      "phase": "measured",
+      "value": 250792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 14,
+      "phase": "measured",
+      "value": 262667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 15,
+      "phase": "measured",
+      "value": 363083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 15,
+      "phase": "measured",
+      "value": 204708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 15,
+      "phase": "measured",
+      "value": 146250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 16,
+      "phase": "measured",
+      "value": 328750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 16,
+      "phase": "measured",
+      "value": 221917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 16,
+      "phase": "measured",
+      "value": 242125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 17,
+      "phase": "measured",
+      "value": 293500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 17,
+      "phase": "measured",
+      "value": 330875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 17,
+      "phase": "measured",
+      "value": 323625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 18,
+      "phase": "measured",
+      "value": 363750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 18,
+      "phase": "measured",
+      "value": 225125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 18,
+      "phase": "measured",
+      "value": 221333,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 19,
+      "phase": "measured",
+      "value": 204708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 19,
+      "phase": "measured",
+      "value": 239792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 19,
+      "phase": "measured",
+      "value": 178375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 20,
+      "phase": "measured",
+      "value": 204500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 20,
+      "phase": "measured",
+      "value": 177667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 20,
+      "phase": "measured",
+      "value": 195625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 21,
+      "phase": "measured",
+      "value": 214500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 21,
+      "phase": "measured",
+      "value": 150250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 21,
+      "phase": "measured",
+      "value": 150458,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 22,
+      "phase": "measured",
+      "value": 127292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 22,
+      "phase": "measured",
+      "value": 222083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 22,
+      "phase": "measured",
+      "value": 201625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 23,
+      "phase": "measured",
+      "value": 149125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 23,
+      "phase": "measured",
+      "value": 334834,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 23,
+      "phase": "measured",
+      "value": 192500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 24,
+      "phase": "measured",
+      "value": 291500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 24,
+      "phase": "measured",
+      "value": 171625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 24,
+      "phase": "measured",
+      "value": 159250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 25,
+      "phase": "measured",
+      "value": 150708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 25,
+      "phase": "measured",
+      "value": 283208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 25,
+      "phase": "measured",
+      "value": 179375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 26,
+      "phase": "measured",
+      "value": 239000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 26,
+      "phase": "measured",
+      "value": 167500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 26,
+      "phase": "measured",
+      "value": 169291,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 27,
+      "phase": "measured",
+      "value": 198792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 27,
+      "phase": "measured",
+      "value": 153666,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 27,
+      "phase": "measured",
+      "value": 126875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 28,
+      "phase": "measured",
+      "value": 178083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 28,
+      "phase": "measured",
+      "value": 146666,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 28,
+      "phase": "measured",
+      "value": 132875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 29,
+      "phase": "measured",
+      "value": 114584,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 29,
+      "phase": "measured",
+      "value": 192583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 29,
+      "phase": "measured",
+      "value": 197625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 30,
+      "phase": "measured",
+      "value": 227583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 30,
+      "phase": "measured",
+      "value": 172625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 30,
+      "phase": "measured",
+      "value": 472000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 31,
+      "phase": "measured",
+      "value": 322500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 31,
+      "phase": "measured",
+      "value": 728417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 31,
+      "phase": "measured",
+      "value": 191500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 32,
+      "phase": "measured",
+      "value": 223584,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 32,
+      "phase": "measured",
+      "value": 166958,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 32,
+      "phase": "measured",
+      "value": 149166,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 33,
+      "phase": "measured",
+      "value": 187542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 33,
+      "phase": "measured",
+      "value": 158459,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 33,
+      "phase": "measured",
+      "value": 213792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 34,
+      "phase": "measured",
+      "value": 182375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 34,
+      "phase": "measured",
+      "value": 136041,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 34,
+      "phase": "measured",
+      "value": 121500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 35,
+      "phase": "measured",
+      "value": 160667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 35,
+      "phase": "measured",
+      "value": 130084,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 35,
+      "phase": "measured",
+      "value": 159375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 36,
+      "phase": "measured",
+      "value": 247917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 36,
+      "phase": "measured",
+      "value": 165833,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 36,
+      "phase": "measured",
+      "value": 124916,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 37,
+      "phase": "measured",
+      "value": 184709,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 37,
+      "phase": "measured",
+      "value": 133000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 37,
+      "phase": "measured",
+      "value": 129625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 38,
+      "phase": "measured",
+      "value": 140917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 38,
+      "phase": "measured",
+      "value": 162708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 38,
+      "phase": "measured",
+      "value": 147916,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 39,
+      "phase": "measured",
+      "value": 142542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 39,
+      "phase": "measured",
+      "value": 159417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 39,
+      "phase": "measured",
+      "value": 130125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 40,
+      "phase": "measured",
+      "value": 216667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 40,
+      "phase": "measured",
+      "value": 199250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 40,
+      "phase": "measured",
+      "value": 192333,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 41,
+      "phase": "measured",
+      "value": 200417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 41,
+      "phase": "measured",
+      "value": 221125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 41,
+      "phase": "measured",
+      "value": 127084,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 42,
+      "phase": "measured",
+      "value": 154083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 42,
+      "phase": "measured",
+      "value": 142417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 42,
+      "phase": "measured",
+      "value": 109000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 43,
+      "phase": "measured",
+      "value": 150667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 43,
+      "phase": "measured",
+      "value": 211458,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 43,
+      "phase": "measured",
+      "value": 214500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 44,
+      "phase": "measured",
+      "value": 233375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 44,
+      "phase": "measured",
+      "value": 293541,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 44,
+      "phase": "measured",
+      "value": 175833,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 45,
+      "phase": "measured",
+      "value": 181750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 45,
+      "phase": "measured",
+      "value": 167125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 45,
+      "phase": "measured",
+      "value": 178500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 46,
+      "phase": "measured",
+      "value": 138125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 46,
+      "phase": "measured",
+      "value": 234875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 46,
+      "phase": "measured",
+      "value": 251917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 47,
+      "phase": "measured",
+      "value": 215375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 47,
+      "phase": "measured",
+      "value": 197500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 47,
+      "phase": "measured",
+      "value": 155083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 48,
+      "phase": "measured",
+      "value": 148500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 48,
+      "phase": "measured",
+      "value": 153667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 48,
+      "phase": "measured",
+      "value": 105667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 49,
+      "phase": "measured",
+      "value": 138833,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 49,
+      "phase": "measured",
+      "value": 107084,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 49,
+      "phase": "measured",
+      "value": 117250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 50,
+      "phase": "measured",
+      "value": 114042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 50,
+      "phase": "measured",
+      "value": 115583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 50,
+      "phase": "measured",
+      "value": 156042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 51,
+      "phase": "measured",
+      "value": 145333,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 51,
+      "phase": "measured",
+      "value": 113833,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 51,
+      "phase": "measured",
+      "value": 108042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 52,
+      "phase": "measured",
+      "value": 156583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 52,
+      "phase": "measured",
+      "value": 199167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 52,
+      "phase": "measured",
+      "value": 114125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 53,
+      "phase": "measured",
+      "value": 185417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 53,
+      "phase": "measured",
+      "value": 218834,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 53,
+      "phase": "measured",
+      "value": 132958,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 54,
+      "phase": "measured",
+      "value": 153375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 54,
+      "phase": "measured",
+      "value": 142292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 54,
+      "phase": "measured",
+      "value": 116042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 55,
+      "phase": "measured",
+      "value": 170542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 55,
+      "phase": "measured",
+      "value": 112750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 55,
+      "phase": "measured",
+      "value": 103875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 56,
+      "phase": "measured",
+      "value": 124042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 56,
+      "phase": "measured",
+      "value": 112083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 56,
+      "phase": "measured",
+      "value": 145209,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 57,
+      "phase": "measured",
+      "value": 117916,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 57,
+      "phase": "measured",
+      "value": 207125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 57,
+      "phase": "measured",
+      "value": 113583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 58,
+      "phase": "measured",
+      "value": 173042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 58,
+      "phase": "measured",
+      "value": 121084,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 58,
+      "phase": "measured",
+      "value": 128541,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 59,
+      "phase": "measured",
+      "value": 162000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 59,
+      "phase": "measured",
+      "value": 166125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 59,
+      "phase": "measured",
+      "value": 124583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 60,
+      "phase": "measured",
+      "value": 123833,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 60,
+      "phase": "measured",
+      "value": 190958,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 60,
+      "phase": "measured",
+      "value": 126541,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 61,
+      "phase": "measured",
+      "value": 320875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 61,
+      "phase": "measured",
+      "value": 478709,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 61,
+      "phase": "measured",
+      "value": 407042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 62,
+      "phase": "measured",
+      "value": 232125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 62,
+      "phase": "measured",
+      "value": 241292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 62,
+      "phase": "measured",
+      "value": 326958,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 63,
+      "phase": "measured",
+      "value": 217167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 63,
+      "phase": "measured",
+      "value": 141250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 63,
+      "phase": "measured",
+      "value": 141667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 64,
+      "phase": "measured",
+      "value": 182208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 64,
+      "phase": "measured",
+      "value": 150542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 64,
+      "phase": "measured",
+      "value": 204250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 65,
+      "phase": "measured",
+      "value": 255209,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 65,
+      "phase": "measured",
+      "value": 206375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 65,
+      "phase": "measured",
+      "value": 217833,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 66,
+      "phase": "measured",
+      "value": 335417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 66,
+      "phase": "measured",
+      "value": 129667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 66,
+      "phase": "measured",
+      "value": 123292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 67,
+      "phase": "measured",
+      "value": 168250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 67,
+      "phase": "measured",
+      "value": 130084,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 67,
+      "phase": "measured",
+      "value": 101042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 68,
+      "phase": "measured",
+      "value": 112917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 68,
+      "phase": "measured",
+      "value": 96208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 68,
+      "phase": "measured",
+      "value": 142000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 69,
+      "phase": "measured",
+      "value": 117792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 69,
+      "phase": "measured",
+      "value": 173416,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 69,
+      "phase": "measured",
+      "value": 130000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 70,
+      "phase": "measured",
+      "value": 117166,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 70,
+      "phase": "measured",
+      "value": 156750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 70,
+      "phase": "measured",
+      "value": 98167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 71,
+      "phase": "measured",
+      "value": 116417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 71,
+      "phase": "measured",
+      "value": 102834,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 71,
+      "phase": "measured",
+      "value": 150458,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 72,
+      "phase": "measured",
+      "value": 302000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 72,
+      "phase": "measured",
+      "value": 202041,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 72,
+      "phase": "measured",
+      "value": 158667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 73,
+      "phase": "measured",
+      "value": 111583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 73,
+      "phase": "measured",
+      "value": 117208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 73,
+      "phase": "measured",
+      "value": 189084,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 74,
+      "phase": "measured",
+      "value": 195292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 74,
+      "phase": "measured",
+      "value": 153042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 74,
+      "phase": "measured",
+      "value": 279250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 75,
+      "phase": "measured",
+      "value": 470625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 75,
+      "phase": "measured",
+      "value": 212667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 75,
+      "phase": "measured",
+      "value": 295417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 76,
+      "phase": "measured",
+      "value": 223917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 76,
+      "phase": "measured",
+      "value": 170625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 76,
+      "phase": "measured",
+      "value": 181000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 77,
+      "phase": "measured",
+      "value": 142000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 77,
+      "phase": "measured",
+      "value": 169584,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 77,
+      "phase": "measured",
+      "value": 174709,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 78,
+      "phase": "measured",
+      "value": 134417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 78,
+      "phase": "measured",
+      "value": 121083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 78,
+      "phase": "measured",
+      "value": 152333,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 79,
+      "phase": "measured",
+      "value": 156625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 79,
+      "phase": "measured",
+      "value": 124209,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 79,
+      "phase": "measured",
+      "value": 119709,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 80,
+      "phase": "measured",
+      "value": 109750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 80,
+      "phase": "measured",
+      "value": 96042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 80,
+      "phase": "measured",
+      "value": 129917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 81,
+      "phase": "measured",
+      "value": 126041,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 81,
+      "phase": "measured",
+      "value": 135250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 81,
+      "phase": "measured",
+      "value": 140125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 82,
+      "phase": "measured",
+      "value": 105375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 82,
+      "phase": "measured",
+      "value": 135834,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 82,
+      "phase": "measured",
+      "value": 89000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 83,
+      "phase": "measured",
+      "value": 127959,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 83,
+      "phase": "measured",
+      "value": 95625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 83,
+      "phase": "measured",
+      "value": 100542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 84,
+      "phase": "measured",
+      "value": 138958,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 84,
+      "phase": "measured",
+      "value": 100208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 84,
+      "phase": "measured",
+      "value": 97084,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 85,
+      "phase": "measured",
+      "value": 125917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 85,
+      "phase": "measured",
+      "value": 101541,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 85,
+      "phase": "measured",
+      "value": 119750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 86,
+      "phase": "measured",
+      "value": 133334,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 86,
+      "phase": "measured",
+      "value": 101292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 86,
+      "phase": "measured",
+      "value": 104792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 87,
+      "phase": "measured",
+      "value": 91500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 87,
+      "phase": "measured",
+      "value": 161166,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 87,
+      "phase": "measured",
+      "value": 94584,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 88,
+      "phase": "measured",
+      "value": 125500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 88,
+      "phase": "measured",
+      "value": 89875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 88,
+      "phase": "measured",
+      "value": 91000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 89,
+      "phase": "measured",
+      "value": 83041,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 89,
+      "phase": "measured",
+      "value": 124334,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 89,
+      "phase": "measured",
+      "value": 88542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 90,
+      "phase": "measured",
+      "value": 127000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 90,
+      "phase": "measured",
+      "value": 98500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 90,
+      "phase": "measured",
+      "value": 88291,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 91,
+      "phase": "measured",
+      "value": 126250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 91,
+      "phase": "measured",
+      "value": 156125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 91,
+      "phase": "measured",
+      "value": 115375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 92,
+      "phase": "measured",
+      "value": 111208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 92,
+      "phase": "measured",
+      "value": 135750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 92,
+      "phase": "measured",
+      "value": 274667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 93,
+      "phase": "measured",
+      "value": 160042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 93,
+      "phase": "measured",
+      "value": 124208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 93,
+      "phase": "measured",
+      "value": 258750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 94,
+      "phase": "measured",
+      "value": 195542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 94,
+      "phase": "measured",
+      "value": 218000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 94,
+      "phase": "measured",
+      "value": 231417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 95,
+      "phase": "measured",
+      "value": 151625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 95,
+      "phase": "measured",
+      "value": 167125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 95,
+      "phase": "measured",
+      "value": 207125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 96,
+      "phase": "measured",
+      "value": 123875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 96,
+      "phase": "measured",
+      "value": 107667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 96,
+      "phase": "measured",
+      "value": 145250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 97,
+      "phase": "measured",
+      "value": 118416,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 97,
+      "phase": "measured",
+      "value": 107541,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 97,
+      "phase": "measured",
+      "value": 144250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 98,
+      "phase": "measured",
+      "value": 114667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 98,
+      "phase": "measured",
+      "value": 117917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 98,
+      "phase": "measured",
+      "value": 133792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "iteration": 99,
+      "phase": "measured",
+      "value": 182667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "iteration": 99,
+      "phase": "measured",
+      "value": 207667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "iteration": 99,
+      "phase": "measured",
+      "value": 142000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 0,
+      "phase": "warmup",
+      "value": 140708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 0,
+      "phase": "warmup",
+      "value": 358458,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 0,
+      "phase": "warmup",
+      "value": 258417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 1,
+      "phase": "warmup",
+      "value": 283000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 1,
+      "phase": "warmup",
+      "value": 150292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 1,
+      "phase": "warmup",
+      "value": 131625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 2,
+      "phase": "warmup",
+      "value": 118333,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 2,
+      "phase": "warmup",
+      "value": 102125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 2,
+      "phase": "warmup",
+      "value": 135958,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 3,
+      "phase": "warmup",
+      "value": 115208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 3,
+      "phase": "warmup",
+      "value": 85000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 3,
+      "phase": "warmup",
+      "value": 160834,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 4,
+      "phase": "warmup",
+      "value": 138417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 4,
+      "phase": "warmup",
+      "value": 145666,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 4,
+      "phase": "warmup",
+      "value": 111792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 5,
+      "phase": "warmup",
+      "value": 137375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 5,
+      "phase": "warmup",
+      "value": 88292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 5,
+      "phase": "warmup",
+      "value": 115250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 6,
+      "phase": "warmup",
+      "value": 102125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 6,
+      "phase": "warmup",
+      "value": 122542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 6,
+      "phase": "warmup",
+      "value": 87750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 7,
+      "phase": "warmup",
+      "value": 114791,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 7,
+      "phase": "warmup",
+      "value": 108167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 7,
+      "phase": "warmup",
+      "value": 79708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 8,
+      "phase": "warmup",
+      "value": 105709,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 8,
+      "phase": "warmup",
+      "value": 80750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 8,
+      "phase": "warmup",
+      "value": 150459,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 9,
+      "phase": "warmup",
+      "value": 166209,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 9,
+      "phase": "warmup",
+      "value": 150041,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 9,
+      "phase": "warmup",
+      "value": 108834,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 0,
+      "phase": "measured",
+      "value": 253167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 0,
+      "phase": "measured",
+      "value": 241959,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 0,
+      "phase": "measured",
+      "value": 234542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 1,
+      "phase": "measured",
+      "value": 207375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 1,
+      "phase": "measured",
+      "value": 250750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 1,
+      "phase": "measured",
+      "value": 175291,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 2,
+      "phase": "measured",
+      "value": 166125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 2,
+      "phase": "measured",
+      "value": 175667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 2,
+      "phase": "measured",
+      "value": 130708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 3,
+      "phase": "measured",
+      "value": 131416,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 3,
+      "phase": "measured",
+      "value": 177333,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 3,
+      "phase": "measured",
+      "value": 154375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 4,
+      "phase": "measured",
+      "value": 170666,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 4,
+      "phase": "measured",
+      "value": 123375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 4,
+      "phase": "measured",
+      "value": 103208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 5,
+      "phase": "measured",
+      "value": 136791,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 5,
+      "phase": "measured",
+      "value": 132875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 5,
+      "phase": "measured",
+      "value": 96417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 6,
+      "phase": "measured",
+      "value": 98125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 6,
+      "phase": "measured",
+      "value": 147042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 6,
+      "phase": "measured",
+      "value": 193250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 7,
+      "phase": "measured",
+      "value": 124750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 7,
+      "phase": "measured",
+      "value": 144792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 7,
+      "phase": "measured",
+      "value": 198000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 8,
+      "phase": "measured",
+      "value": 141417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 8,
+      "phase": "measured",
+      "value": 109667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 8,
+      "phase": "measured",
+      "value": 182000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 9,
+      "phase": "measured",
+      "value": 158375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 9,
+      "phase": "measured",
+      "value": 116583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 9,
+      "phase": "measured",
+      "value": 94167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 10,
+      "phase": "measured",
+      "value": 101875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 10,
+      "phase": "measured",
+      "value": 85250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 10,
+      "phase": "measured",
+      "value": 120042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 11,
+      "phase": "measured",
+      "value": 112542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 11,
+      "phase": "measured",
+      "value": 100750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 11,
+      "phase": "measured",
+      "value": 78083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 12,
+      "phase": "measured",
+      "value": 91125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 12,
+      "phase": "measured",
+      "value": 90000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 12,
+      "phase": "measured",
+      "value": 121459,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 13,
+      "phase": "measured",
+      "value": 117125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 13,
+      "phase": "measured",
+      "value": 96209,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 13,
+      "phase": "measured",
+      "value": 76042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 14,
+      "phase": "measured",
+      "value": 112875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 14,
+      "phase": "measured",
+      "value": 146083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 14,
+      "phase": "measured",
+      "value": 175875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 15,
+      "phase": "measured",
+      "value": 124292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 15,
+      "phase": "measured",
+      "value": 116917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 15,
+      "phase": "measured",
+      "value": 183709,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 16,
+      "phase": "measured",
+      "value": 131583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 16,
+      "phase": "measured",
+      "value": 112083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 16,
+      "phase": "measured",
+      "value": 158541,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 17,
+      "phase": "measured",
+      "value": 146709,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 17,
+      "phase": "measured",
+      "value": 182667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 17,
+      "phase": "measured",
+      "value": 174084,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 18,
+      "phase": "measured",
+      "value": 111375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 18,
+      "phase": "measured",
+      "value": 170375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 18,
+      "phase": "measured",
+      "value": 189500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 19,
+      "phase": "measured",
+      "value": 195041,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 19,
+      "phase": "measured",
+      "value": 161250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 19,
+      "phase": "measured",
+      "value": 204083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 20,
+      "phase": "measured",
+      "value": 139875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 20,
+      "phase": "measured",
+      "value": 148083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 20,
+      "phase": "measured",
+      "value": 158333,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 21,
+      "phase": "measured",
+      "value": 117083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 21,
+      "phase": "measured",
+      "value": 131584,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 21,
+      "phase": "measured",
+      "value": 174875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 22,
+      "phase": "measured",
+      "value": 111083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 22,
+      "phase": "measured",
+      "value": 119666,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 22,
+      "phase": "measured",
+      "value": 114208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 23,
+      "phase": "measured",
+      "value": 112625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 23,
+      "phase": "measured",
+      "value": 153791,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 23,
+      "phase": "measured",
+      "value": 145583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 24,
+      "phase": "measured",
+      "value": 200125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 24,
+      "phase": "measured",
+      "value": 168209,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 24,
+      "phase": "measured",
+      "value": 122958,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 25,
+      "phase": "measured",
+      "value": 119458,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 25,
+      "phase": "measured",
+      "value": 168167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 25,
+      "phase": "measured",
+      "value": 133667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 26,
+      "phase": "measured",
+      "value": 275875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 26,
+      "phase": "measured",
+      "value": 114917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 26,
+      "phase": "measured",
+      "value": 179125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 27,
+      "phase": "measured",
+      "value": 116791,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 27,
+      "phase": "measured",
+      "value": 167375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 27,
+      "phase": "measured",
+      "value": 225125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 28,
+      "phase": "measured",
+      "value": 191500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 28,
+      "phase": "measured",
+      "value": 144459,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 28,
+      "phase": "measured",
+      "value": 158125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 29,
+      "phase": "measured",
+      "value": 130709,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 29,
+      "phase": "measured",
+      "value": 140167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 29,
+      "phase": "measured",
+      "value": 146750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 30,
+      "phase": "measured",
+      "value": 147250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 30,
+      "phase": "measured",
+      "value": 168125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 30,
+      "phase": "measured",
+      "value": 108375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 31,
+      "phase": "measured",
+      "value": 139083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 31,
+      "phase": "measured",
+      "value": 142916,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 31,
+      "phase": "measured",
+      "value": 136334,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 32,
+      "phase": "measured",
+      "value": 98500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 32,
+      "phase": "measured",
+      "value": 153667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 32,
+      "phase": "measured",
+      "value": 118416,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 33,
+      "phase": "measured",
+      "value": 125000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 33,
+      "phase": "measured",
+      "value": 98667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 33,
+      "phase": "measured",
+      "value": 158583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 34,
+      "phase": "measured",
+      "value": 207791,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 34,
+      "phase": "measured",
+      "value": 166250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 34,
+      "phase": "measured",
+      "value": 182750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 35,
+      "phase": "measured",
+      "value": 102750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 35,
+      "phase": "measured",
+      "value": 130542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 35,
+      "phase": "measured",
+      "value": 264834,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 36,
+      "phase": "measured",
+      "value": 271708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 36,
+      "phase": "measured",
+      "value": 311542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 36,
+      "phase": "measured",
+      "value": 201416,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 37,
+      "phase": "measured",
+      "value": 151208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 37,
+      "phase": "measured",
+      "value": 133292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 37,
+      "phase": "measured",
+      "value": 206875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 38,
+      "phase": "measured",
+      "value": 97708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 38,
+      "phase": "measured",
+      "value": 137125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 38,
+      "phase": "measured",
+      "value": 189583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 39,
+      "phase": "measured",
+      "value": 181000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 39,
+      "phase": "measured",
+      "value": 93916,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 39,
+      "phase": "measured",
+      "value": 124500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 40,
+      "phase": "measured",
+      "value": 140542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 40,
+      "phase": "measured",
+      "value": 99208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 40,
+      "phase": "measured",
+      "value": 120542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 41,
+      "phase": "measured",
+      "value": 97542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 41,
+      "phase": "measured",
+      "value": 94916,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 41,
+      "phase": "measured",
+      "value": 153500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 42,
+      "phase": "measured",
+      "value": 134458,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 42,
+      "phase": "measured",
+      "value": 118833,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 42,
+      "phase": "measured",
+      "value": 90833,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 43,
+      "phase": "measured",
+      "value": 91584,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 43,
+      "phase": "measured",
+      "value": 83583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 43,
+      "phase": "measured",
+      "value": 116458,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 44,
+      "phase": "measured",
+      "value": 118375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 44,
+      "phase": "measured",
+      "value": 92667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 44,
+      "phase": "measured",
+      "value": 119750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 45,
+      "phase": "measured",
+      "value": 83000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 45,
+      "phase": "measured",
+      "value": 122125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 45,
+      "phase": "measured",
+      "value": 125042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 46,
+      "phase": "measured",
+      "value": 80917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 46,
+      "phase": "measured",
+      "value": 110666,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 46,
+      "phase": "measured",
+      "value": 121958,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 47,
+      "phase": "measured",
+      "value": 101125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 47,
+      "phase": "measured",
+      "value": 124792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 47,
+      "phase": "measured",
+      "value": 85541,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 48,
+      "phase": "measured",
+      "value": 134375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 48,
+      "phase": "measured",
+      "value": 123292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 48,
+      "phase": "measured",
+      "value": 124458,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 49,
+      "phase": "measured",
+      "value": 176916,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 49,
+      "phase": "measured",
+      "value": 135541,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 49,
+      "phase": "measured",
+      "value": 134208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 50,
+      "phase": "measured",
+      "value": 153667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 50,
+      "phase": "measured",
+      "value": 255667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 50,
+      "phase": "measured",
+      "value": 218250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 51,
+      "phase": "measured",
+      "value": 181542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 51,
+      "phase": "measured",
+      "value": 226417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 51,
+      "phase": "measured",
+      "value": 125125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 52,
+      "phase": "measured",
+      "value": 239167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 52,
+      "phase": "measured",
+      "value": 146917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 52,
+      "phase": "measured",
+      "value": 210458,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 53,
+      "phase": "measured",
+      "value": 135542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 53,
+      "phase": "measured",
+      "value": 194167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 53,
+      "phase": "measured",
+      "value": 304834,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 54,
+      "phase": "measured",
+      "value": 189333,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 54,
+      "phase": "measured",
+      "value": 243792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 54,
+      "phase": "measured",
+      "value": 186542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 55,
+      "phase": "measured",
+      "value": 169458,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 55,
+      "phase": "measured",
+      "value": 117000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 55,
+      "phase": "measured",
+      "value": 195000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 56,
+      "phase": "measured",
+      "value": 154083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 56,
+      "phase": "measured",
+      "value": 107541,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 56,
+      "phase": "measured",
+      "value": 92834,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 57,
+      "phase": "measured",
+      "value": 138584,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 57,
+      "phase": "measured",
+      "value": 98333,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 57,
+      "phase": "measured",
+      "value": 97125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 58,
+      "phase": "measured",
+      "value": 153459,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 58,
+      "phase": "measured",
+      "value": 142666,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 58,
+      "phase": "measured",
+      "value": 131042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 59,
+      "phase": "measured",
+      "value": 127208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 59,
+      "phase": "measured",
+      "value": 110042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 59,
+      "phase": "measured",
+      "value": 78542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 60,
+      "phase": "measured",
+      "value": 71125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 60,
+      "phase": "measured",
+      "value": 124875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 60,
+      "phase": "measured",
+      "value": 103583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 61,
+      "phase": "measured",
+      "value": 99000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 61,
+      "phase": "measured",
+      "value": 344500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 61,
+      "phase": "measured",
+      "value": 156125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 62,
+      "phase": "measured",
+      "value": 158833,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 62,
+      "phase": "measured",
+      "value": 613958,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 62,
+      "phase": "measured",
+      "value": 978000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 63,
+      "phase": "measured",
+      "value": 217959,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 63,
+      "phase": "measured",
+      "value": 124667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 63,
+      "phase": "measured",
+      "value": 79708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 64,
+      "phase": "measured",
+      "value": 108875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 64,
+      "phase": "measured",
+      "value": 69416,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 64,
+      "phase": "measured",
+      "value": 80958,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 65,
+      "phase": "measured",
+      "value": 64167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 65,
+      "phase": "measured",
+      "value": 96417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 65,
+      "phase": "measured",
+      "value": 80209,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 66,
+      "phase": "measured",
+      "value": 91167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 66,
+      "phase": "measured",
+      "value": 76209,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 66,
+      "phase": "measured",
+      "value": 81375,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 67,
+      "phase": "measured",
+      "value": 135750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 67,
+      "phase": "measured",
+      "value": 81292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 67,
+      "phase": "measured",
+      "value": 85209,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 68,
+      "phase": "measured",
+      "value": 89542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 68,
+      "phase": "measured",
+      "value": 62500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 68,
+      "phase": "measured",
+      "value": 103125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 69,
+      "phase": "measured",
+      "value": 70709,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 69,
+      "phase": "measured",
+      "value": 168834,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 69,
+      "phase": "measured",
+      "value": 152083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 70,
+      "phase": "measured",
+      "value": 212166,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 70,
+      "phase": "measured",
+      "value": 527042,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 70,
+      "phase": "measured",
+      "value": 235583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 71,
+      "phase": "measured",
+      "value": 314459,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 71,
+      "phase": "measured",
+      "value": 161459,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 71,
+      "phase": "measured",
+      "value": 189917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 72,
+      "phase": "measured",
+      "value": 141834,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 72,
+      "phase": "measured",
+      "value": 143000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 72,
+      "phase": "measured",
+      "value": 182250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 73,
+      "phase": "measured",
+      "value": 260041,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 73,
+      "phase": "measured",
+      "value": 143167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 73,
+      "phase": "measured",
+      "value": 101917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 74,
+      "phase": "measured",
+      "value": 82000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 74,
+      "phase": "measured",
+      "value": 106000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 74,
+      "phase": "measured",
+      "value": 169084,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 75,
+      "phase": "measured",
+      "value": 192583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 75,
+      "phase": "measured",
+      "value": 115209,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 75,
+      "phase": "measured",
+      "value": 101083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 76,
+      "phase": "measured",
+      "value": 133333,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 76,
+      "phase": "measured",
+      "value": 103000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 76,
+      "phase": "measured",
+      "value": 168958,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 77,
+      "phase": "measured",
+      "value": 115500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 77,
+      "phase": "measured",
+      "value": 70959,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 77,
+      "phase": "measured",
+      "value": 132125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 78,
+      "phase": "measured",
+      "value": 65750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 78,
+      "phase": "measured",
+      "value": 89792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 78,
+      "phase": "measured",
+      "value": 99167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 79,
+      "phase": "measured",
+      "value": 92167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 79,
+      "phase": "measured",
+      "value": 62708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 79,
+      "phase": "measured",
+      "value": 102542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 80,
+      "phase": "measured",
+      "value": 98041,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 80,
+      "phase": "measured",
+      "value": 126500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 80,
+      "phase": "measured",
+      "value": 85083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 81,
+      "phase": "measured",
+      "value": 142917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 81,
+      "phase": "measured",
+      "value": 97583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 81,
+      "phase": "measured",
+      "value": 101041,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 82,
+      "phase": "measured",
+      "value": 122625,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 82,
+      "phase": "measured",
+      "value": 85500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 82,
+      "phase": "measured",
+      "value": 75958,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 83,
+      "phase": "measured",
+      "value": 81125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 83,
+      "phase": "measured",
+      "value": 105000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 83,
+      "phase": "measured",
+      "value": 66500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 84,
+      "phase": "measured",
+      "value": 82792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 84,
+      "phase": "measured",
+      "value": 185167,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 84,
+      "phase": "measured",
+      "value": 148750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 85,
+      "phase": "measured",
+      "value": 130791,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 85,
+      "phase": "measured",
+      "value": 83083,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 85,
+      "phase": "measured",
+      "value": 163583,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 86,
+      "phase": "measured",
+      "value": 199250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 86,
+      "phase": "measured",
+      "value": 94417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 86,
+      "phase": "measured",
+      "value": 173917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 87,
+      "phase": "measured",
+      "value": 132000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 87,
+      "phase": "measured",
+      "value": 114958,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 87,
+      "phase": "measured",
+      "value": 60333,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 88,
+      "phase": "measured",
+      "value": 173125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 88,
+      "phase": "measured",
+      "value": 111959,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 88,
+      "phase": "measured",
+      "value": 128500,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 89,
+      "phase": "measured",
+      "value": 86084,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 89,
+      "phase": "measured",
+      "value": 179000,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 89,
+      "phase": "measured",
+      "value": 162208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 90,
+      "phase": "measured",
+      "value": 112250,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 90,
+      "phase": "measured",
+      "value": 126541,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 90,
+      "phase": "measured",
+      "value": 224208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 91,
+      "phase": "measured",
+      "value": 138084,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 91,
+      "phase": "measured",
+      "value": 74209,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 91,
+      "phase": "measured",
+      "value": 107542,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 92,
+      "phase": "measured",
+      "value": 98709,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 92,
+      "phase": "measured",
+      "value": 73416,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 92,
+      "phase": "measured",
+      "value": 109959,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 93,
+      "phase": "measured",
+      "value": 112416,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 93,
+      "phase": "measured",
+      "value": 165125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 93,
+      "phase": "measured",
+      "value": 120750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 94,
+      "phase": "measured",
+      "value": 81292,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 94,
+      "phase": "measured",
+      "value": 110833,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 94,
+      "phase": "measured",
+      "value": 62209,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 95,
+      "phase": "measured",
+      "value": 56708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 95,
+      "phase": "measured",
+      "value": 62959,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 95,
+      "phase": "measured",
+      "value": 88208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 96,
+      "phase": "measured",
+      "value": 85708,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 96,
+      "phase": "measured",
+      "value": 71959,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 96,
+      "phase": "measured",
+      "value": 58084,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 97,
+      "phase": "measured",
+      "value": 54125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 97,
+      "phase": "measured",
+      "value": 63416,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 97,
+      "phase": "measured",
+      "value": 86541,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 98,
+      "phase": "measured",
+      "value": 67417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 98,
+      "phase": "measured",
+      "value": 126667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 98,
+      "phase": "measured",
+      "value": 116125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "iteration": 99,
+      "phase": "measured",
+      "value": 165208,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "iteration": 99,
+      "phase": "measured",
+      "value": 107125,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "iteration": 99,
+      "phase": "measured",
+      "value": 108917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "agentix-node",
+      "iteration": 0,
+      "phase": "measured",
+      "value": 38360917,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "agentix-node",
+      "iteration": 0,
+      "phase": "measured",
+      "value": 64405504,
+      "unit": "bytes"
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "agentix-node",
+      "iteration": 0,
+      "phase": "measured",
+      "value": 64421888,
+      "unit": "bytes"
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "express",
+      "iteration": 0,
+      "phase": "measured",
+      "value": 62518834,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "express",
+      "iteration": 0,
+      "phase": "measured",
+      "value": 75350016,
+      "unit": "bytes"
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "express",
+      "iteration": 0,
+      "phase": "measured",
+      "value": 75350016,
+      "unit": "bytes"
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "nestjs-express",
+      "iteration": 0,
+      "phase": "measured",
+      "value": 137646792,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "nestjs-express",
+      "iteration": 0,
+      "phase": "measured",
+      "value": 95305728,
+      "unit": "bytes"
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "nestjs-express",
+      "iteration": 0,
+      "phase": "measured",
+      "value": 95502336,
+      "unit": "bytes"
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "agentix-node",
+      "iteration": 1,
+      "phase": "measured",
+      "value": 43535958,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "agentix-node",
+      "iteration": 1,
+      "phase": "measured",
+      "value": 64389120,
+      "unit": "bytes"
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "agentix-node",
+      "iteration": 1,
+      "phase": "measured",
+      "value": 64389120,
+      "unit": "bytes"
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "nestjs-express",
+      "iteration": 1,
+      "phase": "measured",
+      "value": 137234667,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "nestjs-express",
+      "iteration": 1,
+      "phase": "measured",
+      "value": 97026048,
+      "unit": "bytes"
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "nestjs-express",
+      "iteration": 1,
+      "phase": "measured",
+      "value": 97435648,
+      "unit": "bytes"
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "express",
+      "iteration": 1,
+      "phase": "measured",
+      "value": 58487750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "express",
+      "iteration": 1,
+      "phase": "measured",
+      "value": 76414976,
+      "unit": "bytes"
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "express",
+      "iteration": 1,
+      "phase": "measured",
+      "value": 76414976,
+      "unit": "bytes"
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "nestjs-express",
+      "iteration": 2,
+      "phase": "measured",
+      "value": 132488875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "nestjs-express",
+      "iteration": 2,
+      "phase": "measured",
+      "value": 97222656,
+      "unit": "bytes"
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "nestjs-express",
+      "iteration": 2,
+      "phase": "measured",
+      "value": 97599488,
+      "unit": "bytes"
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "agentix-node",
+      "iteration": 2,
+      "phase": "measured",
+      "value": 38406166,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "agentix-node",
+      "iteration": 2,
+      "phase": "measured",
+      "value": 64438272,
+      "unit": "bytes"
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "agentix-node",
+      "iteration": 2,
+      "phase": "measured",
+      "value": 64438272,
+      "unit": "bytes"
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "express",
+      "iteration": 2,
+      "phase": "measured",
+      "value": 59651541,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "express",
+      "iteration": 2,
+      "phase": "measured",
+      "value": 75268096,
+      "unit": "bytes"
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "express",
+      "iteration": 2,
+      "phase": "measured",
+      "value": 75268096,
+      "unit": "bytes"
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "agentix-node",
+      "iteration": 3,
+      "phase": "measured",
+      "value": 38261417,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "agentix-node",
+      "iteration": 3,
+      "phase": "measured",
+      "value": 64536576,
+      "unit": "bytes"
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "agentix-node",
+      "iteration": 3,
+      "phase": "measured",
+      "value": 64536576,
+      "unit": "bytes"
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "express",
+      "iteration": 3,
+      "phase": "measured",
+      "value": 63699166,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "express",
+      "iteration": 3,
+      "phase": "measured",
+      "value": 75235328,
+      "unit": "bytes"
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "express",
+      "iteration": 3,
+      "phase": "measured",
+      "value": 75235328,
+      "unit": "bytes"
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "nestjs-express",
+      "iteration": 3,
+      "phase": "measured",
+      "value": 133437541,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "nestjs-express",
+      "iteration": 3,
+      "phase": "measured",
+      "value": 96157696,
+      "unit": "bytes"
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "nestjs-express",
+      "iteration": 3,
+      "phase": "measured",
+      "value": 96567296,
+      "unit": "bytes"
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "nestjs-express",
+      "iteration": 4,
+      "phase": "measured",
+      "value": 135982750,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "nestjs-express",
+      "iteration": 4,
+      "phase": "measured",
+      "value": 95961088,
+      "unit": "bytes"
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "nestjs-express",
+      "iteration": 4,
+      "phase": "measured",
+      "value": 96370688,
+      "unit": "bytes"
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "agentix-node",
+      "iteration": 4,
+      "phase": "measured",
+      "value": 36820875,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "agentix-node",
+      "iteration": 4,
+      "phase": "measured",
+      "value": 64225280,
+      "unit": "bytes"
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "agentix-node",
+      "iteration": 4,
+      "phase": "measured",
+      "value": 64225280,
+      "unit": "bytes"
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "express",
+      "iteration": 4,
+      "phase": "measured",
+      "value": 59401666,
+      "unit": "nanoseconds"
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "express",
+      "iteration": 4,
+      "phase": "measured",
+      "value": 75055104,
+      "unit": "bytes"
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "express",
+      "iteration": 4,
+      "phase": "measured",
+      "value": 75055104,
+      "unit": "bytes"
+    }
+  ],
+  "summaries": [
+    {
+      "metric": "http-valid",
+      "stack": "agentix-node",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 100,
+        "min": 117917,
+        "q1": 156718.75,
+        "median": 207396,
+        "q3": 265729.25,
+        "p95": 352119.05,
+        "max": 735583,
+        "iqr": 109010.5,
+        "samples": [
+          117917,
+          124334,
+          125500,
+          125917,
+          126250,
+          127000,
+          127959,
+          129917,
+          133334,
+          135834,
+          138833,
+          138958,
+          140125,
+          142000,
+          144250,
+          145209,
+          145250,
+          145333,
+          150458,
+          152333,
+          153375,
+          153667,
+          154083,
+          156042,
+          156625,
+          156750,
+          159417,
+          160667,
+          161166,
+          162000,
+          162708,
+          168250,
+          170542,
+          173042,
+          173416,
+          174709,
+          178083,
+          178500,
+          182208,
+          182375,
+          184709,
+          189084,
+          190958,
+          192583,
+          195292,
+          198792,
+          199167,
+          204500,
+          207125,
+          207125,
+          207667,
+          209416,
+          213792,
+          214500,
+          214500,
+          215375,
+          216667,
+          217167,
+          218834,
+          221125,
+          222083,
+          223584,
+          223917,
+          231417,
+          232959,
+          239000,
+          239792,
+          247917,
+          250792,
+          251917,
+          253042,
+          255209,
+          258084,
+          258750,
+          262750,
+          274667,
+          276417,
+          283208,
+          291500,
+          293541,
+          294708,
+          295417,
+          301334,
+          302000,
+          302333,
+          315083,
+          322500,
+          326958,
+          328750,
+          330875,
+          334834,
+          335417,
+          340000,
+          350750,
+          351542,
+          363083,
+          363750,
+          407042,
+          472000,
+          735583
+        ]
+      }
+    },
+    {
+      "metric": "http-valid",
+      "stack": "express",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 100,
+        "min": 83041,
+        "q1": 116323.25,
+        "median": 132979,
+        "q3": 193260.5,
+        "p95": 242187.5,
+        "max": 478709,
+        "iqr": 76937.25,
+        "samples": [
+          83041,
+          89000,
+          91000,
+          91500,
+          96208,
+          97084,
+          98167,
+          98500,
+          100542,
+          101042,
+          101292,
+          105667,
+          107541,
+          109000,
+          109750,
+          111208,
+          111583,
+          112750,
+          113583,
+          113833,
+          114125,
+          114584,
+          115375,
+          115583,
+          116042,
+          116417,
+          117250,
+          119709,
+          119750,
+          121083,
+          121084,
+          121500,
+          123833,
+          123875,
+          124000,
+          124042,
+          124208,
+          124583,
+          124916,
+          126041,
+          126875,
+          127084,
+          127292,
+          128750,
+          129667,
+          130000,
+          130084,
+          130125,
+          132875,
+          132958,
+          133000,
+          133792,
+          136917,
+          138125,
+          140917,
+          141667,
+          142000,
+          146250,
+          149166,
+          150250,
+          150708,
+          153042,
+          158625,
+          167125,
+          167125,
+          167500,
+          170625,
+          171625,
+          175833,
+          182667,
+          186375,
+          187542,
+          191500,
+          192333,
+          192500,
+          195542,
+          195625,
+          197500,
+          199292,
+          202041,
+          204250,
+          204500,
+          204708,
+          205291,
+          208458,
+          211458,
+          211959,
+          215375,
+          217083,
+          217833,
+          221333,
+          223667,
+          227583,
+          232125,
+          242125,
+          243375,
+          251750,
+          323625,
+          470625,
+          478709
+        ]
+      }
+    },
+    {
+      "metric": "http-valid",
+      "stack": "nestjs-express",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 100,
+        "min": 88291,
+        "q1": 123979.75,
+        "median": 155604,
+        "q3": 200719,
+        "p95": 293558.3,
+        "max": 728417,
+        "iqr": 76739.25,
+        "samples": [
+          88291,
+          88542,
+          89875,
+          94584,
+          95625,
+          96042,
+          100208,
+          101541,
+          102834,
+          103875,
+          104792,
+          105375,
+          107084,
+          107667,
+          108042,
+          112083,
+          112917,
+          114042,
+          114667,
+          117166,
+          117208,
+          117792,
+          117916,
+          118416,
+          123292,
+          124209,
+          126541,
+          128541,
+          129625,
+          130084,
+          134417,
+          135250,
+          135750,
+          136041,
+          141250,
+          142000,
+          142292,
+          142417,
+          142542,
+          146666,
+          147916,
+          148500,
+          149125,
+          150458,
+          150542,
+          150667,
+          151625,
+          153000,
+          153666,
+          155083,
+          156125,
+          156583,
+          158459,
+          158667,
+          159250,
+          159375,
+          160042,
+          161541,
+          165833,
+          166125,
+          166958,
+          169291,
+          169584,
+          172625,
+          173708,
+          177667,
+          178375,
+          179375,
+          181000,
+          181750,
+          185000,
+          185417,
+          197625,
+          199250,
+          200417,
+          201625,
+          204708,
+          206375,
+          212667,
+          212750,
+          218000,
+          221708,
+          221917,
+          223000,
+          223625,
+          225125,
+          232167,
+          232666,
+          233375,
+          234875,
+          241292,
+          241375,
+          262667,
+          279250,
+          293500,
+          294666,
+          304583,
+          312666,
+          320875,
+          728417
+        ]
+      }
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "agentix-node",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 100,
+        "min": 85708,
+        "q1": 122333.5,
+        "median": 153583.5,
+        "q3": 190333,
+        "p95": 277322.9499999999,
+        "max": 613958,
+        "iqr": 67999.5,
+        "samples": [
+          85708,
+          86541,
+          88208,
+          91167,
+          96417,
+          98041,
+          99167,
+          102542,
+          103125,
+          105000,
+          107542,
+          108875,
+          108917,
+          109959,
+          110666,
+          110833,
+          112542,
+          112625,
+          112875,
+          114208,
+          116458,
+          117125,
+          119750,
+          120042,
+          121459,
+          122625,
+          124792,
+          124875,
+          125000,
+          125042,
+          126667,
+          127208,
+          131583,
+          131584,
+          132000,
+          132125,
+          133333,
+          134375,
+          134458,
+          135750,
+          136791,
+          138584,
+          140167,
+          140542,
+          142916,
+          142917,
+          148083,
+          148750,
+          153459,
+          153500,
+          153667,
+          154083,
+          158125,
+          158375,
+          163583,
+          165125,
+          166125,
+          166250,
+          168125,
+          168167,
+          168834,
+          169084,
+          170375,
+          170666,
+          173125,
+          174084,
+          176916,
+          177333,
+          179000,
+          181000,
+          182000,
+          182250,
+          183709,
+          189333,
+          189583,
+          192583,
+          193250,
+          195000,
+          195041,
+          198000,
+          199250,
+          200125,
+          206875,
+          210458,
+          212166,
+          217959,
+          224208,
+          225125,
+          226417,
+          250750,
+          253167,
+          255667,
+          260041,
+          264834,
+          275875,
+          304834,
+          311542,
+          314459,
+          344500,
+          613958
+        ]
+      }
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "express",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 100,
+        "min": 54125,
+        "q1": 82948,
+        "median": 101500,
+        "q3": 133521,
+        "p95": 183683.29999999996,
+        "max": 527042,
+        "iqr": 50573,
+        "samples": [
+          54125,
+          56708,
+          58084,
+          60333,
+          62209,
+          62500,
+          62708,
+          64167,
+          65750,
+          66500,
+          69416,
+          70709,
+          70959,
+          71125,
+          74209,
+          75958,
+          76042,
+          78083,
+          78542,
+          79708,
+          80917,
+          81292,
+          81375,
+          82000,
+          82792,
+          83000,
+          83083,
+          83583,
+          85083,
+          85250,
+          85541,
+          86084,
+          90000,
+          90833,
+          92667,
+          92834,
+          93916,
+          94167,
+          94417,
+          94916,
+          96417,
+          97583,
+          97708,
+          98125,
+          98333,
+          98500,
+          98667,
+          98709,
+          99208,
+          101083,
+          101917,
+          102750,
+          103208,
+          107125,
+          108375,
+          109667,
+          111083,
+          111375,
+          111959,
+          112416,
+          116125,
+          116791,
+          117000,
+          117083,
+          119458,
+          122958,
+          124292,
+          124458,
+          124750,
+          125125,
+          126541,
+          130708,
+          131042,
+          131416,
+          133292,
+          134208,
+          135542,
+          139083,
+          139875,
+          143000,
+          144459,
+          146083,
+          146709,
+          146750,
+          146917,
+          153791,
+          156125,
+          158541,
+          158833,
+          161250,
+          161459,
+          168958,
+          175291,
+          179125,
+          182750,
+          201416,
+          218250,
+          234542,
+          243792,
+          527042
+        ]
+      }
+    },
+    {
+      "metric": "http-invalid",
+      "stack": "nestjs-express",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 100,
+        "min": 62959,
+        "q1": 102718.75,
+        "median": 125583.5,
+        "q3": 159489.25,
+        "p95": 209180.59999999992,
+        "max": 978000,
+        "iqr": 56770.5,
+        "samples": [
+          62959,
+          63416,
+          67417,
+          71959,
+          73416,
+          76209,
+          80209,
+          80958,
+          81125,
+          81292,
+          85209,
+          85500,
+          89542,
+          89792,
+          91125,
+          91584,
+          92167,
+          96209,
+          97125,
+          97542,
+          99000,
+          100750,
+          101041,
+          101125,
+          101875,
+          103000,
+          103583,
+          106000,
+          107541,
+          110042,
+          112083,
+          112250,
+          114917,
+          114958,
+          115209,
+          115500,
+          116583,
+          116917,
+          118375,
+          118416,
+          118833,
+          119666,
+          120542,
+          120750,
+          121958,
+          122125,
+          123292,
+          123375,
+          124500,
+          124667,
+          126500,
+          128500,
+          130542,
+          130709,
+          130791,
+          132875,
+          133667,
+          135541,
+          136334,
+          137125,
+          138084,
+          141417,
+          141834,
+          142666,
+          143167,
+          144792,
+          145583,
+          147042,
+          147250,
+          151208,
+          152083,
+          153667,
+          154375,
+          158333,
+          158583,
+          162208,
+          165208,
+          167375,
+          168209,
+          169458,
+          173917,
+          174875,
+          175667,
+          175875,
+          181542,
+          182667,
+          185167,
+          186542,
+          189500,
+          189917,
+          191500,
+          194167,
+          204083,
+          207375,
+          207791,
+          235583,
+          239167,
+          241959,
+          271708,
+          978000
+        ]
+      }
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "agentix-node",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 5,
+        "min": 36820875,
+        "q1": 38261417,
+        "median": 38360917,
+        "q3": 38406166,
+        "p95": 42509999.6,
+        "max": 43535958,
+        "iqr": 144749,
+        "samples": [
+          36820875,
+          38261417,
+          38360917,
+          38406166,
+          43535958
+        ]
+      }
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "express",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 5,
+        "min": 58487750,
+        "q1": 59401666,
+        "median": 59651541,
+        "q3": 62518834,
+        "p95": 63463099.6,
+        "max": 63699166,
+        "iqr": 3117168,
+        "samples": [
+          58487750,
+          59401666,
+          59651541,
+          62518834,
+          63699166
+        ]
+      }
+    },
+    {
+      "metric": "cold-ready",
+      "stack": "nestjs-express",
+      "unit": "nanoseconds",
+      "distribution": {
+        "count": 5,
+        "min": 132488875,
+        "q1": 133437541,
+        "median": 135982750,
+        "q3": 137234667,
+        "p95": 137564367,
+        "max": 137646792,
+        "iqr": 3797126,
+        "samples": [
+          132488875,
+          133437541,
+          135982750,
+          137234667,
+          137646792
+        ]
+      }
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "agentix-node",
+      "unit": "bytes",
+      "distribution": {
+        "count": 5,
+        "min": 64225280,
+        "q1": 64389120,
+        "median": 64405504,
+        "q3": 64438272,
+        "p95": 64516915.2,
+        "max": 64536576,
+        "iqr": 49152,
+        "samples": [
+          64225280,
+          64389120,
+          64405504,
+          64438272,
+          64536576
+        ]
+      }
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "express",
+      "unit": "bytes",
+      "distribution": {
+        "count": 5,
+        "min": 75055104,
+        "q1": 75235328,
+        "median": 75268096,
+        "q3": 75350016,
+        "p95": 76201984,
+        "max": 76414976,
+        "iqr": 114688,
+        "samples": [
+          75055104,
+          75235328,
+          75268096,
+          75350016,
+          76414976
+        ]
+      }
+    },
+    {
+      "metric": "ready-rss",
+      "stack": "nestjs-express",
+      "unit": "bytes",
+      "distribution": {
+        "count": 5,
+        "min": 95305728,
+        "q1": 95961088,
+        "median": 96157696,
+        "q3": 97026048,
+        "p95": 97183334.4,
+        "max": 97222656,
+        "iqr": 1064960,
+        "samples": [
+          95305728,
+          95961088,
+          96157696,
+          97026048,
+          97222656
+        ]
+      }
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "agentix-node",
+      "unit": "bytes",
+      "distribution": {
+        "count": 5,
+        "min": 64225280,
+        "q1": 64389120,
+        "median": 64421888,
+        "q3": 64438272,
+        "p95": 64516915.2,
+        "max": 64536576,
+        "iqr": 49152,
+        "samples": [
+          64225280,
+          64389120,
+          64421888,
+          64438272,
+          64536576
+        ]
+      }
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "express",
+      "unit": "bytes",
+      "distribution": {
+        "count": 5,
+        "min": 75055104,
+        "q1": 75235328,
+        "median": 75268096,
+        "q3": 75350016,
+        "p95": 76201984,
+        "max": 76414976,
+        "iqr": 114688,
+        "samples": [
+          75055104,
+          75235328,
+          75268096,
+          75350016,
+          76414976
+        ]
+      }
+    },
+    {
+      "metric": "process-max-rss-ready",
+      "stack": "nestjs-express",
+      "unit": "bytes",
+      "distribution": {
+        "count": 5,
+        "min": 95502336,
+        "q1": 96370688,
+        "median": 96567296,
+        "q3": 97435648,
+        "p95": 97566720,
+        "max": 97599488,
+        "iqr": 1064960,
+        "samples": [
+          95502336,
+          96370688,
+          96567296,
+          97435648,
+          97599488
+        ]
+      }
+    }
+  ],
+  "unavailable": [],
+  "limitations": [
+    "This exploratory microbenchmark is not evidence for the agent-maintenance hypothesis.",
+    "NestJS uses Express underneath, so the Express and NestJS stacks are not independent.",
+    "Loopback, JSON serialization, JIT, GC, thermal state, and host load can dominate small differences.",
+    "A single echo route does not predict non-trivial application performance."
+  ]
+}

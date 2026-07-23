@@ -851,7 +851,14 @@ export const runRuntimeBenchmark = async (
     try {
       for (const arm of interleavedArmSchedule(1, `${seed}:process-build`)) {
         try {
-          const build = await prepareBuiltArm({ repositoryRoot, arm, executor });
+          const build = await prepareBuiltArm({
+            repositoryRoot,
+            arm,
+            executor,
+            // Test doubles never execute the build command, so copying the
+            // entire installed dependency tree only adds fixture-size latency.
+            includeInstalledDependencies: executor.kind === "system",
+          });
           if (build.ok) {
             prepared.set(arm, build);
             processBuilds.push(build.evidence);

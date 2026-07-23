@@ -1,43 +1,137 @@
 # Agentix
 
-Agentix is an agent-oriented TypeScript application framework. This repository
-tests whether explicit feature capsules and machine-readable
-dependency metadata reduce the context coding agents need for TypeScript
-maintenance without reducing correctness.
+Agentix is an agent-oriented TypeScript application framework for codebases that
+need explicit boundaries, effects, and maintenance scope. Application behavior
+stays in ordinary TypeScript; descriptors make that behavior inspectable by
+people, tools, and coding agents.
 
-The research contract is fixed in:
+[Documentation site](https://pewpewgogo.github.io/agentix/) ·
+[Documentation source](docs/README.md) · [Getting started](docs/GETTING_STARTED.md) ·
+[Core concepts](docs/CORE_CONCEPTS.md) · [API reference](docs/API_REFERENCE.md) ·
+[Example application](examples/framework-app/src)
 
-- [`docs/HYPOTHESIS.md`](docs/HYPOTHESIS.md)
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-- [`docs/BENCHMARK_PROTOCOL.md`](docs/BENCHMARK_PROTOCOL.md)
-- [`docs/DECISIONS.md`](docs/DECISIONS.md)
-- [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md)
-- [`docs/PHASE5_READINESS.md`](docs/PHASE5_READINESS.md)
+> **Project status:** Agentix is a research prototype at version `0.0.0`. Its
+> packages are private workspaces and are not published to npm. Use the
+> repository directly; do not treat the API as stable yet.
 
-Phases 2–5 are implemented: framework packages and two independently implemented
-commerce applications pass strict builds, architecture checks, property tests,
-and the same black-box acceptance suite. The repository also contains a frozen
-paired ten-task corpus, isolated runner, raw telemetry/accounting boundary,
-evaluator, runtime benchmark, and integrity-bound report generator. Nothing is
-published or deployed.
+## What Agentix makes explicit
 
-The 100-run confirmatory experiment has not been run. It remains gated on an
-initial clean Git commit, production hidden-evaluator drivers, an approved
-external-provider adapter, exact immutable model/version and pricing,
-runtime-verifiable fresh-session sandboxing, and the explicit cost authorization
-required by the protocol. Scripted smoke outcomes are permanently ineligible
-for a framework verdict; the current verdict is `INCONCLUSIVE`.
+An Agentix feature capsule owns its public contract, commands, queries, ports,
+events, invariants, and associated tests. Every operation declares:
 
-## Development
+- a stable ID and runtime input/output schemas;
+- typed domain errors and required permissions;
+- the exact external effects it may invoke;
+- the events and invariants associated with it; and
+- an ordinary TypeScript execution function.
+
+The runtime validates these boundaries. The compiler projects them into a
+deterministic machine index, and the CLI uses that index to answer questions
+such as “what does this operation touch?” and “what is safe to verify?” The
+generated index is never authoritative; TypeScript source remains the source of
+truth.
+
+## Start here
+
+Agentix currently requires Node.js 24 and npm 11.
 
 ```sh
+git clone git@github.com:pewpewgogo/agentix.git
+cd agentix
 npm ci
-npm run typecheck
-npm test
-npm run test:phase5
-npm run benchmark:corpus:check
-npm run benchmark:harness:smoke
+npm run build
+npm run verify
 ```
 
-Exact tool versions are pinned in `package-lock.json`. Generated agent indexes
-are projections of TypeScript source and are never authoritative.
+Inspect the complete commerce example without reading the whole application:
+
+```sh
+npm exec -- agentix inspect orders.create --root examples/framework-app
+npm exec -- agentix graph orders --root examples/framework-app
+npm exec -- agentix affected src/features/orders/operations.ts \
+  --root examples/framework-app
+```
+
+The first command reports the operation's source, permission, effects, event,
+invariant, tests, and conservative verification scope. Continue with the
+[getting-started guide](docs/GETTING_STARTED.md) to define and dispatch a small
+feature, then expose it through HTTP.
+
+## A command at a glance
+
+```ts
+export const createOrder = defineCommand({
+  id: "orders.create",
+  input: CreateOrderInput,
+  output: Order,
+  errors: {
+    CUSTOMER_NOT_FOUND: CustomerNotFound,
+    PAYMENT_DECLINED: PaymentDeclined,
+  },
+  permissions: ["orders:create"],
+  effects: {
+    loadCustomer: CustomerStore.operations.get,
+    chargePayment: Payments.operations.charge,
+    saveOrder: OrderStore.operations.save,
+  },
+  emits: { orderCreated: OrderCreated },
+  async execute({ input, effects, emit }) {
+    // Ordinary TypeScript. Only the effects declared above are available.
+  },
+});
+```
+
+There are no decorators, global registries, runtime source scans, or implicit
+lifecycle hooks. Expected domain failures are typed `Outcome` values;
+authorization or invalid input is a rejected dispatch; unexpected defects are
+reported separately as faults.
+
+## Packages
+
+| Package | Responsibility |
+| --- | --- |
+| `@agentix/core` | Schemas, descriptors, outcomes, application assembly, authorization, and dispatch |
+| `@agentix/adapters-http` | Explicit routes over Web `Request`/`Response` plus a thin Node HTTP host |
+| `@agentix/testing` | Operation harnesses, deterministic capabilities, traces, contracts, invariants, and replay |
+| `@agentix/compiler` | Architecture analysis and deterministic `.agentix/index.json` generation |
+| `@agentix/cli` | `inspect`, `graph`, `affected`, `verify`, and `scaffold` |
+
+See the [API reference](docs/API_REFERENCE.md) for the supported public exports.
+
+## Documentation
+
+- [Documentation map](docs/README.md)
+- [Getting started](docs/GETTING_STARTED.md)
+- [Core concepts and execution model](docs/CORE_CONCEPTS.md)
+- [HTTP adapter](docs/HTTP.md)
+- [Testing](docs/TESTING.md)
+- [CLI and generated index](docs/CLI.md)
+- [API reference](docs/API_REFERENCE.md)
+- [Repository development](docs/DEVELOPMENT.md)
+- [Architecture](docs/ARCHITECTURE.md) — frozen experiment design record; use
+  the core-concepts and API guides for current behavior
+
+## Research status
+
+Agentix was built to test a falsifiable hypothesis: explicit feature capsules
+and machine-readable dependency metadata may reduce the context coding agents
+need for maintenance without reducing correctness. The framework and plain
+TypeScript commerce applications pass the same black-box acceptance suite, but
+the 100-run confirmatory agent-maintenance experiment has **not** been run. The
+current verdict is `INCONCLUSIVE`.
+
+The separate Agentix/Express/NestJS HTTP measurement is an exploratory runtime
+microbenchmark, not evidence for agent-maintenance efficiency. Read its methods,
+results, and limitations in the
+[HTTP framework benchmark report](docs/HTTP_FRAMEWORK_BENCHMARK.md).
+
+The preregistered evidence boundary lives in:
+
+- [Hypothesis](docs/HYPOTHESIS.md)
+- [Benchmark protocol](docs/BENCHMARK_PROTOCOL.md)
+- [Phase 5 readiness](docs/PHASE5_READINESS.md) — historical gate snapshot
+- [Limitations](docs/LIMITATIONS.md) — frozen threats-to-validity record
+- [Decision log](docs/DECISIONS.md)
+
+The documentation is published with GitHub Pages. The framework packages are
+not published to npm and the benchmark evidence remains repository-local.

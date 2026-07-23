@@ -773,3 +773,42 @@ The final base-inventory/corpus-lock hashes are
 
 The local `origin` is `git@github.com:pewpewgogo/agentix.git`. No commit, push,
 provider call, deployment, publication, or confirmatory observation occurred.
+
+## D-028: Add a separate exploratory Agentix/Express/NestJS HTTP comparison
+
+- Date: 2026-07-23
+- Status: accepted before observing comparison results
+
+The frozen Agentix-versus-plain runtime and agent-maintenance protocols remain
+unchanged. Express and NestJS are not assigned artificial equivalents for
+Agentix command dispatch, schema, generated-index, or incremental-verification
+metrics. Instead, a separate exploratory runner compares identical real
+loopback `POST /echo` endpoints on these exact stacks:
+
+- Agentix using its Node HTTP adapter;
+- Express 5.2.1;
+- NestJS 11.1.28 using its default Express adapter.
+
+The run seed is `agentix-http-frameworks-exploratory-v1-2026-07-23`. The first
+full exploratory run uses 10 warmups, 100 measured valid requests, 100 measured
+invalid requests, and five fresh-child observations per stack. Every
+three-stack block contains each stack exactly once in seeded random order.
+
+The frozen metrics are full loopback request/response latency for valid and
+invalid JSON, fresh-child dynamic-import-to-listening readiness, ready-process
+RSS, and ready-process maximum RSS. Timers include complete response
+consumption.
+Reports retain raw observations and R-7 median, quartiles, p95, range, failures,
+environment identity, exact dependency versions, Git state, lockfile hash, and
+comparison-source hash.
+
+This comparison is always exploratory and cannot support or reject the primary
+agent-maintenance hypothesis. NestJS contains Express; loopback, JSON, JIT, GC,
+thermal state, and background load are confounders; an echo route does not
+represent a commerce application. A valid maintenance comparison would require
+independent equivalent applications, a new three-arm corpus and schedule, and
+150 fresh provider sessions at five repetitions per task.
+
+Rejected: mutate the frozen two-arm report schema, mix these samples into the
+primary result, label NestJS as independent of Express, or report unavailable
+agent-token measurements as estimates.

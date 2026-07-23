@@ -23,3 +23,9 @@ cannot satisfy a runtime/DX or primary-hypothesis evidence gate. Current smoke
 validation was generated from fresh isolated builds and either inspected on
 stdout or written to a temporary sealed publication; it was not added here as a
 confirmatory result.
+
+`http-frameworks-exploratory-v1-2026-07-23.json` is the create-only raw report
+for D-028's separate Agentix/Express/NestJS-on-Express HTTP comparison. It
+contains 705 raw observations, records zero unavailable measurements, and is
+permanently classified as exploratory and confirmatory-ineligible. Its SHA-256
+is `d6ea63a0a57100a62ce810ed4c828d2c19e0e4f546e2a7e32e6f541d26d56ca4`.
