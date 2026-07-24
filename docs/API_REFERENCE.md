@@ -1,9 +1,9 @@
 # API Reference
 
-This reference covers the public exports of each Agentix workspace package. All
-packages are private, version `0.0.0`, ESM-only workspaces. Only documented
-package roots and the HTTP `/web` and `/node` subpaths are supported. The API is
-pre-release and may change without compatibility shims.
+This reference covers the public exports of each Agentix npm package. All
+packages are ESM-only and use one coordinated pre-1.0 version. Only documented
+package roots and the HTTP `/web` and `/node` subpaths are supported. Minor
+releases may change the API without compatibility shims until 1.0.
 
 ## `@agentix/core`
 
@@ -227,5 +227,5 @@ conventions.
   supported.
 - Application packages use ESM/NodeNext. Relative TypeScript imports include a
   `.js` suffix so emitted JavaScript resolves correctly.
-- Framework package engines are inherited from the repository contract today;
+- Framework packages require Node.js 24;
   consuming outside this monorepo is not a supported installation mode.

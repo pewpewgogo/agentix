@@ -18,6 +18,8 @@ are kept separate so experimental claims do not leak into product guidance.
    verification, scaffolding, and index semantics.
 6. [API reference](API_REFERENCE.md) — public package exports and behavioral
    contracts.
+7. [Releasing](RELEASING.md) — coordinated versions, release pull requests,
+   npm publishing, provenance, and first-release setup.
 
 The complete runnable reference application is
 [`examples/framework-app`](../examples/framework-app/src). Its plain TypeScript
@@ -53,9 +55,10 @@ Runtime measurements and coding-agent maintenance measurements are separate.
 The exploratory HTTP result cannot establish that Agentix saves coding-agent
 tokens, files, or tool calls.
 
-## Current release boundary
+## Release boundary
 
-All `@agentix/*` packages are private workspace packages at version `0.0.0`.
-There is no npm release, compatibility promise, deployment, or published API
-stability policy. The supported way to evaluate Agentix today is to clone this
-repository and use its pinned Node.js 24/npm 11 toolchain.
+The five framework packages are public, ESM-only, pre-1.0 packages under the
+`@agentix/*` npm scope. They share one coordinated version and follow semantic
+versioning, but minor releases may contain breaking API changes until 1.0.
+Release automation publishes only built package artifacts; benchmark fixtures,
+results, examples, and sandboxes remain repository-only.

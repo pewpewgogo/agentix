@@ -4,7 +4,7 @@
     "types": ["node"],
     "rootDir": "src",
     "outDir": "dist",
-    "tsBuildInfoFile": "dist/.tsbuildinfo"
+    "tsBuildInfoFile": "../../.agentix-tmp/tsbuildinfo/testing.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"],

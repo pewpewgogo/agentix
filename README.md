@@ -10,9 +10,9 @@ people, tools, and coding agents.
 [Core concepts](docs/CORE_CONCEPTS.md) · [API reference](docs/API_REFERENCE.md) ·
 [Example application](examples/framework-app/src)
 
-> **Project status:** Agentix is a research prototype at version `0.0.0`. Its
-> packages are private workspaces and are not published to npm. Use the
-> repository directly; do not treat the API as stable yet.
+> **Project status:** Agentix is a research-stage, pre-1.0 framework. Public
+> packages use coordinated versions under the `@agentix/*` npm scope. The API
+> may change between minor releases until 1.0.
 
 ## What Agentix makes explicit
 
@@ -31,9 +31,17 @@ to answer questions such as “what does this operation touch?” and “what is
 to verify?” The generated file is never a trusted input; TypeScript source
 remains the source of truth.
 
-## Start here
+## Install
 
-Agentix currently requires Node.js 24 and npm 11.
+Agentix requires Node.js 24. Install only the packages your application needs:
+
+```sh
+npm install @agentix/core @agentix/adapters-http
+npm install --save-dev @agentix/cli @agentix/testing
+npm exec -- agentix help
+```
+
+To build and verify the repository itself with its pinned npm 11 toolchain:
 
 ```sh
 git clone git@github.com:pewpewgogo/agentix.git
@@ -147,5 +155,7 @@ The preregistered evidence boundary lives in:
 - [Limitations](docs/LIMITATIONS.md) — frozen threats-to-validity record
 - [Decision log](docs/DECISIONS.md)
 
-The documentation is published with GitHub Pages. The framework packages are
-not published to npm and the benchmark evidence remains repository-local.
+The documentation is published with GitHub Pages. Framework releases are
+versioned together and published to npm with provenance through the automated
+[release workflow](docs/RELEASING.md). Benchmark evidence remains
+repository-local and is never published as framework package content.

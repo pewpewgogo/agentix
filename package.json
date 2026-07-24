@@ -2,6 +2,7 @@
   "name": "agentix",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "packageManager": "npm@11.13.0",
   "repository": {
@@ -21,7 +22,7 @@
   "scripts": {
     "build": "tsc -b && node scripts/mark-binaries-executable.mjs",
     "clean": "tsc -b --clean && node scripts/clean.mjs",
-    "typecheck": "tsc -b --pretty false",
+    "typecheck": "tsc -b --pretty false && tsc -p packages/compiler/tsconfig.test.json --pretty false && tsc -p packages/cli/tsconfig.test.json --pretty false",
     "test": "vitest run",
     "test:unit": "vitest run packages",
     "test:phase2": "npm run typecheck && vitest run packages",
@@ -35,9 +36,16 @@
     "benchmark:http-frameworks": "npm run build && node benchmarks/runtime/dist/http-comparison/cli.js",
     "sandbox:test": "npm run build && vitest run sandbox/notes-app sandbox/plain-notes-app sandbox/nestjs-notes-app",
     "sandbox:token-budget": "npm run build && node sandbox/token-budget/run.mjs",
+    "release:version": "changeset version && npm install --package-lock-only --ignore-scripts",
+    "release:publish": "npm run clean && npm run build && changeset publish",
+    "release:check": "node scripts/check-release-packages.mjs",
+    "release:status": "changeset status",
+    "github:test:pack": "node scripts/prepare-github-test-release.mjs",
+    "github:test:check": "npm run github:test:pack -- --version=0.0.0-github.ci --tag=github-test-v0.0.0-github.ci",
     "verify": "npm run typecheck && npm test"
   },
   "devDependencies": {
+    "@changesets/cli": "2.31.1",
     "@types/node": "26.1.1",
     "fast-check": "4.9.0",
     "tsx": "4.23.1",

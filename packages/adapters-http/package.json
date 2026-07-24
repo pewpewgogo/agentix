@@ -1,8 +1,25 @@
 {
   "name": "@agentix/adapters-http",
   "version": "0.0.0",
-  "private": true,
+  "description": "Web Request/Response routes and an optional Node HTTP host for Agentix applications.",
+  "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pewpewgogo/agentix.git",
+    "directory": "packages/adapters-http"
+  },
+  "homepage": "https://pewpewgogo.github.io/agentix/",
+  "bugs": {
+    "url": "https://github.com/pewpewgogo/agentix/issues"
+  },
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -18,7 +35,13 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/* *",
+    "!dist/**/* *",
+    "!dist/*.tsbuildinfo*",
+    "!dist/**/*.tsbuildinfo*",
+    "!dist/*.test.*",
+    "!dist/**/*.test.*"
   ],
   "scripts": {
     "build": "tsc -b",

@@ -944,3 +944,47 @@ human-readable artifact would have omitted.
 Rejected: make all JSON unreadable by default, remove affected reasons or
 operation metadata solely to win the token heuristic, or weaken projection
 completeness and omission reporting.
+
+## D-034: Publish coordinated pre-1.0 packages through release pull requests
+
+- Date: 2026-07-24
+- Status: accepted before the first npm publication
+
+Agentix uses the MIT license and publishes `@agentix/core`,
+`@agentix/compiler`, `@agentix/cli`, `@agentix/testing`, and
+`@agentix/adapters-http` as public ESM packages requiring Node.js 24. All five
+packages are one Changesets fixed group: a release pull request owns version,
+internal dependency-range, changelog, and lockfile updates, and all packages
+share the same pre-1.0 version. Until 1.0, semantic versioning applies but minor
+releases may contain breaking API changes.
+
+Every main-branch release run performs the full build, typecheck, test, and
+frozen-corpus gate before creating the release pull request or publishing.
+Publication uses npm provenance and is designed to move from one bootstrap
+`NPM_TOKEN` to GitHub OIDC trusted publishing. Only framework `dist` artifacts
+and package documentation are packed; examples, sandboxes, benchmark code and
+evidence, and the repository root remain private.
+
+The unscoped `agentix` name was rejected because it already identifies an
+unrelated npm package. Independent package versions, publish-on-every-main-push,
+manual version edits, direct local publication, and mutable version overwrites
+were rejected because they weaken dependency coherence, reviewability, or
+recovery.
+
+## D-035: Use GitHub prerelease tarballs for the anonymous test channel
+
+- Date: 2026-07-24
+- Status: accepted before the first GitHub test publication
+
+GitHub test builds attach all five canonical `@agentix/*` package tarballs to an
+immutable prerelease. Internal dependencies point to assets in the same release,
+so applications install directly from public HTTPS URLs without changing import
+names. Every test release is bound to a Git revision, uses a unique semantic
+prerelease version, and passes the normal build, package-content, test, and
+frozen-corpus gates.
+
+GitHub Packages was rejected for the easy-install test channel because its npm
+registry requires authentication even for public packages and its namespace is
+the hosting GitHub account. Mutable branch tarballs and uncommitted local
+uploads were rejected because they do not bind the installed bytes to immutable
+source.

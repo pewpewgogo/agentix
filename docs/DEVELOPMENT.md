@@ -119,8 +119,8 @@ can become unresolved and widen verification.
 
 - Put user workflow first; keep research protocol and benchmark claims in their
   dedicated documents.
-- State repository-only/pre-release status until packages are actually
-  published.
+- State pre-1.0 status, and never claim a version is on npm until the registry
+  confirms that exact version.
 - Make default HTTP envelopes distinct from application-specific mappings.
 - Explain whether a code block is complete or illustrative.
 - Run the documented command against the current repository before merging.
@@ -147,8 +147,13 @@ protocol changes in [DECISIONS.md](DECISIONS.md) before observing new results.
 
 ## Publishing boundary
 
-Do not publish or deploy Agentix from this repository. A future release requires
-an explicit license decision, non-private package metadata, coordinated package
-versions, public dependency ranges, package-level engine declarations, release
-automation, and an API stability policy. None of those are implied by a passing
-local build.
+Do not run `npm publish` directly or edit package versions by hand. Add a
+changeset for a user-visible framework change; the fixed package group then
+calculates one coordinated version for all five public packages. The main-branch
+release workflow runs the complete build, test, and frozen-corpus gate before it
+updates the release pull request or publishes with npm provenance.
+
+The API is pre-1.0: semantic versioning applies, but a coordinated minor release
+may contain breaking changes until 1.0. Examples, sandboxes, benchmarks, and the
+repository root stay private and are never published. See
+[RELEASING.md](RELEASING.md) for the operational runbook and npm trust setup.

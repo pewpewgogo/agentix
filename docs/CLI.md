@@ -7,13 +7,15 @@ runtime dispatch and never overrides source.
 
 ## Run the repository-local CLI
 
-Agentix is not published, so build and invoke the workspace binary from a clone:
+Install the CLI in an Agentix application and invoke its local binary:
 
 ```sh
-npm ci
-npm run build
+npm install --save-dev @agentix/cli
 npm exec -- agentix help
 ```
+
+Repository contributors can use the same command after `npm ci` and
+`npm run build` at the workspace root.
 
 Use `--root` to select the application to analyze:
 

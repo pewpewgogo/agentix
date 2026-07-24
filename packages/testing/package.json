@@ -1,8 +1,25 @@
 {
   "name": "@agentix/testing",
   "version": "0.0.0",
-  "private": true,
+  "description": "Deterministic Agentix operation harnesses, traces, contracts, invariants, and replay.",
+  "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pewpewgogo/agentix.git",
+    "directory": "packages/testing"
+  },
+  "homepage": "https://pewpewgogo.github.io/agentix/",
+  "bugs": {
+    "url": "https://github.com/pewpewgogo/agentix/issues"
+  },
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -10,7 +27,13 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/* *",
+    "!dist/**/* *",
+    "!dist/*.tsbuildinfo*",
+    "!dist/**/*.tsbuildinfo*",
+    "!dist/*.test.*",
+    "!dist/**/*.test.*"
   ],
   "scripts": {
     "build": "tsc -b",
