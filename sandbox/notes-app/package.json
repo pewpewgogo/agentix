@@ -9,10 +9,10 @@
     "test": "vitest run --root ../.. sandbox/notes-app"
   },
   "dependencies": {
-    "@agentix/core": "0.0.0"
+    "@agentix/core": "0.1.0"
   },
   "devDependencies": {
-    "@agentix/testing": "0.0.0",
+    "@agentix/testing": "0.1.0",
     "vitest": "4.1.10"
   }
 }
