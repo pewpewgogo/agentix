@@ -3,6 +3,8 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
+    "declarationMap": false,
+    "sourceMap": false,
     "tsBuildInfoFile": "../../.agentix-tmp/tsbuildinfo/cli.tsbuildinfo",
     "types": ["node"]
   },

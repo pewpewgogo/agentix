@@ -60,6 +60,7 @@ for (const [name, directory] of packageSpecs) {
     recursive: true,
     filter: (path) =>
       !path.includes(".tsbuildinfo") &&
+      !path.endsWith(".map") &&
       !/(?:^|\/)\w+\.test\.(?:js|d\.ts)(?:\.map)?$/u.test(path) &&
       !/(?:^|\/)[^/]* [^/]*$/u.test(path),
   });
@@ -120,6 +121,7 @@ for (const [name, directory] of packageSpecs) {
     (path) =>
       path.startsWith("src/") ||
       path.includes(".tsbuildinfo") ||
+      path.endsWith(".map") ||
       /(?:^|\/)\w+\.test\.(?:js|d\.ts)(?:\.map)?$/u.test(path) ||
       /(?:^|\/)[^/]* [^/]*$/u.test(path),
   );

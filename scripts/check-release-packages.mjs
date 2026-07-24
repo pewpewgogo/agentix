@@ -5,21 +5,24 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packages = [
-  ["@agentix/core", "packages/core", ["dist/index.js", "dist/index.d.ts"]],
+  ["@agentix/core", "packages/core", ["dist/index.js", "dist/index.d.ts"], 16],
   [
     "@agentix/compiler",
     "packages/compiler",
     ["dist/index.js", "dist/index.d.ts"],
+    22,
   ],
   [
     "@agentix/cli",
     "packages/cli",
     ["dist/index.js", "dist/index.d.ts", "dist/bin.js"],
+    12,
   ],
   [
     "@agentix/testing",
     "packages/testing",
     ["dist/index.js", "dist/index.d.ts"],
+    24,
   ],
   [
     "@agentix/adapters-http",
@@ -32,6 +35,7 @@ const packages = [
       "dist/node.js",
       "dist/node.d.ts",
     ],
+    18,
   ],
 ];
 
@@ -85,7 +89,7 @@ for (const [name, manifest] of manifests) {
   }
 }
 
-for (const [name, , requiredFiles] of packages) {
+for (const [name, , requiredFiles, maximumFiles] of packages) {
   const result = spawnSync(
     "npm",
     ["pack", "--dry-run", "--json", "--workspace", name],
@@ -105,6 +109,9 @@ for (const [name, , requiredFiles] of packages) {
   }
 
   const files = new Map(report.files.map((file) => [file.path, file]));
+  if (files.size > maximumFiles) {
+    errors.push(`${name}: package contains ${files.size} files; maximum is ${maximumFiles}`);
+  }
   for (const required of ["package.json", "README.md", "LICENSE", ...requiredFiles]) {
     if (!files.has(required)) {
       errors.push(`${name}: package is missing ${required}`);
@@ -115,6 +122,7 @@ for (const [name, , requiredFiles] of packages) {
     if (
       path.startsWith("src/") ||
       path.includes(".tsbuildinfo") ||
+      path.endsWith(".map") ||
       /(?:^|\/)\w+\.test\.(?:js|d\.ts)(?:\.map)?$/u.test(path)
     ) {
       errors.push(`${name}: package contains development artifact ${path}`);

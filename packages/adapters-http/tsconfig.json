@@ -5,6 +5,8 @@
     "types": ["node"],
     "rootDir": "src",
     "outDir": "dist",
+    "declarationMap": false,
+    "sourceMap": false,
     "tsBuildInfoFile": "../../.agentix-tmp/tsbuildinfo/adapters-http.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],

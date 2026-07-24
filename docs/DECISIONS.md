@@ -988,3 +988,9 @@ registry requires authentication even for public packages and its namespace is
 the hosting GitHub account. Mutable branch tarballs and uncommitted local
 uploads were rejected because they do not bind the installed bytes to immutable
 source.
+
+The package payload deliberately omits source files, tests, build caches, and
+JavaScript/declaration source maps. Runtime JavaScript and TypeScript
+declarations remain, together with the package manifest, short package README,
+and MIT license. CI enforces both forbidden-file rules and per-package file-count
+budgets so the install cannot silently grow back into a repository snapshot.

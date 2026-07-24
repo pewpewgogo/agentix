@@ -34,7 +34,10 @@ npm install \
 
 Test-release versions are immutable prereleases such as
 `0.1.0-github.42.a1b2c3d`. They do not create npm registry versions, GitHub
-Packages entries, or compatibility promises.
+Packages entries, or compatibility promises. Package payloads contain only
+runtime JavaScript, TypeScript declarations, package metadata, the package
+README, and the MIT license. CI rejects source, tests, build caches, source maps,
+and packages that exceed their declared file-count budget.
 
 ## Normal release flow
 
