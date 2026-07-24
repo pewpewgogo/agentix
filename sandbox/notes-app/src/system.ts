@@ -7,7 +7,7 @@ import {
   principal,
   type DispatchResult,
   type Outcome,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 import {
   Note,

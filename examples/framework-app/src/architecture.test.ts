@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 
-import { checkArchitecture } from "@agentix/compiler";
-import { associateOperationTest } from "@agentix/testing";
+import { checkArchitecture } from "@agentixdev/compiler";
+import { associateOperationTest } from "@agentixdev/testing";
 import { describe, expect, it } from "vitest";
 
 import { createOrder } from "./features/orders/operations.js";

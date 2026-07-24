@@ -29,7 +29,7 @@
     "test:acceptance": "vitest run examples/framework-app examples/plain-app",
     "test:phase3": "npm run typecheck && npm run test:acceptance",
     "test:phase5": "npm run typecheck && vitest run benchmarks/evaluator benchmarks/harness benchmarks/reports benchmarks/runtime",
-    "benchmark:corpus:check": "npm run freeze:check --workspace @agentix/benchmark-evaluator",
+    "benchmark:corpus:check": "npm run freeze:check --workspace @agentixdev/benchmark-evaluator",
     "benchmark:corpus:refresh": "node scripts/refresh-benchmark-freeze.mjs",
     "benchmark:harness:smoke": "vitest run benchmarks/harness/src/runner.test.ts",
     "benchmark:runtime:smoke": "npm run build && node benchmarks/runtime/dist/cli.js --smoke --no-process",

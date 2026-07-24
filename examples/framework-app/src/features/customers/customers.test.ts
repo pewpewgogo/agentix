@@ -1,5 +1,5 @@
-import { bindPort, createApplication, ok } from "@agentix/core";
-import { testCommand } from "@agentix/testing";
+import { bindPort, createApplication, ok } from "@agentixdev/core";
+import { testCommand } from "@agentixdev/testing";
 import { describe, expect, it } from "vitest";
 
 import {

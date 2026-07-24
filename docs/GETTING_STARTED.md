@@ -15,8 +15,8 @@ Create an application and install the runtime, test, and CLI packages:
 mkdir agentix-notes
 cd agentix-notes
 npm init -y
-npm install @agentix/core @agentix/adapters-http
-npm install --save-dev @agentix/cli @agentix/testing typescript
+npm install @agentixdev/core @agentixdev/adapters-http
+npm install --save-dev @agentixdev/cli @agentixdev/testing typescript
 ```
 
 The packages are ESM-only and require Node.js 24. Configure the application as
@@ -100,7 +100,7 @@ import {
   portOperation,
   schema,
   type Infer,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 export const NoteId = schema.id("note");
 
@@ -145,7 +145,7 @@ port says that persistence is a write effect, but it does not choose a database.
 Create `src/features/notes/operations.ts`:
 
 ```ts
-import { defineCommand, schema } from "@agentix/core";
+import { defineCommand, schema } from "@agentixdev/core";
 
 import { Note, NoteId, NoteStore } from "./contract.js";
 
@@ -177,7 +177,7 @@ exceptions remain faults.
 Create `src/features/notes/feature.ts`:
 
 ```ts
-import { defineFeature } from "@agentix/core";
+import { defineFeature } from "@agentixdev/core";
 
 import { NoteStore, notesContract } from "./contract.js";
 import { createNote } from "./operations.js";
@@ -208,7 +208,7 @@ import {
   domainError,
   err,
   ok,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 import { NoteStore, type Note } from "./features/notes/contract.js";
 import { notes } from "./features/notes/feature.js";
@@ -240,7 +240,7 @@ host application.
 ## Dispatch the command
 
 ```ts
-import { principal } from "@agentix/core";
+import { principal } from "@agentixdev/core";
 
 import { application } from "./application.js";
 import { Note } from "./features/notes/contract.js";
@@ -282,9 +282,9 @@ import {
   createTrustedHeaderPrincipalExtractor,
   defineHttpRoute,
   readJsonBody,
-} from "@agentix/adapters-http/web";
-import { createNodeHttpListener } from "@agentix/adapters-http/node";
-import type { Infer } from "@agentix/core";
+} from "@agentixdev/adapters-http/web";
+import { createNodeHttpListener } from "@agentixdev/adapters-http/node";
+import type { Infer } from "@agentixdev/core";
 
 import { application } from "./application.js";
 import { createNote } from "./features/notes/operations.js";

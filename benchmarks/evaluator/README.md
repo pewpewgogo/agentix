@@ -48,9 +48,9 @@ and `production_hidden_evaluator_unavailable`.
 ## Commands
 
 ```sh
-npm --workspace @agentix/benchmark-evaluator run typecheck
-npm --workspace @agentix/benchmark-evaluator test
-npm --workspace @agentix/benchmark-evaluator run freeze:check
+npm --workspace @agentixdev/benchmark-evaluator run typecheck
+npm --workspace @agentixdev/benchmark-evaluator test
+npm --workspace @agentixdev/benchmark-evaluator run freeze:check
 ```
 
 `freeze:check` is read-only. It validates the corpus lock, task-to-fixture and

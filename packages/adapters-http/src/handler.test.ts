@@ -8,7 +8,7 @@ import {
   err,
   ok,
   schema,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 import { createBearerPrincipalExtractor } from "./auth.js";
 import { createHttpHandler } from "./handler.js";

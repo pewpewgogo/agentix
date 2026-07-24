@@ -6,7 +6,7 @@
     "outDir": "dist",
     "tsBuildInfoFile": "dist/.tsbuildinfo",
     "paths": {
-      "@agentix/benchmark-harness": ["../harness/dist/index.d.ts"]
+      "@agentixdev/benchmark-harness": ["../harness/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*.ts"],

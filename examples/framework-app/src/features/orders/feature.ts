@@ -1,4 +1,4 @@
-import { defineFeature } from "@agentix/core";
+import { defineFeature } from "@agentixdev/core";
 
 import { customersContract } from "../customers/contract.js";
 import { paymentsContract } from "../payments/contract.js";

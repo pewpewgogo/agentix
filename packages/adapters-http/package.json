@@ -1,5 +1,5 @@
 {
-  "name": "@agentix/adapters-http",
+  "name": "@agentixdev/adapters-http",
   "version": "0.0.0",
   "description": "Web Request/Response routes and an optional Node HTTP host for Agentix applications.",
   "license": "MIT",
@@ -49,6 +49,6 @@
     "test": "vitest run --root ../.. packages/adapters-http"
   },
   "dependencies": {
-    "@agentix/core": "0.0.0"
+    "@agentixdev/core": "0.0.0"
   }
 }

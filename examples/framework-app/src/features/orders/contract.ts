@@ -5,7 +5,7 @@ import {
   portOperation,
   schema,
   type Infer,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 import { PositiveSafeInteger } from "../products/contract.js";
 

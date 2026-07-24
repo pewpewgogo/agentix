@@ -1,11 +1,11 @@
-# `@agentix/testing`
+# `@agentixdev/testing`
 
 Deterministic operation harnesses, capability fakes, traces, port contracts,
 invariant checks, and replay for
 [Agentix](https://pewpewgogo.github.io/agentix/) applications.
 
 ```sh
-npm install --save-dev @agentix/testing
+npm install --save-dev @agentixdev/testing
 ```
 
 Agentix is research-stage, ESM-only, and pre-1.0. See the

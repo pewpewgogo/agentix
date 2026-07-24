@@ -11,6 +11,6 @@ Nest metadata or a dependency cannot be resolved from those files.
 Verify with:
 
 ```sh
-npm run typecheck --workspace @agentix/sandbox-nestjs-notes
-npm test --workspace @agentix/sandbox-nestjs-notes
+npm run typecheck --workspace @agentixdev/sandbox-nestjs-notes
+npm test --workspace @agentixdev/sandbox-nestjs-notes
 ```

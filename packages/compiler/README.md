@@ -1,12 +1,12 @@
-# `@agentix/compiler`
+# `@agentixdev/compiler`
 
 Static architecture analysis and bounded operation-context projection for
 [Agentix](https://pewpewgogo.github.io/agentix/) applications.
 
-Most applications use this package through `@agentix/cli`:
+Most applications use this package through `@agentixdev/cli`:
 
 ```sh
-npm install --save-dev @agentix/cli
+npm install --save-dev @agentixdev/cli
 npm exec -- agentix inspect <operation-id> --root <application>
 ```
 

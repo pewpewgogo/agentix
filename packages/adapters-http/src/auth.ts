@@ -1,4 +1,4 @@
-import type { Principal } from "@agentix/core";
+import type { Principal } from "@agentixdev/core";
 
 import type { Awaitable } from "./route.js";
 

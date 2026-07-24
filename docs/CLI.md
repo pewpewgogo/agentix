@@ -10,7 +10,7 @@ runtime dispatch and never overrides source.
 Install the CLI in an Agentix application and invoke its local binary:
 
 ```sh
-npm install --save-dev @agentix/cli
+npm install --save-dev @agentixdev/cli
 npm exec -- agentix help
 ```
 
@@ -175,7 +175,7 @@ These read-looking commands can therefore update that ignored generated file.
 For programmatic generation:
 
 ```ts
-import { generateIndex } from "@agentix/compiler";
+import { generateIndex } from "@agentixdev/compiler";
 
 const { index, json, outputFile } = generateIndex({
   rootDir: "/absolute/path/to/application",
@@ -214,7 +214,7 @@ event-consumer analysis.
 | 2 | Invalid invocation or unknown target |
 | 3 | Internal CLI failure |
 
-Programmatic consumers can import `runCli` and `ExitCode` from `@agentix/cli`
+Programmatic consumers can import `runCli` and `ExitCode` from `@agentixdev/cli`
 and inject I/O or a process runner for deterministic tests.
 
 ## Generated-file policy

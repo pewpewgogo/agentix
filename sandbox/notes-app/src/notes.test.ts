@@ -1,4 +1,4 @@
-import { associateOperationTest } from "@agentix/testing";
+import { associateOperationTest } from "@agentixdev/testing";
 import { describe, expect, it } from "vitest";
 
 import { createNote, getNote } from "./features/notes/operations.js";

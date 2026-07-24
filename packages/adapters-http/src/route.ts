@@ -2,7 +2,7 @@ import type {
   AnyOperationDescriptor,
   DispatchResult,
   Infer,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 export type Awaitable<T> = T | Promise<T>;
 

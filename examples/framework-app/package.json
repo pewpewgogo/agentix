@@ -1,5 +1,5 @@
 {
-  "name": "@agentix/framework-app",
+  "name": "@agentixdev/framework-app",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,13 +15,13 @@
     "test": "vitest run --root ../.. examples/framework-app"
   },
   "dependencies": {
-    "@agentix/adapters-http": "0.0.0",
-    "@agentix/core": "0.0.0",
-    "@agentix/shared-contract": "0.0.0"
+    "@agentixdev/adapters-http": "0.0.0",
+    "@agentixdev/core": "0.0.0",
+    "@agentixdev/shared-contract": "0.0.0"
   },
   "devDependencies": {
-    "@agentix/compiler": "0.0.0",
-    "@agentix/testing": "0.0.0",
+    "@agentixdev/compiler": "0.0.0",
+    "@agentixdev/testing": "0.0.0",
     "fast-check": "4.9.0",
     "vitest": "4.1.10"
   }

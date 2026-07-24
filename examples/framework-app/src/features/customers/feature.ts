@@ -1,4 +1,4 @@
-import { defineFeature } from "@agentix/core";
+import { defineFeature } from "@agentixdev/core";
 
 import {
   CustomerClock,

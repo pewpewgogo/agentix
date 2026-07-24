@@ -1,4 +1,4 @@
-import { defineFeature } from "@agentix/core";
+import { defineFeature } from "@agentixdev/core";
 
 import { notesContract, NoteStorage } from "./contract.js";
 import { createNote, getNote } from "./operations.js";

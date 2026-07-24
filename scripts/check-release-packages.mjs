@@ -5,27 +5,27 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packages = [
-  ["@agentix/core", "packages/core", ["dist/index.js", "dist/index.d.ts"], 16],
+  ["@agentixdev/core", "packages/core", ["dist/index.js", "dist/index.d.ts"], 16],
   [
-    "@agentix/compiler",
+    "@agentixdev/compiler",
     "packages/compiler",
     ["dist/index.js", "dist/index.d.ts"],
     22,
   ],
   [
-    "@agentix/cli",
+    "@agentixdev/cli",
     "packages/cli",
     ["dist/index.js", "dist/index.d.ts", "dist/bin.js"],
     12,
   ],
   [
-    "@agentix/testing",
+    "@agentixdev/testing",
     "packages/testing",
     ["dist/index.js", "dist/index.d.ts"],
     24,
   ],
   [
-    "@agentix/adapters-http",
+    "@agentixdev/adapters-http",
     "packages/adapters-http",
     [
       "dist/index.js",
@@ -129,7 +129,7 @@ for (const [name, , requiredFiles, maximumFiles] of packages) {
     }
   }
 
-  if (name === "@agentix/cli") {
+  if (name === "@agentixdev/cli") {
     const binary = files.get("dist/bin.js");
     if (binary !== undefined && (binary.mode & 0o111) === 0) {
       errors.push(`${name}: dist/bin.js is not executable`);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defineInvariant, schema } from "@agentix/core";
+import { defineInvariant, schema } from "@agentixdev/core";
 import { integer, record } from "fast-check";
 
 import {

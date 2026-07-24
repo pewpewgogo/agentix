@@ -1,8 +1,8 @@
 # HTTP Adapter
 
-`@agentix/adapters-http/web` is a small inbound adapter, not a second application
+`@agentixdev/adapters-http/web` is a small inbound adapter, not a second application
 runtime. It maps explicit routes to an Agentix `Application` using Web-standard
-`Request` and `Response` values. `@agentix/adapters-http/node` provides the
+`Request` and `Response` values. `@agentixdev/adapters-http/node` provides the
 optional thin `node:http` host. The package root re-exports both for
 compatibility.
 
@@ -12,8 +12,8 @@ compatibility.
 import {
   defineHttpRoute,
   readJsonBody,
-} from "@agentix/adapters-http/web";
-import type { Infer } from "@agentix/core";
+} from "@agentixdev/adapters-http/web";
+import type { Infer } from "@agentixdev/core";
 
 const createOrderRoute = defineHttpRoute({
   method: "POST",
@@ -170,7 +170,7 @@ is not Agentix's default.
 
 ```ts
 import { createServer } from "node:http";
-import { createNodeHttpListener } from "@agentix/adapters-http/node";
+import { createNodeHttpListener } from "@agentixdev/adapters-http/node";
 
 const server = createServer(createNodeHttpListener(handler, {
   maxBodyBytes: 1_048_576,

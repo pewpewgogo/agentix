@@ -5,7 +5,7 @@ packages are ESM-only and use one coordinated pre-1.0 version. Only documented
 package roots and the HTTP `/web` and `/node` subpaths are supported. Minor
 releases may change the API without compatibility shims until 1.0.
 
-## `@agentix/core`
+## `@agentixdev/core`
 
 ### Schemas
 
@@ -110,7 +110,7 @@ remain faults under `INVALID_EFFECT_INPUT` and `INVALID_EVENT_PAYLOAD`.
 See [core concepts](CORE_CONCEPTS.md) for dispatch order, always-on boundary
 validation, and behavior Agentix intentionally does not provide.
 
-## `@agentix/adapters-http`
+## `@agentixdev/adapters-http`
 
 ### Authentication
 
@@ -147,11 +147,11 @@ Types: `HttpHandler`, `CreateHttpHandlerOptions`, and
 `NodeHttpListenerOptions`. Read [HTTP adapter](HTTP.md) for status mapping,
 authentication safety, body limits, buffering, and proxy trust.
 
-Use `@agentix/adapters-http/web` for the Web-standard auth/route/handler surface
-without importing the Node host. Use `@agentix/adapters-http/node` for
+Use `@agentixdev/adapters-http/web` for the Web-standard auth/route/handler surface
+without importing the Node host. Use `@agentixdev/adapters-http/node` for
 `createNodeHttpListener`. The package root retains both for compatibility.
 
-## `@agentix/testing`
+## `@agentixdev/testing`
 
 | Area | Exports |
 | --- | --- |
@@ -168,7 +168,7 @@ The package also exports the corresponding option, result, call-record, JSON,
 replay, and trace types. It is Node-oriented and depends on `fast-check`.
 Read [testing](TESTING.md) for lifecycle and ordering details.
 
-## `@agentix/compiler`
+## `@agentixdev/compiler`
 
 | Export | Purpose |
 | --- | --- |
@@ -202,7 +202,7 @@ static analysis. Treat this package as especially pre-release. Generation may
 return/write an index containing diagnostics; it does not itself promise a clean
 architecture result.
 
-## `@agentix/cli`
+## `@agentixdev/cli`
 
 The package installs the repository-local `agentix` binary and exposes a small
 programmatic surface:
@@ -222,7 +222,7 @@ conventions.
 
 ## Import and module rules
 
-- Import package roots such as `@agentix/core`. The HTTP package additionally
+- Import package roots such as `@agentixdev/core`. The HTTP package additionally
   exports the documented `/web` and `/node` subpaths; other deep imports are not
   supported.
 - Application packages use ESM/NodeNext. Relative TypeScript imports include a

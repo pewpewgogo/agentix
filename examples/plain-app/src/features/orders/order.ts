@@ -1,4 +1,4 @@
-import { COMMERCE_ERRORS } from "@agentix/shared-contract";
+import { COMMERCE_ERRORS } from "@agentixdev/shared-contract";
 import { z } from "zod";
 
 import { failure, success } from "../../domain/result.js";

@@ -271,7 +271,7 @@ export const createIsolatedRepository = async (
 };
 
 const appWorkspace = (arm: RuntimeArm): string =>
-  arm === "framework" ? "@agentix/framework-app" : "@agentix/plain-app";
+  arm === "framework" ? "@agentixdev/framework-app" : "@agentixdev/plain-app";
 
 const appDirectory = (arm: RuntimeArm): string =>
   arm === "framework" ? "examples/framework-app" : "examples/plain-app";
@@ -610,7 +610,7 @@ export const measureToolchain = async (input: {
         // dist is intentionally absent, bootstrap that local workspace package
         // outside the measured app typecheck instead of resolving root dist.
         const prerequisite = await executor.run(isolated.root, [
-          "npm", "run", "build", "--workspace", "@agentix/compiler",
+          "npm", "run", "build", "--workspace", "@agentixdev/compiler",
         ]);
         if (prerequisite.exitCode !== 0) {
           return {
@@ -641,10 +641,10 @@ export const measureToolchain = async (input: {
     const prerequisiteCommands: readonly (readonly [string, ...string[]])[] =
       input.arm === "framework"
         ? [
-            ["npm", "run", "build", "--workspace", "@agentix/cli"],
-            ["npm", "run", "build", "--workspace", "@agentix/framework-app"],
+            ["npm", "run", "build", "--workspace", "@agentixdev/cli"],
+            ["npm", "run", "build", "--workspace", "@agentixdev/framework-app"],
           ]
-        : [["npm", "run", "build", "--workspace", "@agentix/plain-app"]];
+        : [["npm", "run", "build", "--workspace", "@agentixdev/plain-app"]];
     for (const command of prerequisiteCommands) {
       const build = await executor.run(isolated.root, command);
       if (build.exitCode !== 0) {
@@ -699,7 +699,7 @@ export const measureToolchain = async (input: {
           };
     }
     const typecheck = await executor.run(isolated.root, [
-      "npm", "run", "typecheck", "--workspace", "@agentix/plain-app",
+      "npm", "run", "typecheck", "--workspace", "@agentixdev/plain-app",
     ]);
     if (typecheck.exitCode !== 0) {
       return {
@@ -710,7 +710,7 @@ export const measureToolchain = async (input: {
       };
     }
     const tests = await executor.run(isolated.root, [
-      "npm", "test", "--workspace", "@agentix/plain-app",
+      "npm", "test", "--workspace", "@agentixdev/plain-app",
     ]);
     return tests.exitCode === 0
       ? { ok: true, nanoseconds: typecheck.nanoseconds + tests.nanoseconds }

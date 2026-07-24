@@ -4,7 +4,7 @@ import {
   portOperation,
   schema,
   type Infer,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 export const CustomerId = schema.id("customer");
 export const Customer = schema.object({

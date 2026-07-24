@@ -1,4 +1,4 @@
-import { defineQuery, definePort, portOperation } from "@agentix/core";
+import { defineQuery, definePort, portOperation } from "@agentixdev/core";
 import { privateCustomerState } from "../customers/model.js";
 
 const Store = definePort({

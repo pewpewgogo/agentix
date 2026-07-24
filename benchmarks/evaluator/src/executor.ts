@@ -53,7 +53,7 @@ export interface EvaluationSummary {
   readonly invalidRunReason: string | null;
 }
 
-/** Structurally compatible with @agentix/benchmark-harness. */
+/** Structurally compatible with @agentixdev/benchmark-harness. */
 export interface BenchmarkLifecycleHooks {
   preflight(context: LifecycleContextLike): Promise<readonly LifecycleCheck[]>;
   evaluate(context: LifecycleContextLike): Promise<EvaluationSummary>;

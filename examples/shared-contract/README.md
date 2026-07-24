@@ -5,11 +5,11 @@ It owns only public data types and black-box Vitest scenarios. It imports
 neither the framework nor either commerce implementation.
 
 Production code may import pure types and constants from
-`@agentix/shared-contract`. Tests register the reusable suite from
-`@agentix/shared-contract/acceptance`:
+`@agentixdev/shared-contract`. Tests register the reusable suite from
+`@agentixdev/shared-contract/acceptance`:
 
 ```ts
-import { defineCommerceAcceptance } from "@agentix/shared-contract/acceptance";
+import { defineCommerceAcceptance } from "@agentixdev/shared-contract/acceptance";
 import { createCommerceSystem } from "../src/index.js";
 
 defineCommerceAcceptance("plain app", createCommerceSystem);

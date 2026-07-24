@@ -5,7 +5,7 @@ import {
   err,
   ok,
   schema,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 import {
   NonNegativeSafeInteger,

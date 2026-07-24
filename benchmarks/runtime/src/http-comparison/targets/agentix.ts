@@ -5,7 +5,7 @@ import {
   defineFeatureContract,
   ok,
   schema,
-} from "@agentix/core";
+} from "@agentixdev/core";
 import {
   createHttpHandler,
   createNodeHttpListener,
@@ -13,7 +13,7 @@ import {
   HttpInputError,
   jsonResponse,
   readJsonBody,
-} from "@agentix/adapters-http";
+} from "@agentixdev/adapters-http";
 
 import type { HttpTarget } from "../types.js";
 import {

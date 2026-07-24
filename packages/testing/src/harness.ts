@@ -6,7 +6,7 @@ import type {
   Infer,
   Principal,
   QueryDescriptor,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 export type OperationHarnessResult<
   Operation extends CommandDescriptor | QueryDescriptor,

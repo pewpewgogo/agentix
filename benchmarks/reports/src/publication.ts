@@ -6,7 +6,7 @@ import {
 } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
-import { canonicalJson, sha256 } from "@agentix/benchmark-harness";
+import { canonicalJson, sha256 } from "@agentixdev/benchmark-harness";
 
 import type { PublishedReportManifest } from "./types.js";
 

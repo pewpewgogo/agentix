@@ -83,8 +83,8 @@ runner/script configuration, not by a substring heuristic.
 ## Local verification
 
 ```sh
-npm run typecheck --workspace @agentix/benchmark-harness
-npm test --workspace @agentix/benchmark-harness
+npm run typecheck --workspace @agentixdev/benchmark-harness
+npm test --workspace @agentixdev/benchmark-harness
 ```
 
 No test invokes a paid or external model. The scripted end-to-end test writes a

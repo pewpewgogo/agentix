@@ -1,5 +1,5 @@
 {
-  "name": "@agentix/benchmark-evaluator",
+  "name": "@agentixdev/benchmark-evaluator",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -19,7 +19,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@agentix/benchmark-harness": "0.0.0",
+    "@agentixdev/benchmark-harness": "0.0.0",
     "@types/node": "26.1.1",
     "tsx": "4.23.1",
     "typescript": "7.0.2",

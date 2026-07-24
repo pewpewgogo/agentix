@@ -1,4 +1,4 @@
-import { defineCommand } from "@agentix/core";
+import { defineCommand } from "@agentixdev/core";
 import { OrderCreated } from "./events.js";
 import { orderCustomerExists } from "./invariants.js";
 import { Payments } from "./ports.js";

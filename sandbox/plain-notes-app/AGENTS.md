@@ -11,6 +11,6 @@ from those files.
 Verify with:
 
 ```sh
-npm run typecheck --workspace @agentix/sandbox-express-notes
-npm test --workspace @agentix/sandbox-express-notes
+npm run typecheck --workspace @agentixdev/sandbox-express-notes
+npm test --workspace @agentixdev/sandbox-express-notes
 ```

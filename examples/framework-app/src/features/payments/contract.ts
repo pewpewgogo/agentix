@@ -3,7 +3,7 @@ import {
   definePort,
   portOperation,
   schema,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 export const Payments = definePort({
   id: "payment-gateway",

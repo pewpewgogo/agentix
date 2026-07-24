@@ -133,11 +133,11 @@ describe("fresh runtime execution", () => {
       mkdir(resolve(root, "packages/core/src"), { recursive: true }),
       mkdir(resolve(root, "packages/core/dist"), { recursive: true }),
       mkdir(resolve(root, "examples/plain-app/dist"), { recursive: true }),
-      mkdir(resolve(root, "node_modules/@agentix"), { recursive: true }),
+      mkdir(resolve(root, "node_modules/@agentixdev"), { recursive: true }),
     ]);
     await Promise.all([
       writeFile(resolve(root, "packages/core/package.json"), JSON.stringify({
-        name: "@agentix/core",
+        name: "@agentixdev/core",
         type: "module",
         exports: "./dist/index.js",
       })),
@@ -146,7 +146,7 @@ describe("fresh runtime execution", () => {
       writeFile(resolve(root, "examples/plain-app/dist/index.js"), "throw new Error('STALE APP DIST');\n"),
       symlink(
         resolve(root, "packages/core"),
-        resolve(root, "node_modules/@agentix/core"),
+        resolve(root, "node_modules/@agentixdev/core"),
         "dir",
       ),
     ]);
@@ -157,7 +157,7 @@ describe("fresh runtime execution", () => {
       async run(cwd, argv) {
         isolatedRoot = cwd;
         expect(argv).toEqual([
-          "npm", "run", "build", "--workspace", "@agentix/plain-app",
+          "npm", "run", "build", "--workspace", "@agentixdev/plain-app",
         ]);
         await expect(access(resolve(cwd, "examples/plain-app/dist"))).rejects.toThrow();
         await expect(access(resolve(cwd, "packages/core/dist"))).rejects.toThrow();
@@ -168,7 +168,7 @@ describe("fresh runtime execution", () => {
         await Promise.all([
           writeFile(
             resolve(cwd, "examples/plain-app/dist/index.js"),
-            "import { sentinel } from '@agentix/core';\nexport const createPlainSystem = () => ({ sentinel });\n",
+            "import { sentinel } from '@agentixdev/core';\nexport const createPlainSystem = () => ({ sentinel });\n",
           ),
           writeFile(
             resolve(cwd, "packages/core/dist/index.js"),
@@ -185,10 +185,10 @@ describe("fresh runtime execution", () => {
     try {
       expect(await realpath(resolve(
         build.isolatedRoot,
-        "node_modules/@agentix/core",
+        "node_modules/@agentixdev/core",
       ))).toBe(await realpath(resolve(build.isolatedRoot, "packages/core")));
       expect(build.evidence.entrySha256).toBe(sha256(
-        "import { sentinel } from '@agentix/core';\nexport const createPlainSystem = () => ({ sentinel });\n",
+        "import { sentinel } from '@agentixdev/core';\nexport const createPlainSystem = () => ({ sentinel });\n",
       ));
       expect(build.evidence.workspaceOutputManifestSha256).toMatch(/^[a-f0-9]{64}$/u);
 
@@ -297,11 +297,11 @@ describe("isolated toolchain measurements", () => {
     })).resolves.toEqual({ ok: true, nanoseconds: 22 });
 
     expect(commands.map(({ argv }) => argv)).toEqual([
-      ["npm", "run", "build", "--workspace", "@agentix/plain-app"],
-      ["npm", "run", "build", "--workspace", "@agentix/compiler"],
-      ["npm", "run", "typecheck", "--workspace", "@agentix/framework-app"],
-      ["npm", "run", "build", "--workspace", "@agentix/cli"],
-      ["npm", "run", "build", "--workspace", "@agentix/framework-app"],
+      ["npm", "run", "build", "--workspace", "@agentixdev/plain-app"],
+      ["npm", "run", "build", "--workspace", "@agentixdev/compiler"],
+      ["npm", "run", "typecheck", "--workspace", "@agentixdev/framework-app"],
+      ["npm", "run", "build", "--workspace", "@agentixdev/cli"],
+      ["npm", "run", "build", "--workspace", "@agentixdev/framework-app"],
       [
         process.execPath,
         "packages/cli/dist/bin.js",
@@ -311,9 +311,9 @@ describe("isolated toolchain measurements", () => {
         "examples/framework-app",
         "--json",
       ],
-      ["npm", "run", "build", "--workspace", "@agentix/plain-app"],
-      ["npm", "run", "typecheck", "--workspace", "@agentix/plain-app"],
-      ["npm", "test", "--workspace", "@agentix/plain-app"],
+      ["npm", "run", "build", "--workspace", "@agentixdev/plain-app"],
+      ["npm", "run", "typecheck", "--workspace", "@agentixdev/plain-app"],
+      ["npm", "test", "--workspace", "@agentixdev/plain-app"],
     ]);
     expect(new Set(commands.map(({ cwd }) => cwd)).size).toBe(4);
   });

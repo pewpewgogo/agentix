@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { definePort, ok, portOperation, schema } from "@agentix/core";
+import { definePort, ok, portOperation, schema } from "@agentixdev/core";
 
 import {
   createRecordingAdapter,

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   readImmutableRunResult,
   sha256,
-} from "@agentix/benchmark-harness";
+} from "@agentixdev/benchmark-harness";
 
 import { analyzeExperiment } from "./analyze.js";
 import { publishReportDirectory } from "./publication.js";

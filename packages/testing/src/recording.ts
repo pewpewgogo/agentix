@@ -1,4 +1,4 @@
-import type { PortDescriptor, PortImplementation } from "@agentix/core";
+import type { PortDescriptor, PortImplementation } from "@agentixdev/core";
 
 export type Awaitable<T> = T | Promise<T>;
 

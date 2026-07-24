@@ -8,22 +8,22 @@ const fromRoot = (path: string): string =>
 export default defineConfig({
   resolve: {
     alias: {
-      "@agentix/core": fromRoot("./packages/core/src/index.ts"),
-      "@agentix/testing": fromRoot("./packages/testing/src/index.ts"),
-      "@agentix/compiler": fromRoot("./packages/compiler/src/index.ts"),
-      "@agentix/adapters-http": fromRoot(
+      "@agentixdev/core": fromRoot("./packages/core/src/index.ts"),
+      "@agentixdev/testing": fromRoot("./packages/testing/src/index.ts"),
+      "@agentixdev/compiler": fromRoot("./packages/compiler/src/index.ts"),
+      "@agentixdev/adapters-http": fromRoot(
         "./packages/adapters-http/src/index.ts",
       ),
-      "@agentix/shared-contract/acceptance": fromRoot(
+      "@agentixdev/shared-contract/acceptance": fromRoot(
         "./examples/shared-contract/src/acceptance.ts",
       ),
-      "@agentix/shared-contract": fromRoot(
+      "@agentixdev/shared-contract": fromRoot(
         "./examples/shared-contract/src/index.ts",
       ),
-      "@agentix/framework-app": fromRoot(
+      "@agentixdev/framework-app": fromRoot(
         "./examples/framework-app/src/index.ts",
       ),
-      "@agentix/plain-app": fromRoot("./examples/plain-app/src/index.ts"),
+      "@agentixdev/plain-app": fromRoot("./examples/plain-app/src/index.ts"),
     },
   },
   test: {

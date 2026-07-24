@@ -227,7 +227,7 @@ const paidOrderHasPayment = defineInvariant({
 
 Listing an invariant on an operation creates dependency and verification
 metadata. It does not install a hidden production hook. The operation or its
-tests must call the predicate explicitly. `@agentix/testing` supplies assertion
+tests must call the predicate explicitly. `@agentixdev/testing` supplies assertion
 and property-test helpers.
 
 ## Application assembly

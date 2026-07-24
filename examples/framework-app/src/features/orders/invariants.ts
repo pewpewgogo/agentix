@@ -1,4 +1,4 @@
-import { defineInvariant, schema } from "@agentix/core";
+import { defineInvariant, schema } from "@agentixdev/core";
 
 import { paymentsContract } from "../payments/contract.js";
 import { Order, Payment, ordersContract } from "./contract.js";

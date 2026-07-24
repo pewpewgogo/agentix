@@ -407,7 +407,7 @@ best-effort process timeout as sufficient evidence for the confirmatory study.
 - Status: accepted before any confirmatory observation
 
 The framework's public name is **Agentix**. The active package scope is
-`@agentix/*`, the CLI binary is `agentix`, the generated projection is
+`@agentixdev/*`, the CLI binary is `agentix`, the generated projection is
 `.agentix/index.json`, and benchmark/runtime protocol identifiers use the
 `agentix` prefix. The local Git `origin` is
 `git@github.com:pewpewgogo/agentix.git`. Scientific arm values and paths remain
@@ -742,13 +742,13 @@ npm run benchmark:corpus:check
 npm run benchmark:harness:smoke
 1 test file passed; 3 tests passed
 
-npm test --workspace @agentix/core
+npm test --workspace @agentixdev/core
 5 test files passed; 28 tests passed
 
-npm test --workspace @agentix/compiler
+npm test --workspace @agentixdev/compiler
 1 test file passed; 8 tests passed
 
-npm test --workspace @agentix/cli
+npm test --workspace @agentixdev/cli
 1 test file passed; 6 tests passed
 ```
 
@@ -950,9 +950,9 @@ completeness and omission reporting.
 - Date: 2026-07-24
 - Status: accepted before the first npm publication
 
-Agentix uses the MIT license and publishes `@agentix/core`,
-`@agentix/compiler`, `@agentix/cli`, `@agentix/testing`, and
-`@agentix/adapters-http` as public ESM packages requiring Node.js 24. All five
+Agentix uses the MIT license and publishes `@agentixdev/core`,
+`@agentixdev/compiler`, `@agentixdev/cli`, `@agentixdev/testing`, and
+`@agentixdev/adapters-http` as public ESM packages requiring Node.js 24. All five
 packages are one Changesets fixed group: a release pull request owns version,
 internal dependency-range, changelog, and lockfile updates, and all packages
 share the same pre-1.0 version. Until 1.0, semantic versioning applies but minor
@@ -976,7 +976,7 @@ recovery.
 - Date: 2026-07-24
 - Status: accepted before the first GitHub test publication
 
-GitHub test builds attach all five canonical `@agentix/*` package tarballs to an
+GitHub test builds attach all five canonical `@agentixdev/*` package tarballs to an
 immutable prerelease. Internal dependencies point to assets in the same release,
 so applications install directly from public HTTPS URLs without changing import
 names. Every test release is bound to a Git revision, uses a unique semantic

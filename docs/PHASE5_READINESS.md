@@ -77,13 +77,13 @@ npm run benchmark:corpus:check
 npm run benchmark:harness:smoke
 1 test file passed; 3 tests passed
 
-npm test --workspace @agentix/core
+npm test --workspace @agentixdev/core
 5 test files passed; 28 tests passed
 
-npm test --workspace @agentix/compiler
+npm test --workspace @agentixdev/compiler
 1 test file passed; 8 tests passed
 
-npm test --workspace @agentix/cli
+npm test --workspace @agentixdev/cli
 1 test file passed; 6 tests passed
 ```
 

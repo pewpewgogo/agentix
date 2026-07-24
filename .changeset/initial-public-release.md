@@ -1,9 +1,9 @@
 ---
-"@agentix/core": minor
-"@agentix/compiler": minor
-"@agentix/cli": minor
-"@agentix/testing": minor
-"@agentix/adapters-http": minor
+"@agentixdev/core": minor
+"@agentixdev/compiler": minor
+"@agentixdev/cli": minor
+"@agentixdev/testing": minor
+"@agentixdev/adapters-http": minor
 ---
 
 Publish the first public Agentix framework packages with coordinated versions,

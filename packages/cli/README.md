@@ -1,10 +1,10 @@
-# `@agentix/cli`
+# `@agentixdev/cli`
 
 The `agentix` command for bounded application inspection, dependency graphs,
 affected scope, verification, and feature scaffolding.
 
 ```sh
-npm install --save-dev @agentix/cli
+npm install --save-dev @agentixdev/cli
 npm exec -- agentix help
 npm exec -- agentix inspect <operation-id> --root <application> --json --compact
 ```

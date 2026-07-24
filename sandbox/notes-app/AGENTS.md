@@ -16,6 +16,6 @@ index as agent context.
 Verify with:
 
 ```sh
-npm run typecheck --workspace @agentix/sandbox-agentix-notes
-npm test --workspace @agentix/sandbox-agentix-notes
+npm run typecheck --workspace @agentixdev/sandbox-agentix-notes
+npm test --workspace @agentixdev/sandbox-agentix-notes
 ```

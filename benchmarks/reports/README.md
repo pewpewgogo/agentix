@@ -1,6 +1,6 @@
 # Integrity-bound benchmark reports
 
-This package analyzes immutable `@agentix/benchmark-harness` `RunRecord` values
+This package analyzes immutable `@agentixdev/benchmark-harness` `RunRecord` values
 against one hashed `ScheduleDocument` and one frozen cohort configuration. It
 does not accept a normalized JSON array with caller-supplied success or token
 fields.
@@ -103,6 +103,6 @@ or incomplete report directories are never overwritten or treated as complete.
 ## Verification
 
 ```sh
-npm run typecheck --workspace @agentix/benchmark-reports
-npm test --workspace @agentix/benchmark-reports
+npm run typecheck --workspace @agentixdev/benchmark-reports
+npm test --workspace @agentixdev/benchmark-reports
 ```

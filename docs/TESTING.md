@@ -1,6 +1,6 @@
 # Testing Agentix Applications
 
-`@agentix/testing` exercises operations through the same dispatcher used in
+`@agentixdev/testing` exercises operations through the same dispatcher used in
 production while keeping time, randomness, and infrastructure deterministic.
 It complements Vitest or another test runner; it does not replace one.
 
@@ -15,7 +15,7 @@ import {
   assertEffectSequence,
   assertEventSequence,
   testCommand,
-} from "@agentix/testing";
+} from "@agentixdev/testing";
 
 describe("orders.create", () => {
   it("charges, commits, and emits in the declared flow", async () => {
@@ -208,8 +208,8 @@ npm run test:phase5
 Run a focused workspace while developing:
 
 ```sh
-npm test --workspace @agentix/framework-app
-npm test --workspace @agentix/testing
+npm test --workspace @agentixdev/framework-app
+npm test --workspace @agentixdev/testing
 ```
 
 The shared acceptance suite is the behavioral-equivalence gate between the

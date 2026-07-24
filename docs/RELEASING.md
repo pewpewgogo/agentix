@@ -2,11 +2,11 @@
 
 Agentix publishes five public npm packages as one fixed, pre-1.0 version:
 
-- `@agentix/core`
-- `@agentix/compiler`
-- `@agentix/cli`
-- `@agentix/testing`
-- `@agentix/adapters-http`
+- `@agentixdev/core`
+- `@agentixdev/compiler`
+- `@agentixdev/cli`
+- `@agentixdev/testing`
+- `@agentixdev/adapters-http`
 
 Examples, sandboxes, benchmarks, and the repository root remain private. The
 unscoped `agentix` npm name belongs to an unrelated project and is not a release
@@ -17,7 +17,7 @@ target.
 Public GitHub Packages npm artifacts require authentication even when the
 package is public. For frictionless testing, Agentix instead publishes immutable
 package tarballs as GitHub prerelease assets. They keep the canonical
-`@agentix/*` names and can be installed directly from HTTPS release URLs without
+`@agentixdev/*` names and can be installed directly from HTTPS release URLs without
 a registry token.
 
 Run the `Publish GitHub test packages` workflow manually, or push an immutable
@@ -61,8 +61,9 @@ accepts a repository secret named `NPM_TOKEN` for bootstrap or fallback use.
 
 Before the first release:
 
-1. create or confirm ownership of the `@agentix` npm organization;
-2. add a granular automation token as the `NPM_TOKEN` GitHub Actions secret;
+1. create or confirm ownership of the `@agentixdev` npm organization;
+2. configure npm trusted publishing for each public package, authorizing the
+   `pewpewgogo/agentix` repository's `release.yml` workflow;
 3. merge the generated initial release pull request and confirm all five
    packages publish at the same version; and
 4. configure each npm package's trusted publisher as repository

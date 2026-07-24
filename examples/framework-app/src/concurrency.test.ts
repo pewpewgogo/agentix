@@ -1,8 +1,8 @@
 import {
   COMMERCE_ERRORS,
   COMMERCE_PERMISSIONS,
-} from "@agentix/shared-contract";
-import { associateOperationTest } from "@agentix/testing";
+} from "@agentixdev/shared-contract";
+import { associateOperationTest } from "@agentixdev/testing";
 import { describe, expect, it } from "vitest";
 
 import { createFrameworkSystem } from "./application.js";

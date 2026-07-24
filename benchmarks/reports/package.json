@@ -1,5 +1,5 @@
 {
-  "name": "@agentix/benchmark-reports",
+  "name": "@agentixdev/benchmark-reports",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -18,7 +18,7 @@
     "test": "vitest run --root ../.. --config benchmarks/reports/vitest.config.ts"
   },
   "dependencies": {
-    "@agentix/benchmark-harness": "0.0.0"
+    "@agentixdev/benchmark-harness": "0.0.0"
   },
   "devDependencies": {
     "vitest": "4.1.10"

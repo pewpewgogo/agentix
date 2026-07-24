@@ -1,5 +1,5 @@
 {
-  "name": "@agentix/cli",
+  "name": "@agentixdev/cli",
   "version": "0.0.0",
   "description": "Inspect, graph, verify, and scaffold bounded Agentix application changes.",
   "license": "MIT",
@@ -44,6 +44,6 @@
     "test": "vitest run --root ../.. packages/cli"
   },
   "dependencies": {
-    "@agentix/compiler": "0.0.0"
+    "@agentixdev/compiler": "0.0.0"
   }
 }

@@ -13,7 +13,7 @@ import {
   type CompilerDiagnostic,
   type GraphEdge,
   type OperationContext,
-} from "@agentix/compiler";
+} from "@agentixdev/compiler";
 
 export const ExitCode = {
   success: 0,
@@ -339,11 +339,11 @@ const scaffoldTemplates = (name: string): ReadonlyMap<string, string> => {
   return new Map([
     [
       "contract.ts",
-      `import { defineFeatureContract } from "@agentix/core";\n\nexport interface ${pascal}View {\n  readonly id: string;\n}\n\nexport const ${camel}Contract = defineFeatureContract({\n  id: "${name}",\n  exports: {},\n});\n`,
+      `import { defineFeatureContract } from "@agentixdev/core";\n\nexport interface ${pascal}View {\n  readonly id: string;\n}\n\nexport const ${camel}Contract = defineFeatureContract({\n  id: "${name}",\n  exports: {},\n});\n`,
     ],
     [
       "feature.ts",
-      `import { defineFeature } from "@agentix/core";\n\nimport { ${camel}Contract } from "./contract.js";\n\nexport const ${camel} = defineFeature({\n  id: "${name}",\n  contract: ${camel}Contract,\n  dependencies: [],\n  operations: [],\n  invariants: [],\n});\n`,
+      `import { defineFeature } from "@agentixdev/core";\n\nimport { ${camel}Contract } from "./contract.js";\n\nexport const ${camel} = defineFeature({\n  id: "${name}",\n  contract: ${camel}Contract,\n  dependencies: [],\n  operations: [],\n  invariants: [],\n});\n`,
     ],
     [
       `${name}.test.ts`,

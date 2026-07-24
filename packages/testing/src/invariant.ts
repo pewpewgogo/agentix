@@ -1,4 +1,4 @@
-import type { Infer, InvariantDescriptor } from "@agentix/core";
+import type { Infer, InvariantDescriptor } from "@agentixdev/core";
 import { assert, property } from "fast-check";
 import type { Arbitrary, Parameters } from "fast-check";
 

@@ -4,7 +4,7 @@ import {
   portOperation,
   schema,
   type Infer,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 export const NoteId = schema.id("note");
 export const NonBlankText = schema.refine(

@@ -1,4 +1,4 @@
-import { definePort, portOperation } from "@agentix/core";
+import { definePort, portOperation } from "@agentixdev/core";
 
 export const Payments = definePort({
   id: "payments",

@@ -1,4 +1,4 @@
-import { defineEvent } from "@agentix/core";
+import { defineEvent } from "@agentixdev/core";
 
 export const OrderCreated = defineEvent({
   id: "orders.created",

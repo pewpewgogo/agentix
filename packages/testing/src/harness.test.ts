@@ -11,7 +11,7 @@ import {
   ok,
   portOperation,
   schema,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 import { createRecordingAdapter } from "./recording.js";
 import { testCommand, testQuery } from "./harness.js";

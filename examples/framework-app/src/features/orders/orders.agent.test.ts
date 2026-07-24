@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assertInvariant,
-} from "@agentix/testing";
+} from "@agentixdev/testing";
 
 import { Order, Payment } from "./contract.js";
 import { paidOrderHasPayment } from "./invariants.js";

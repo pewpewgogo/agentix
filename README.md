@@ -11,7 +11,7 @@ people, tools, and coding agents.
 [Example application](examples/framework-app/src)
 
 > **Project status:** Agentix is a research-stage, pre-1.0 framework. Public
-> packages use coordinated versions under the `@agentix/*` npm scope. The API
+> packages use coordinated versions under the `@agentixdev/*` npm scope. The API
 > may change between minor releases until 1.0.
 
 ## What Agentix makes explicit
@@ -36,8 +36,8 @@ remains the source of truth.
 Agentix requires Node.js 24. Install only the packages your application needs:
 
 ```sh
-npm install @agentix/core @agentix/adapters-http
-npm install --save-dev @agentix/cli @agentix/testing
+npm install @agentixdev/core @agentixdev/adapters-http
+npm install --save-dev @agentixdev/cli @agentixdev/testing
 npm exec -- agentix help
 ```
 
@@ -112,11 +112,11 @@ events; delivery and persistence remain explicit application concerns.
 
 | Package | Responsibility |
 | --- | --- |
-| `@agentix/core` | Schemas, descriptors, outcomes, application assembly, authorization, and dispatch |
-| `@agentix/adapters-http` | Explicit routes over Web `Request`/`Response` plus a thin Node HTTP host |
-| `@agentix/testing` | Operation harnesses, deterministic capabilities, traces, contracts, invariants, and replay |
-| `@agentix/compiler` | Architecture analysis and deterministic `.agentix/index.json` generation |
-| `@agentix/cli` | `inspect`, `graph`, `affected`, `verify`, and `scaffold` |
+| `@agentixdev/core` | Schemas, descriptors, outcomes, application assembly, authorization, and dispatch |
+| `@agentixdev/adapters-http` | Explicit routes over Web `Request`/`Response` plus a thin Node HTTP host |
+| `@agentixdev/testing` | Operation harnesses, deterministic capabilities, traces, contracts, invariants, and replay |
+| `@agentixdev/compiler` | Architecture analysis and deterministic `.agentix/index.json` generation |
+| `@agentixdev/cli` | `inspect`, `graph`, `affected`, `verify`, and `scaffold` |
 
 See the [API reference](docs/API_REFERENCE.md) for the supported public exports.
 

@@ -1,5 +1,5 @@
 {
-  "name": "@agentix/core",
+  "name": "@agentixdev/core",
   "version": "0.0.0",
   "description": "Typed operations, outcomes, effects, events, and application dispatch for Agentix.",
   "license": "MIT",

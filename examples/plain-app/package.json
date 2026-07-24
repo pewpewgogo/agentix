@@ -1,5 +1,5 @@
 {
-  "name": "@agentix/plain-app",
+  "name": "@agentixdev/plain-app",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
     "test": "vitest run --root ../.. examples/plain-app"
   },
   "dependencies": {
-    "@agentix/shared-contract": "0.0.0",
+    "@agentixdev/shared-contract": "0.0.0",
     "zod": "4.4.3"
   },
   "devDependencies": {

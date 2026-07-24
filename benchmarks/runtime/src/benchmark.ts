@@ -4,7 +4,7 @@ import { cpus, release, totalmem } from "node:os";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 
-import { generateIndex } from "@agentix/compiler";
+import { generateIndex } from "@agentixdev/compiler";
 import {
   createApplication,
   defineCommand,
@@ -13,7 +13,7 @@ import {
   ok,
   principal,
   schema,
-} from "@agentix/core";
+} from "@agentixdev/core";
 import { z } from "zod";
 
 import { canonicalJson, hashJson, sha256, assertSha256 } from "./evidence.js";
@@ -602,8 +602,8 @@ export function validateRuntimeBenchmarkReport(
     if (buildArms.has(build.implementation)) throw new TypeError("Runtime process-build arm is duplicated.");
     buildArms.add(build.implementation);
     const workspace = build.implementation === "framework"
-      ? "@agentix/framework-app"
-      : "@agentix/plain-app";
+      ? "@agentixdev/framework-app"
+      : "@agentixdev/plain-app";
     if (canonicalJson(build.buildCommand) !== canonicalJson([
       "npm", "run", "build", "--workspace", workspace,
     ])) {

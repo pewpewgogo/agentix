@@ -1,4 +1,4 @@
-import { defineOperationTest } from "@agentix/testing";
+import { defineOperationTest } from "@agentixdev/testing";
 import { createOrder } from "./operations.js";
 
 export const createOrderTest = defineOperationTest({

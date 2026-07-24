@@ -3,7 +3,7 @@ import type {
   Application,
   Principal,
   RejectedDispatch,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 import { AuthenticationError } from "./auth.js";
 import type { PrincipalExtractor } from "./auth.js";

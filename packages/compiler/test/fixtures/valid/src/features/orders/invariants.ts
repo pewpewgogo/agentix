@@ -1,4 +1,4 @@
-import { defineInvariant } from "@agentix/core";
+import { defineInvariant } from "@agentixdev/core";
 import { customersContract } from "../customers/contract.js";
 import { ordersContract } from "./contract.js";
 

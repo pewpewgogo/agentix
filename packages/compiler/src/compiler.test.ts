@@ -312,7 +312,7 @@ describe("agent index compiler", () => {
     );
     writeFileSync(
       join(temporary, "src/orders.acceptance.test.ts"),
-      `import { associateOperationTest } from "@agentix/testing";\n` +
+      `import { associateOperationTest } from "@agentixdev/testing";\n` +
       `import { createOrder } from "./features/orders/operations.js";\n\n` +
       `export const acceptance = associateOperationTest(createOrder, "orders.acceptance");\n`,
       "utf8",

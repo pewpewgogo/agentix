@@ -3,7 +3,7 @@ import type {
   PricingSnapshot,
   RunRecord,
   ScheduleDocument,
-} from "@agentix/benchmark-harness";
+} from "@agentixdev/benchmark-harness";
 
 export type Implementation = "framework" | "plain";
 export type Verdict = "SUPPORTED" | "NOT SUPPORTED" | "INCONCLUSIVE";

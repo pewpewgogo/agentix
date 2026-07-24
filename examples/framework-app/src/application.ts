@@ -7,7 +7,7 @@ import {
   type DispatchResult,
   type Infer,
   type Principal,
-} from "@agentix/core";
+} from "@agentixdev/core";
 import {
   createHttpHandler,
   createTrustedHeaderPrincipalExtractor,
@@ -16,7 +16,7 @@ import {
   jsonResponse,
   readJsonBody,
   type PrincipalExtractor,
-} from "@agentix/adapters-http";
+} from "@agentixdev/adapters-http";
 import {
   COMMERCE_ERRORS,
   COMMERCE_HTTP_CONTRACT,
@@ -24,7 +24,7 @@ import {
   type CommerceSystem,
   type CommerceSystemFactory,
   type CommerceSystemOptions,
-} from "@agentix/shared-contract";
+} from "@agentixdev/shared-contract";
 
 import {
   Customer,
