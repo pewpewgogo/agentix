@@ -1,6 +1,16 @@
 name: Three-arm benchmark smoke
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/benchmark-smoke.yml"
+      - "benchmarks/runtime/**"
+      - "package-lock.json"
+      - "package.json"
+      - "packages/**"
+      - "sandbox/**"
+      - "tsconfig.json"
+      - "vitest.config.ts"
   workflow_dispatch:
     inputs:
       warmups:
@@ -67,6 +77,10 @@ jobs:
           INCLUDE_PROCESS: ${{ inputs.include_process_metrics }}
         run: |
           set -euo pipefail
+          WARMUPS="${WARMUPS:-10}"
+          MEASURED="${MEASURED:-100}"
+          PROCESS_ITERATIONS="${PROCESS_ITERATIONS:-5}"
+          INCLUDE_PROCESS="${INCLUDE_PROCESS:-true}"
           mkdir -p benchmark-artifacts
           process_args=()
           if [[ "$INCLUDE_PROCESS" != "true" ]]; then
