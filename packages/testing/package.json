@@ -1,6 +1,6 @@
 {
   "name": "@agentix/testing",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Deterministic Agentix operation harnesses, traces, contracts, invariants, and replay.",
   "license": "MIT",
   "type": "module",
@@ -41,7 +41,7 @@
     "test": "vitest run --root ../.. packages/testing"
   },
   "dependencies": {
-    "@agentix/core": "0.0.0",
+    "@agentix/core": "0.1.0",
     "fast-check": "4.9.0"
   }
 }

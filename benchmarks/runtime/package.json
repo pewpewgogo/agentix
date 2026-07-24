@@ -18,8 +18,8 @@
     "test": "vitest run --root ../.. benchmarks/runtime"
   },
   "dependencies": {
-    "@agentix/compiler": "0.0.0",
-    "@agentix/core": "0.0.0",
+    "@agentix/compiler": "0.1.0",
+    "@agentix/core": "0.1.0",
     "@agentix/framework-app": "0.0.0",
     "@agentix/plain-app": "0.0.0",
     "@nestjs/common": "11.1.28",

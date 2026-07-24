@@ -1,6 +1,6 @@
 {
   "name": "@agentix/compiler",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Static architecture analysis and bounded context projection for Agentix applications.",
   "license": "MIT",
   "type": "module",
