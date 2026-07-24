@@ -20,11 +20,11 @@
   "fixture": {
     "framework": {
       "manifest": "benchmarks/fixtures/v1/task-03-cross-feature-rule/framework.fixture.json",
-      "sha256": "77d52a74036c888e4b6eecc6b652a1266aab29d4109281c1a34c1e7ceb50da04"
+      "sha256": "837bfacd604198398b6f71306de5ae9a147425bba49f83c8b2849abbd5edd2ca"
     },
     "plain": {
       "manifest": "benchmarks/fixtures/v1/task-03-cross-feature-rule/plain.fixture.json",
-      "sha256": "debd96f3114aa6c40ea8b6b916e79899620dff7d48d61993b1fa30fa6bb848df"
+      "sha256": "79b383347ea2e85408fb9586de866d7b9653028db264cf99a119a8ccb0736363"
     }
   },
   "evaluator": {

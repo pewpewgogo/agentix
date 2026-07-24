@@ -25,11 +25,11 @@
   "fixture": {
     "framework": {
       "manifest": "benchmarks/fixtures/v1/task-09-compatible-rename/framework.fixture.json",
-      "sha256": "838559860cf25250669937c9b35b8d62a91c6b1357521dec69ad236b1d94e4ea"
+      "sha256": "e6f1c3aec1d363682ecbfada81baf3c16febc3abaff56f3b60b8d47d1c5b1bda"
     },
     "plain": {
       "manifest": "benchmarks/fixtures/v1/task-09-compatible-rename/plain.fixture.json",
-      "sha256": "e9ce9fb822880025ab402bbf2c8119d65f7812f6ff1f28a58fd6e5e0f972bf09"
+      "sha256": "304013e26de4bf10c3d2d6345aecb410b77a70ffd0dc45842472d7f5ee54ec39"
     }
   },
   "evaluator": {

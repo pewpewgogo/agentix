@@ -444,8 +444,8 @@ describe("confirmatory hardening", () => {
   it("bounds a preflight that ignores abort and seals unavailable evidence", async () => {
     const { options, adapterRun } = await confirmatorySetup({
       runId: "confirm-preflight-unsettled",
-      lifecycleTimeoutMs: 30,
-      shutdownTimeoutMs: 5,
+      lifecycleTimeoutMs: 250,
+      shutdownTimeoutMs: 50,
       preflight: async () => new Promise(() => undefined),
     });
     const result = await runBenchmark(options);

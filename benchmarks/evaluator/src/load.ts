@@ -2,7 +2,11 @@ import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import type { ZodType } from "zod";
 
-import { assertFileDigest, resolveInside } from "./integrity.js";
+import {
+  assertFileDigest,
+  readVerifiedGitBlobs,
+  resolveInside,
+} from "./integrity.js";
 import {
   BaseInventorySchema,
   CorpusLockSchema,
@@ -242,8 +246,15 @@ export const loadCorpus = async (repositoryRoot: string): Promise<LoadedCorpus> 
     if (entry.source.startsWith("benchmarks/evaluator/hidden/")) {
       throw new Error(`Base inventory includes hidden evaluator source ${entry.source}.`);
     }
-    await assertFileDigest(resolveInside(repositoryRoot, entry.source), entry.sha256);
   }
+  await readVerifiedGitBlobs(
+    repositoryRoot,
+    inventory.sourceRevision.commit,
+    inventory.entries.map((entry) => ({
+      repositoryPath: entry.source,
+      expectedSha256: entry.sha256,
+    })),
+  );
   for (const implementation of ["framework", "plain"] as const) {
     const targets = new Set<string>();
     for (const entry of inventory.entries) {

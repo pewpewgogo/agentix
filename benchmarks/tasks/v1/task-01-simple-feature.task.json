@@ -25,11 +25,11 @@
   "fixture": {
     "framework": {
       "manifest": "benchmarks/fixtures/v1/task-01-simple-feature/framework.fixture.json",
-      "sha256": "d1d90865a2632e4d51eb5521ad22d34dfc0bd2180f32c5c46ddb1c4413ccc962"
+      "sha256": "99d0313aab520f4d625339638534ea39c213052426f7eb251f53640a3b4c400f"
     },
     "plain": {
       "manifest": "benchmarks/fixtures/v1/task-01-simple-feature/plain.fixture.json",
-      "sha256": "c89264ea28db9a427567f25b837880f4adad6cb3b79f8390a9489eb92ee41edc"
+      "sha256": "7e80c25ff47ac6e31d551ffcf934f0a6c4e15922bcd49dd680c9d30f32cea40e"
     }
   },
   "evaluator": {

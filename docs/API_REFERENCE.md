@@ -1,9 +1,9 @@
 # API Reference
 
-This reference covers the public root export of each Agentix workspace package.
-All packages are private, version `0.0.0`, ESM-only workspaces. Deep imports are
-not supported. The API is pre-release and may change without compatibility
-shims.
+This reference covers the public exports of each Agentix workspace package. All
+packages are private, version `0.0.0`, ESM-only workspaces. Only documented
+package roots and the HTTP `/web` and `/node` subpaths are supported. The API is
+pre-release and may change without compatibility shims.
 
 ## `@agentix/core`
 
@@ -27,8 +27,11 @@ Key types are `Schema<T>`, `Infer<S>`, `ObjectOutput<S>`, `BrandedId<Brand>`,
 `ParseResult<T>`, `ParseSuccess<T>`, `ParseFailure`, `SchemaIssue`,
 `SchemaDescription`, and `SchemaPathSegment`.
 
-`SchemaValidationError` is thrown by `parse`; `safeParse` never throws for normal
-validation failure. `ID_BRAND` is the unique-symbol basis of branded ID types.
+`SchemaValidationError` is thrown by `parse`; `safeParse` does not throw for a
+normal validation failure. Custom schema implementations and hostile values can
+still throw while validation executes. Runtime dispatch converts those
+exceptions into boundary faults rather than allowing operation code to recover
+them as success. `ID_BRAND` is the unique-symbol basis of branded ID types.
 
 ### Outcomes
 
@@ -54,7 +57,7 @@ Types: `Outcome<T, E>`, `Success<T>`, and `Failure<E>`.
 | `defineContract` | Alias of `defineFeatureContract` |
 | `defineInvariant(definition)` | Declare a pure invariant over evidence |
 | `defineCommand(definition)` | Declare a command |
-| `defineQuery(definition)` | Declare a read-only query |
+| `defineQuery(definition)` | Declare a query that cannot use `write` effects or emit events |
 | `defineFeature(definition)` | Assemble a feature descriptor |
 | `domainError(code, details)` | Construct a typed declared-error value |
 
@@ -91,9 +94,20 @@ interface Application {
 Key runtime types are `Principal`, `DispatchOptions`, `DispatchResult`,
 `CompletedDispatch`, `RejectedDispatch`, `FaultedDispatch`,
 `DispatchRejectionError`, `DispatchFaultError`, `ExecutionTrace`, `TraceEntry`,
-`ApplicationDefinition`, and `ApplicationDefinitionIssue`.
+`EmittedEvent`, `ApplicationDefinition`, and `ApplicationDefinitionIssue`.
 
-See [core concepts](CORE_CONCEPTS.md) for dispatch order, mode-dependent effect
+Every `CompletedDispatch` has an immutable `events` array containing validated
+events emitted by that execution. Payload graphs made of arrays and plain
+objects are detached and deeply frozen at emission; non-plain values returned
+by custom `Schema` implementations are opaque. The array is dispatch data, not
+a publication, delivery, persistence, or transaction guarantee.
+
+An ordinary operation-input validation failure is an `INVALID_INPUT` rejection.
+If operation-input schema execution itself throws, dispatch returns a fault with
+code `INPUT_VALIDATION_FAILED`. Thrown effect-input and event-payload validation
+remain faults under `INVALID_EFFECT_INPUT` and `INVALID_EVENT_PAYLOAD`.
+
+See [core concepts](CORE_CONCEPTS.md) for dispatch order, always-on boundary
 validation, and behavior Agentix intentionally does not provide.
 
 ## `@agentix/adapters-http`
@@ -133,6 +147,10 @@ Types: `HttpHandler`, `CreateHttpHandlerOptions`, and
 `NodeHttpListenerOptions`. Read [HTTP adapter](HTTP.md) for status mapping,
 authentication safety, body limits, buffering, and proxy trust.
 
+Use `@agentix/adapters-http/web` for the Web-standard auth/route/handler surface
+without importing the Node host. Use `@agentix/adapters-http/node` for
+`createNodeHttpListener`. The package root retains both for compatibility.
+
 ## `@agentix/testing`
 
 | Area | Exports |
@@ -156,22 +174,28 @@ Read [testing](TESTING.md) for lifecycle and ordering details.
 | --- | --- |
 | `INDEX_SCHEMA_VERSION` | Current generated-index schema (`"1"`) |
 | `COMPILER_VERSION` | Current compiler projection version (`"0.1.0"`) |
+| `OPERATION_CONTEXT_BYTE_LIMIT` | Hard serialized operation-context limit (`8192`) |
 | `analyzeProject(options)` | Analyze source and return an in-memory `AgentIndex` |
 | `checkArchitecture(options)` | Return architecture and query-rule diagnostics |
 | `generateIndex(options)` | Analyze, deterministically serialize, and optionally write an index |
+| `createOperationContext(index, target, rootDir)` | Project bounded, source-bound context for one operation |
+| `createOperationDetail(index, target, rootDir)` | Expand exact, unbounded detail for one operation |
 | `computeAffected(index, target, rootDir)` | Compute conservative affected closure |
 | `planVerification(index, target, rootDir)` | Produce typecheck/test command plan |
-| `checkIndexStaleness(index, rootDir)` | Compare the index source manifest with current source |
+| `checkIndexStaleness(index, rootDir)` | Check schema/compiler compatibility and compare the source manifest |
 | `readIndex(rootDir, path?)` | Read `.agentix/index.json` or another path |
 | `discoverSourceFiles(rootDir, files?)` | Deterministically discover TypeScript sources |
 | `createSourceManifest(rootDir, files)` | Hash source/config inputs |
 | `repositoryPath`, `toPosixPath` | Normalize repository-relative paths |
-| `stableJson(value)` | Deterministic sorted JSON serialization |
+| `stableJson(value, options?)` | Deterministic sorted JSON serialization; `{ compact: true }` removes indentation |
 
 All interfaces in `packages/compiler/src/types.ts` are public, including
-`AgentIndex`, indexed entity types, diagnostics, graph edges, source-manifest
-types, `AnalyzeOptions`, `GenerateOptions`, `GeneratedIndex`, `AffectedResult`,
-and `VerificationPlan`.
+`AgentIndex`, `OperationContext`, `OperationContextAnalysis`,
+`OperationContextAffected`, `OperationContextProjection`,
+`OperationContextOmission`, `OperationContextVerification`, `OperationDetail`,
+indexed entity types, diagnostics, graph edges, source-manifest types,
+`AnalyzeOptions`, `GenerateOptions`, `GeneratedIndex`, `StableJsonOptions`, `AffectedResult`, and
+`VerificationPlan`.
 
 The compiler uses TypeScript's unstable API packages and convention-based
 static analysis. Treat this package as especially pre-release. Generation may
@@ -190,13 +214,17 @@ programmatic surface:
 
 Types: `CliDependencies`, `CliIO`, `ProcessResult`, and `ProcessRunner`.
 
+Every JSON-producing command accepts `--compact` together with `--json` for the
+same stable schema without indentation overhead.
+
 See [CLI and generated index](CLI.md) for commands and static-analysis
 conventions.
 
 ## Import and module rules
 
-- Import only package roots such as `@agentix/core`; package subpaths are not
-  exported.
+- Import package roots such as `@agentix/core`. The HTTP package additionally
+  exports the documented `/web` and `/node` subpaths; other deep imports are not
+  supported.
 - Application packages use ESM/NodeNext. Relative TypeScript imports include a
   `.js` suffix so emitted JavaScript resolves correctly.
 - Framework package engines are inherited from the repository contract today;

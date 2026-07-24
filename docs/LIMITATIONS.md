@@ -1,6 +1,6 @@
 # Limitations and Threats to Validity
 
-Status: updated through the Phase 5 engineering smoke boundary on 2026-07-23.
+Status: updated through the first post-Phase-5 agent-UX audit on 2026-07-23.
 Items are retained even if later mitigated; mitigations and remaining risk are
 added rather than erasing the original concern.
 
@@ -15,14 +15,15 @@ added rather than erasing the original concern.
 - Provider token telemetry for this Phase 1 authoring session is not available
   inside the repository. Construction token cost is therefore `unavailable` and
   will not be estimated.
-- The repository currently has no Git `HEAD`, and every project file is
-  untracked. Recorded SHA-256 values bind file snapshots, but they are not a
-  substitute for the clean immutable source revision required by Phase 6.
+- Mitigated after Phase 5: the repository now has Git history, and D-029 binds
+  the v1 base inventory to commit
+  `5fd027e0399440179859094490b2fa6110f1b30e`. Current uncommitted product work
+  remains non-confirmatory, but it cannot silently change v1 materialization.
 - The provisional pre-Agentix corpus was superseded in place because no Git
   revision or confirmatory observation existed. D-027 preserves its old hashes
   and gives the Agentix corpus a distinct identity, but version control cannot
-  yet reconstruct the earlier bytes; this is another reason Phase 6 remains
-  blocked on an initial clean commit.
+  reconstruct those earlier provisional bytes. The current corpus has a source
+  revision; the historical provisional snapshot still cannot be recovered.
 - There are zero confirmatory observations. No provider/model/service-tier
   configuration, pricing snapshot, retention policy, budget, or spend approval
   has been supplied, so the current framework verdict is `INCONCLUSIVE`.
@@ -42,9 +43,14 @@ added rather than erasing the original concern.
 - The compiler depends on TypeScript 7's explicitly unstable sync and AST entry
   points. Exact pinning and fixture tests detect breakage locally, but upgrades
   may require non-trivial scanner changes.
-- Production mode validates the adapter `Outcome` envelope but currently skips
-  effect success/error payload schema revalidation. This is an explicit runtime
-  tradeoff awaiting benchmarks, not proof that adapter implementations are safe.
+- Mitigated after the first agent-UX audit: production now validates effect
+  success/error payloads exactly like development and test. Earlier runtime
+  measurements used the superseded D-017 hot-path tradeoff and must not be
+  presented as measurements of the current runtime.
+- Query definitions reject `write` effects and events, but `EffectKind` still
+  combines capability location with intent. An `external` adapter may mutate a
+  remote system; until mutability is modeled independently, mutating external
+  calls must be kept in commands by convention.
 - Mitigated in Phase 4: both example applications now pass the same black-box
   suite, including concurrent stock and duplicate-write cases. This demonstrates
   equivalence only for the frozen contract and tests, not for all possible input
@@ -56,6 +62,10 @@ added rather than erasing the original concern.
   section in the control and explicit reserve/release effects in the framework.
   Their tested observable behavior matches, but failure timing outside the
   contract can still differ.
+- Mitigated after the first agent-UX audit: the framework order operation now
+  releases local stock reservations through one `finally` compensation path on
+  typed failures and thrown effect faults. This does not make external payment
+  and local storage atomic.
 - Mitigated after the Phase 4 audit: both transports now authorize before body
   parsing, normalize malformed URI encoding identically, use the same public
   transport constants, and reject blank generated order IDs without local state
@@ -134,10 +144,13 @@ control a remote service.
 
 ### Index quality is coupled to compiler correctness
 
-A stale or incomplete index can make agents confidently wrong. Staleness checks,
-deterministic manifests, negative fixtures, and conservative widening are
-required. Normal index failures count against the treatment; they are not
-discarded as harness failures.
+An incomplete static projection can make agents confidently wrong. The CLI now
+reanalyzes TypeScript instead of trusting its generated cache, and bounded
+operation context carries a source digest, completeness flag, and explicit
+omissions. Scanner blind spots remain possible, so negative fixtures,
+conservative widening, and hidden full regression checks are still required.
+Normal compiler failures count against the treatment; they are not discarded as
+harness failures.
 
 ### Narrow verification may hide regressions
 

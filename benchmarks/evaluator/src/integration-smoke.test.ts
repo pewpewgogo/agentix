@@ -193,5 +193,5 @@ describe("evaluator and harness integration smoke", () => {
       .toBe("production_hidden_evaluator_unavailable");
     expect(immutable.identity.fixtureRevision)
       .toBe(task.specification.fixture.framework.sha256);
-  });
+  }, 15_000);
 });

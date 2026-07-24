@@ -26,10 +26,10 @@ events, invariants, and associated tests. Every operation declares:
 - an ordinary TypeScript execution function.
 
 The runtime validates these boundaries. The compiler projects them into a
-deterministic machine index, and the CLI uses that index to answer questions
-such as “what does this operation touch?” and “what is safe to verify?” The
-generated index is never authoritative; TypeScript source remains the source of
-truth.
+deterministic machine index, and the CLI reanalyzes source into that projection
+to answer questions such as “what does this operation touch?” and “what is safe
+to verify?” The generated file is never a trusted input; TypeScript source
+remains the source of truth.
 
 ## Start here
 
@@ -53,9 +53,22 @@ npm exec -- agentix affected src/features/orders/operations.ts \
 ```
 
 The first command reports the operation's source, permission, effects, event,
-invariant, tests, and conservative verification scope. Continue with the
-[getting-started guide](docs/GETTING_STARTED.md) to define and dispatch a small
-feature, then expose it through HTTP.
+invariant, tests, compiler trust, source digest, and conservative verification
+scope in a hard-limited per-operation artifact. Any omitted collection is
+reported in `projection.omissions` with a machine-readable next action. Continue
+with the [getting-started guide](docs/GETTING_STARTED.md) to define and dispatch
+a small feature, then expose it through HTTP.
+
+Compare the same notes behavior across Agentix, Express, and NestJS with:
+
+```sh
+npm run sandbox:test
+npm run sandbox:token-budget
+npm run benchmark:http-frameworks -- --no-process
+```
+
+See the [three-arm benchmark runbook](benchmarks/THREE_ARM_RUNBOOK.md) before
+interpreting calibration, runtime, or paid live-agent results.
 
 ## A command at a glance
 
@@ -84,7 +97,8 @@ export const createOrder = defineCommand({
 There are no decorators, global registries, runtime source scans, or implicit
 lifecycle hooks. Expected domain failures are typed `Outcome` values;
 authorization or invalid input is a rejected dispatch; unexpected defects are
-reported separately as faults.
+reported separately as faults. Completed dispatches return validated emitted
+events; delivery and persistence remain explicit application concerns.
 
 ## Packages
 

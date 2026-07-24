@@ -30,6 +30,9 @@ export type Implementation = (typeof IMPLEMENTATIONS)[number];
 
 const isNormalizedRepositoryPath = (value: string): boolean =>
   value.length > 0 &&
+  !value.includes("\0") &&
+  !value.includes("\n") &&
+  !value.includes("\r") &&
   !isAbsolute(value) &&
   !value.startsWith("/") &&
   !value.includes("\\") &&
@@ -39,10 +42,11 @@ const isNormalizedRepositoryPath = (value: string): boolean =>
 
 export const RepositoryPathSchema = z.string().refine(
   isNormalizedRepositoryPath,
-  "Expected a normalized repository-relative path without '..'.",
+  "Expected a normalized repository-relative path without '..' or control separators.",
 );
 
 export const Sha256Schema = z.string().regex(/^[a-f0-9]{64}$/u);
+export const GitCommitSchema = z.string().regex(/^[a-f0-9]{40}$/u);
 export const CommandSchema = z.array(z.string().min(1)).min(1);
 const ImplementationSchema = z.enum(IMPLEMENTATIONS);
 
@@ -113,6 +117,7 @@ export const BaseInventorySchema = z.strictObject({
   sourceRevision: z.strictObject({
     kind: z.literal("repository-tree-inventory"),
     label: z.string().min(1),
+    commit: GitCommitSchema,
   }),
   entries: z.array(InventoryEntrySchema).min(1),
 });

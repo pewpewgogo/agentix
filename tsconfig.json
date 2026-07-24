@@ -12,6 +12,9 @@
     { "path": "benchmarks/evaluator" },
     { "path": "benchmarks/harness" },
     { "path": "benchmarks/reports" },
-    { "path": "benchmarks/runtime" }
+    { "path": "benchmarks/runtime" },
+    { "path": "sandbox/notes-app" },
+    { "path": "sandbox/plain-notes-app" },
+    { "path": "sandbox/nestjs-notes-app" }
   ]
 }

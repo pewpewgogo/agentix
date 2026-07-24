@@ -1,9 +1,10 @@
 # HTTP Adapter
 
-`@agentix/adapters-http` is a small inbound adapter, not a second application
+`@agentix/adapters-http/web` is a small inbound adapter, not a second application
 runtime. It maps explicit routes to an Agentix `Application` using Web-standard
-`Request` and `Response` values. `createNodeHttpListener` is an optional thin
-host for `node:http`.
+`Request` and `Response` values. `@agentix/adapters-http/node` provides the
+optional thin `node:http` host. The package root re-exports both for
+compatibility.
 
 ## Define a route
 
@@ -11,7 +12,7 @@ host for `node:http`.
 import {
   defineHttpRoute,
   readJsonBody,
-} from "@agentix/adapters-http";
+} from "@agentix/adapters-http/web";
 import type { Infer } from "@agentix/core";
 
 const createOrderRoute = defineHttpRoute({
@@ -45,6 +46,10 @@ Route methods can be upper- or lowercase forms of `DELETE`, `GET`, `HEAD`,
 - expose decoded values through `context.params`;
 - ignore one trailing slash during matching; and
 - match the exact number of path segments.
+
+Handler construction requires every route to reference the exact operation
+descriptor registered by the application. A different descriptor that reuses a
+stable ID is rejected before any request can be served.
 
 Avoid overlapping static and parameter paths such as `/orders/new` and
 `/orders/:id` for the same method. Route selection is declaration-ordered when
@@ -165,7 +170,7 @@ is not Agentix's default.
 
 ```ts
 import { createServer } from "node:http";
-import { createNodeHttpListener } from "@agentix/adapters-http";
+import { createNodeHttpListener } from "@agentix/adapters-http/node";
 
 const server = createServer(createNodeHttpListener(handler, {
   maxBodyBytes: 1_048_576,

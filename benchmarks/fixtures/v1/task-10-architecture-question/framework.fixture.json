@@ -7,7 +7,7 @@
   "applicationSubdirectory": "examples/framework-app",
   "baseInventory": {
     "manifest": "benchmarks/fixtures/v1/base.repository.json",
-    "sha256": "f2cc4306e5e29849b4f1f00230057b0a114b4b53a68653b8945ea63747d0e87c"
+    "sha256": "90c89466c75452a9a3180d37fa941c3b30f001d3b81782d4dba4d6fb470a9959"
   },
   "overlay": {
     "edits": [],

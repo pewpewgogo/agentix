@@ -5,6 +5,11 @@ export {
 export type * from "./types.js";
 export { analyzeProject } from "./scanner.js";
 export { generateIndex } from "./generate.js";
+export {
+  OPERATION_CONTEXT_BYTE_LIMIT,
+  createOperationContext,
+  createOperationDetail,
+} from "./context.js";
 export { computeAffected, planVerification } from "./affected.js";
 export { checkIndexStaleness, readIndex } from "./manifest.js";
 export {
@@ -13,6 +18,7 @@ export {
   repositoryPath,
   stableJson,
   toPosixPath,
+  type StableJsonOptions,
 } from "./files.js";
 
 import { analyzeProject } from "./scanner.js";

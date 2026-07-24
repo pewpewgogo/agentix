@@ -134,8 +134,9 @@ generated and ignored. Do not hand-edit them.
 
 Benchmark evidence has a stricter boundary:
 
-- frozen fixture/profile/corpus hashes are changed only through the documented
-  refresh workflow and reviewed as an experiment change;
+- the v1 fixture source pin and entry hashes are immutable; a new product
+  baseline requires a new corpus version, whose references are changed only
+  through the documented workflow and reviewed as an experiment change;
 - raw result files are create-only evidence, not scratch output;
 - smoke runs cannot be relabeled as confirmatory evidence;
 - runtime results stay separate from agent-maintenance results; and

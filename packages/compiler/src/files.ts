@@ -102,7 +102,14 @@ export const createSourceManifest = (
   return { algorithm: "sha256", digest, files };
 };
 
-export const stableJson = (value: unknown): string => {
+export interface StableJsonOptions {
+  readonly compact?: boolean;
+}
+
+export const stableJson = (
+  value: unknown,
+  options: StableJsonOptions = {},
+): string => {
   const order = (item: unknown): unknown => {
     if (Array.isArray(item)) {
       return item.map(order);
@@ -116,5 +123,5 @@ export const stableJson = (value: unknown): string => {
     }
     return item;
   };
-  return `${JSON.stringify(order(value), undefined, 2)}\n`;
+  return `${JSON.stringify(order(value), undefined, options.compact ? undefined : 2)}\n`;
 };

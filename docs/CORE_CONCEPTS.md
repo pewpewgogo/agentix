@@ -43,7 +43,14 @@ JavaScript or dependencies can bypass it.
 Every boundary uses a `Schema<T>` with two operations:
 
 - `parse(value)` returns `T` or throws `SchemaValidationError`.
-- `safeParse(value)` returns a success/failure result with structured issues.
+- `safeParse(value)` returns a success/failure result with structured issues for
+  normal validation.
+
+A custom schema, hostile proxy, or throwing input getter can still throw while a
+schema executes. Dispatch reports an operation-input schema exception as the
+`INPUT_VALIDATION_FAILED` fault. Effect-input and event-payload schema or event
+snapshot exceptions are latched as `INVALID_EFFECT_INPUT` and
+`INVALID_EVENT_PAYLOAD`, so operation code cannot catch them and return success.
 
 The built-in constructors are `string`, `number`, `boolean`, `literal`, `array`,
 `object`, `optional`, `union`, `refine`, and `id`; the same functions are
@@ -91,7 +98,9 @@ An operation descriptor declares the full boundary around one action:
 
 Commands may declare reads, writes, time, randomness, external calls, and
 events. Queries cannot declare a `write` effect and cannot emit events; both the
-types and application construction enforce this rule.
+types and application construction enforce this rule. `EffectKind` is not an
+orthogonal mutability model: an `external` adapter can still have side effects,
+so mutating external work belongs in commands.
 
 Descriptor IDs and permission strings must be non-empty and contain no
 whitespace. IDs must be unique across the assembled application.
@@ -139,8 +148,8 @@ export const Payments = definePort({
 ```
 
 The five effect kinds are `read`, `write`, `time`, `random`, and `external`.
-They describe capability intent; they do not add transactions, retries, or
-scheduling.
+They describe capability intent; they do not add transactions, retries,
+scheduling, or a proof of adapter purity.
 
 An adapter binds every operation in one port:
 
@@ -155,13 +164,15 @@ const payments = bindPort(Payments, {
 ```
 
 The execution context exposes effects by the aliases selected in the operation,
-not by their port keys. Effect input and the `Outcome` envelope are always
-checked. In development and test modes, effect success/error payloads are also
-schema-validated; production skips that extra adapter-result validation on the
-hot path. Operation output and domain-error details are validated in every mode.
+not by their port keys. Effect input, the `Outcome` envelope, and effect
+success/error payloads are schema-validated in every runtime mode. Operation
+output and domain-error details are likewise validated in every mode.
 
-Effect functions must be awaited and used during `execute`. A captured effect
-called after execution finishes is rejected.
+Dispatch closes the capability window as soon as `execute` settles, then drains
+every effect already started during that window before completing. Draining does
+not extend the window: a captured effect called from a later timer is rejected.
+Boundary faults are fatal to the dispatch even when operation code catches the
+thrown wrapper error; they cannot be converted into a successful outcome.
 
 ## Permissions and principals
 
@@ -190,9 +201,15 @@ const OrderCreated = defineEvent({
 ```
 
 A command may emit only the aliases in its `emits` map. The runtime validates
-the payload and records it in the execution trace. Core does **not** provide an
-event bus, persistence, delivery, or an outbox. An application that needs those
-guarantees models them through an explicit port and transaction boundary.
+the payload and returns ordered `EmittedEvent` values on every completed
+dispatch, independently of optional tracing. At emission, payload graphs made
+of arrays and plain objects are detached and deeply frozen, preserving cyclic or
+shared references. Non-plain values returned by a custom `Schema` are opaque. A
+fault exposes no completed-event list; an enabled trace may still show an
+attempted emission before the fault.
+Core does **not** provide an event bus, persistence, delivery, or an outbox. An
+application that needs those guarantees models them through an explicit port
+and transaction boundary.
 
 ## Invariants
 
@@ -236,13 +253,17 @@ Runtime modes are `production`, `development`, and `test`. The default mode is
 
 Every dispatch follows the same visible order:
 
-1. Resolve the registered operation by descriptor or stable ID.
+1. Resolve the registered operation by stable ID and, for descriptor dispatch,
+   require the exact registered descriptor identity.
 2. Check all required permissions.
-3. Parse input.
+3. Parse input; distinguish ordinary `INVALID_INPUT` rejection from an
+   `INPUT_VALIDATION_FAILED` schema-execution fault.
 4. Construct the declared effect and event contexts.
-5. Await `execute`.
-6. Validate the returned outcome and its output/error data.
-7. Return `completed`, `rejected`, or `fault`, optionally with a trace.
+5. Await `execute` and every effect it started.
+6. Fail if any effect/event boundary fault occurred, even if it was caught.
+7. Validate the returned outcome and its output/error data.
+8. Return `completed` with emitted events, or `rejected`/`fault`; include a trace
+   only when tracing is enabled.
 
 Core does not add timeouts, cancellation, concurrency serialization, rollback,
 or resource lifecycle. Those policies must be explicit in the application or
@@ -255,7 +276,9 @@ The compiler projects statically recognizable descriptors into
 permissions, effects, events, invariants, tests, graph edges, diagnostics, and a
 source-manifest digest.
 
-The index is disposable and may be stale. The CLI checks its source manifest and
-regenerates it before answering when necessary. Runtime dispatch never reads the
-index. See [CLI and generated index](CLI.md) for the compiler's static-analysis
-conventions and conservative widening rules.
+The on-disk index is disposable and may be stale. The CLI reanalyzes TypeScript
+before every answer and writes a fresh projection instead of trusting that file.
+Operation inspection projects a bounded, source-digest-bound context artifact;
+agents do not need the full index. Runtime dispatch never reads the index. See
+[CLI and generated index](CLI.md) for the compiler's static-analysis conventions
+and conservative widening rules.

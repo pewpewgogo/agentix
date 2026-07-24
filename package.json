@@ -15,7 +15,8 @@
   "workspaces": [
     "packages/*",
     "examples/*",
-    "benchmarks/*"
+    "benchmarks/*",
+    "sandbox/*"
   ],
   "scripts": {
     "build": "tsc -b && node scripts/mark-binaries-executable.mjs",
@@ -32,6 +33,8 @@
     "benchmark:harness:smoke": "vitest run benchmarks/harness/src/runner.test.ts",
     "benchmark:runtime:smoke": "npm run build && node benchmarks/runtime/dist/cli.js --smoke --no-process",
     "benchmark:http-frameworks": "npm run build && node benchmarks/runtime/dist/http-comparison/cli.js",
+    "sandbox:test": "npm run build && vitest run sandbox/notes-app sandbox/plain-notes-app sandbox/nestjs-notes-app",
+    "sandbox:token-budget": "npm run build && node sandbox/token-budget/run.mjs",
     "verify": "npm run typecheck && npm test"
   },
   "devDependencies": {
