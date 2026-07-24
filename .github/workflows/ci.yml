@@ -36,6 +36,12 @@ jobs:
       - name: Build packages and binaries
         run: npm run build
 
+      - name: Verify npm package contents
+        run: npm run release:check
+
+      - name: Verify GitHub test packages
+        run: npm run github:test:check
+
       - name: Typecheck and test
         run: npm run verify
 

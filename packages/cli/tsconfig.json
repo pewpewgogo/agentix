@@ -3,10 +3,13 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    "declarationMap": false,
+    "sourceMap": false,
+    "tsBuildInfoFile": "../../.agentix-tmp/tsbuildinfo/cli.tsbuildinfo",
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"],
   "references": [
     { "path": "../compiler" }
   ]

@@ -1,0 +1,98 @@
+name: Publish GitHub test packages
+
+on:
+  push:
+    tags:
+      - "github-test-v*"
+  workflow_dispatch:
+    inputs:
+      base_version:
+        description: Base semantic version for the test build
+        required: true
+        default: "0.1.0"
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: github-test-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Use the pinned npm release
+        run: npm install --global npm@11.13.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build packages and binaries
+        run: npm run build
+
+      - name: Verify npm package contents
+        run: npm run release:check
+
+      - name: Typecheck and test
+        run: npm run verify
+
+      - name: Verify the frozen benchmark corpus
+        run: npm run benchmark:corpus:check
+
+      - name: Resolve immutable test version
+        id: version
+        env:
+          REQUESTED_BASE_VERSION: ${{ inputs.base_version }}
+        run: |
+          set -euo pipefail
+          short_sha=$(git rev-parse --short=7 HEAD)
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            version=${GITHUB_REF_NAME#github-test-v}
+            tag=$GITHUB_REF_NAME
+          else
+            if [[ ! "$REQUESTED_BASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "base_version must use x.y.z syntax" >&2
+              exit 1
+            fi
+            version="${REQUESTED_BASE_VERSION}-github.${GITHUB_RUN_NUMBER}.${short_sha}"
+            tag="github-test-v${version}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare public release tarballs
+        env:
+          TEST_VERSION: ${{ steps.version.outputs.version }}
+          TEST_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          npm run github:test:pack -- \
+            --version="$TEST_VERSION" \
+            --tag="$TEST_TAG"
+
+      - name: Publish immutable GitHub prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TEST_VERSION: ${{ steps.version.outputs.version }}
+          TEST_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release create "$TEST_TAG" \
+            .agentix-tmp/github-test-release/*.tgz \
+            .agentix-tmp/github-test-release/manifest.json \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Agentix GitHub test $TEST_VERSION" \
+            --notes-file .agentix-tmp/github-test-release/release-notes.md

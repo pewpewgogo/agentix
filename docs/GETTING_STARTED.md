@@ -1,32 +1,35 @@
 # Getting Started
 
-This guide takes you from a clean clone to one complete Agentix feature. It uses
-the repository workspaces because Agentix is not published to npm yet.
+This guide takes you from an empty TypeScript application to one complete
+Agentix feature using the public npm packages.
 
 ## Prerequisites
 
 - Node.js `>=24 <25`
 - npm `>=11 <12`
-- Git
+- TypeScript with ESM and NodeNext module resolution
 
-The exact dependency graph is pinned in `package-lock.json`.
+Create an application and install the runtime, test, and CLI packages:
 
 ```sh
-git clone git@github.com:pewpewgogo/agentix.git
-cd agentix
-npm ci
-npm run build
-npm run verify
+mkdir agentix-notes
+cd agentix-notes
+npm init -y
+npm install @agentix/core @agentix/adapters-http
+npm install --save-dev @agentix/cli @agentix/testing typescript
 ```
 
-`npm run build` emits the workspace packages and makes the CLI binary
-executable. `npm run verify` then runs the strict project-reference typecheck
-and complete Vitest suite. No package is installed globally.
+The packages are ESM-only and require Node.js 24. Configure the application as
+`"type": "module"`, use TypeScript's `NodeNext` module and module-resolution
+settings, and include `.js` suffixes in relative TypeScript imports. The
+repository's [framework application](../examples/framework-app/package.json)
+is the complete package and TypeScript configuration reference.
 
 ## Tour the reference application
 
-The framework commerce application contains customers, products, payments, and
-orders. Start from an operation instead of opening the entire tree:
+The cloned repository includes a commerce application with customers, products,
+payments, and orders. From a repository checkout, start from an operation
+instead of opening the entire tree:
 
 ```sh
 npm exec -- agentix inspect orders.create --root examples/framework-app
@@ -58,11 +61,9 @@ npm run test:acceptance
 
 ## Understand a minimal feature capsule
 
-The declarations below are a complete, type-checked API example. They assume an
-Agentix application workspace inside this clone; the packages cannot yet be
-installed into an unrelated project from npm. Use them as a small companion to
-the runnable `examples/framework-app`, not as a claim that a published starter
-package already exists.
+The declarations below are a complete, type-checked API example. They are a
+small companion to the runnable `examples/framework-app`; copy its strict
+TypeScript configuration rather than weakening types to fit the example.
 
 A small feature normally has a public contract, operations, a feature
 descriptor, and tests:
