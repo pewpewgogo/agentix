@@ -1,14 +1,18 @@
-import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { readVerifiedGitBlob, readVerifiedGitBlobs, sha256 } from "./integrity.js";
 import { loadBaseInventory, loadCorpus } from "./load.js";
 import { materializeFixture } from "./materialize.js";
 import { createEvaluationPlan } from "./plan.js";
 import {
+  FixtureManifestSchema,
   PROHIBITED_SHORTCUTS,
   TASK_CATEGORIES,
   TaskSpecificationSchema,
@@ -20,6 +24,7 @@ const repositoryRoot = resolve(
 );
 
 const temporaryDirectories: string[] = [];
+const execFileAsync = promisify(execFile);
 
 const temporaryDirectory = async (): Promise<string> => {
   const directory = await mkdtemp(join(tmpdir(), "agentix-fixture-test-"));
@@ -231,6 +236,117 @@ describe("frozen benchmark corpus", () => {
       .toBe(false);
     expect(inventory.entries.some((entry) =>
       entry.source.startsWith("benchmarks/evaluator/hidden/"))).toBe(false);
+    expect(inventory.sourceRevision.commit).toBe(
+      "5fd027e0399440179859094490b2fa6110f1b30e",
+    );
+  });
+
+  it("materializes inventory bytes from the frozen commit, not the working tree", async () => {
+    const sourceRepository = await temporaryDirectory();
+    const frozenSource = "export const source = 'frozen';\n";
+    const workingTreeSource = "export const source = 'working-tree';\n";
+    await execFileAsync("git", ["init", "--quiet", sourceRepository]);
+    await writeFile(join(sourceRepository, "source.ts"), frozenSource, "utf8");
+    await execFileAsync("git", ["-C", sourceRepository, "add", "source.ts"]);
+    await execFileAsync("git", [
+      "-C",
+      sourceRepository,
+      "-c",
+      "user.name=Agentix Corpus Test",
+      "-c",
+      "user.email=corpus-test@agentix.invalid",
+      "commit",
+      "--quiet",
+      "-m",
+      "Freeze source",
+    ]);
+    const { stdout: commitOutput } = await execFileAsync(
+      "git",
+      ["-C", sourceRepository, "rev-parse", "HEAD"],
+      { encoding: "utf8" },
+    );
+    const commit = commitOutput.trim();
+    const baseInventory = {
+      schemaVersion: 1,
+      id: "agentix-commerce-app-base",
+      version: 1,
+      hashAlgorithm: "sha256",
+      sourceRevision: {
+        kind: "repository-tree-inventory",
+        label: "test-frozen-source",
+        commit,
+      },
+      entries: [{
+        source: "source.ts",
+        target: "app/source.ts",
+        audiences: ["framework"],
+        sha256: sha256(frozenSource),
+        executable: false,
+      }],
+    };
+    const baseInventoryContent = `${JSON.stringify(baseInventory, null, 2)}\n`;
+    await writeFile(
+      join(sourceRepository, "base.repository.json"),
+      baseInventoryContent,
+      "utf8",
+    );
+    await writeFile(join(sourceRepository, "source.ts"), workingTreeSource, "utf8");
+
+    const fixture = FixtureManifestSchema.parse({
+      schemaVersion: 1,
+      taskId: "task-01-simple-feature",
+      taskVersion: 1,
+      fixtureVersion: 1,
+      implementation: "framework",
+      applicationSubdirectory: "app",
+      baseInventory: {
+        manifest: "base.repository.json",
+        sha256: sha256(baseInventoryContent),
+      },
+      overlay: { edits: [], files: [] },
+      preflight: [{
+        command: ["true"],
+        expectedExitCode: 0,
+        purpose: "Verify the synthetic fixture.",
+      }],
+      evaluationCommands: {
+        typecheck: ["true"],
+        regression: ["true"],
+        architecture: null,
+      },
+      equivalence: {
+        contractId: "commerce-http-v1",
+        counterpartManifest: "plain.fixture.json",
+        scenarioIds: ["synthetic-scenario"],
+      },
+      agentWorkspace: {
+        excludedPrefixes: ["benchmarks/evaluator/hidden"],
+      },
+    });
+    const destination = join(sourceRepository, "materialized");
+    await materializeFixture(sourceRepository, destination, fixture);
+
+    await expect(readFile(join(destination, "app/source.ts"), "utf8"))
+      .resolves.toBe(frozenSource);
+    await expect(readFile(join(sourceRepository, "source.ts"), "utf8"))
+      .resolves.toBe(workingTreeSource);
+    await expect(
+      readVerifiedGitBlob(sourceRepository, commit, "../source.ts", sha256(frozenSource)),
+    ).rejects.toThrow(/Unsafe repository-relative Git path/u);
+    await expect(
+      readVerifiedGitBlob(
+        sourceRepository,
+        commit,
+        "source.ts\nHEAD:source.ts",
+        sha256(frozenSource),
+      ),
+    ).rejects.toThrow(/Unsafe repository-relative Git path/u);
+    await expect(
+      readVerifiedGitBlob(sourceRepository, "HEAD", "source.ts", sha256(frozenSource)),
+    ).rejects.toThrow(/full lowercase Git commit SHA/u);
+    await expect(
+      readVerifiedGitBlob(sourceRepository, commit, "source.ts", sha256("wrong")),
+    ).rejects.toThrow(/Integrity mismatch for Git blob/u);
   });
 
   it("freezes missing behavior and defects, not completed task solutions", async () => {
@@ -242,11 +358,19 @@ describe("frozen benchmark corpus", () => {
     const applicationEntries = inventory.entries.filter((entry) =>
       entry.source.startsWith("examples/") && entry.source.endsWith(".ts")
     );
-    const applicationSource = (await Promise.all(
-      applicationEntries.map((entry) =>
-        readFile(join(repositoryRoot, entry.source), "utf8")
-      ),
-    )).join("\n");
+    const frozenSources = await readVerifiedGitBlobs(
+      repositoryRoot,
+      inventory.sourceRevision.commit,
+      applicationEntries.map((entry) => ({
+        repositoryPath: entry.source,
+        expectedSha256: entry.sha256,
+      })),
+    );
+    const applicationSource = applicationEntries.map((entry) => {
+      const source = frozenSources.get(entry.source);
+      if (source === undefined) throw new Error(`Frozen source read omitted ${entry.source}.`);
+      return source.toString("utf8");
+    }).join("\n");
 
     for (const absentSolutionMarker of [
       "/promotions",

@@ -218,7 +218,7 @@ The unstable entry-point risk is tracked in `LIMITATIONS.md`.
 ## D-017: Validate effect response schemas outside production hot paths
 
 - Date: 2026-07-23
-- Status: accepted for initial runtime measurement
+- Status: superseded by D-031 after the first real-agent UX audit
 
 Adapter calls must always return the structural `Outcome` shape. Development and
 test modes additionally validate effect success/error payloads against their
@@ -812,3 +812,135 @@ independent equivalent applications, a new three-arm corpus and schedule, and
 Rejected: mutate the frozen two-arm report schema, mix these samples into the
 primary result, label NestJS as independent of Express, or report unavailable
 agent-token measurements as estimates.
+
+## D-029: Bind the frozen v1 corpus to immutable Git blobs
+
+- Date: 2026-07-23
+- Status: accepted after publication, before confirmatory observations
+
+The v1 base inventory now identifies commit
+`5fd027e0399440179859094490b2fa6110f1b30e`. Corpus validation and fixture
+materialization read and SHA-256-check source bytes from that commit rather than
+from the mutable working tree. All 141 entry hashes remain unchanged. CI checks
+out full history so the pinned objects are available.
+
+This makes historical evidence reproducible while allowing the live product to
+evolve. The refresh command is pinned to the same commit and cannot silently
+replace v1 source hashes with current files.
+
+Rejected: keep live product files frozen indefinitely, refresh v1 entry hashes
+after every framework change, or weaken digest verification.
+
+## D-030: Make operation inspection the bounded agent context surface
+
+- Date: 2026-07-23
+- Status: accepted after first real-agent UX audit
+
+`agentix inspect <operation> --json` now emits a typed `operation-context`
+projection instead of asking consumers to read the roughly 40 KB internal index.
+It retains operation/affected/verification data and adds compiler version,
+source digest, project and target Agentix diagnostics, completeness, and the
+explicit statement `typecheck: "not-run"`. The artifact has a hard 8 KiB limit:
+omitted collections expose total/included counts and exact expansion metadata,
+while a widened affected set reports totals and kind counts instead of every
+workspace node. Exact IDs, paths, and runnable commands are never shortened;
+verification widens rather than emitting a partial command.
+Each omission points either to full `affected` output or to explicit
+`inspect <operation> --full`, an unbounded per-operation detail artifact; normal
+agent entry remains the bounded form.
+
+The CLI reanalyzes TypeScript for every answer and writes the generated index
+only as a disposable discovery artifact. It does not trust a structurally valid,
+same-digest cache to describe source. Programmatic index freshness checks still
+cover schema/compiler compatibility and source digest.
+
+The default feature scaffold was reduced from six files to three, removing empty
+model, operation, and invariant modules. A root `AGENTS.md` and pull-request CI
+make the context-first path and verification contract discoverable.
+
+Rejected: claim static scanner diagnostics are a TypeScript typecheck, expose the
+complete index as normal agent context, or generate semantically empty adapter
+implementations before adapter bindings are indexed.
+
+## D-031: Prefer truthful runtime boundaries over the D-017 hot-path shortcut
+
+- Date: 2026-07-23
+- Status: accepted; supersedes D-017 for current product behavior
+
+Every runtime mode now validates effect success/error payloads. Dispatch latches
+the first effect/event boundary fault so operation code cannot catch it and
+return success, closes effect/event capabilities as soon as `execute` settles,
+drains every effect started before that point, and rejects a descriptor object
+that merely reuses a registered stable ID. HTTP handler construction likewise
+requires exact registered descriptor identity.
+
+Thrown operation-input schema execution is a distinct
+`INPUT_VALIDATION_FAILED` fault rather than an invalid-data rejection. Thrown
+effect-input/event-payload validation, event snapshotting, and hostile adapter
+outcome inspection are caught and latched under their existing boundary fault
+families before application code can recover them.
+
+Completed dispatches expose immutable validated emitted events independently of
+optional traces. Payload graphs made of arrays and plain objects are detached
+and deeply frozen at emission, with cycles and shared references preserved;
+non-plain values returned by custom schemas remain opaque. This is dispatch data
+only; it does not imply publication, delivery, persistence, outbox behavior, or
+atomicity. The commerce example now uses one explicit `finally` compensation
+path to release reserved local stock on all pre-commit failures. Real external
+payment compensation remains an explicit application design requirement.
+
+The earlier runtime measurements describe the D-017 implementation and are not
+silently relabeled as measurements of this implementation. A new runtime smoke
+is required before making current performance statements.
+
+Rejected: preserve production-only schema trust for benchmark continuity, allow
+caught boundary faults to complete, treat fire-and-forget effects as finished,
+or describe trace-only event recording as event emission.
+
+## D-032: Drive the next context fixes from a fresh-agent pilot
+
+- Date: 2026-07-23
+- Status: accepted after first bounded-context pilot
+
+A fresh agent started from `AGENTS.md` and the default `orders.create` inspect
+artifact, without reading `.agentix/index.json`. The artifact was 4,976 bytes
+against its 8,192-byte limit (the disposable index was 39,374 bytes), required
+no expansion, and was sufficient to locate the operation, external payment
+boundary, compensation region, and safe workspace verification. This is a UX
+observation, not confirmatory benchmark evidence.
+
+The pilot exposed that source-level test metadata linked an invariant-only test
+but omitted acceptance, concurrency, and architecture coverage that actually
+protects the operation. Those suites now declare explicit operation-test
+associations, and the misleading association was removed. The pilot also found
+that help returned an error and an effect ID could not be inspected; help now
+exits successfully with complete root syntax, and port operations are directly
+inspectable by ID.
+
+The remaining observed gap is deliberate and visible: the static projection
+does not yet index adapter implementation locations or explain ordinary
+TypeScript execution order/compensation semantics. Agents still follow the
+operation source and targeted searches for those details. That gap, rather than
+more research scaffolding, is the next compiler/agent-UX candidate.
+
+## D-033: Keep readable JSON and add compact agent transport
+
+- Date: 2026-07-24
+- Status: accepted after three-arm sandbox token measurement
+
+The notes sandbox showed that Agentix's recommended context pack paid more
+declaration overhead than the plain TypeScript and NestJS arms even though its
+affected closure was much smaller. On the current reference operation, JSON
+indentation alone accounted for 1,781 of 6,047 output bytes. The CLI therefore
+accepts `--compact` with `--json` on every structured command and the agent entry
+uses it by default. Compact output preserves the parsed artifact, stable key
+ordering, and trailing newline; it changes only insignificant whitespace.
+
+Indented `--json` remains the default for people and existing integrations.
+The bounded operation projection is still checked against its indented 8 KiB
+form, so compact transport cannot silently admit data that the documented
+human-readable artifact would have omitted.
+
+Rejected: make all JSON unreadable by default, remove affected reasons or
+operation metadata solely to win the token heuristic, or weaken projection
+completeness and omission reporting.

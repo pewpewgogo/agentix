@@ -3,15 +3,16 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
-  checkIndexStaleness,
   computeAffected,
+  createOperationContext,
+  createOperationDetail,
   generateIndex,
   planVerification,
-  readIndex,
   stableJson,
   type AgentIndex,
   type CompilerDiagnostic,
   type GraphEdge,
+  type OperationContext,
 } from "@agentix/compiler";
 
 export const ExitCode = {
@@ -47,7 +48,10 @@ export interface CliDependencies {
 interface ParsedArguments {
   readonly positional: readonly string[];
   readonly json: boolean;
+  readonly compact: boolean;
   readonly dryRun: boolean;
+  readonly full: boolean;
+  readonly help: boolean;
   readonly format?: string;
   readonly root?: string;
 }
@@ -74,26 +78,39 @@ const defaultRunner: ProcessRunner = (command, args, cwd) => {
 };
 
 const usage = `Usage:
-  agentix inspect <feature-or-operation> [--json]
-  agentix graph [<feature>] [--format text|json|dot]
-  agentix affected <feature-or-file> [--json]
-  agentix verify <feature-or-operation> [--json]
-  agentix scaffold feature <name> [--dry-run]
+  agentix inspect <feature-or-operation> [--json [--compact]] [--root <directory>]
+  agentix inspect <operation> --full [--json [--compact]] [--root <directory>]
+  agentix graph [<feature>] [--format text|json|dot] [--json [--compact]] [--root <directory>]
+  agentix affected <feature-or-file> [--json [--compact]] [--root <directory>]
+  agentix verify <feature-or-operation> [--json [--compact]] [--root <directory>]
+  agentix scaffold feature <name> [--dry-run] [--json [--compact]] [--root <directory>]
 `;
 
 const parseArguments = (args: readonly string[]): ParsedArguments => {
   const positional: string[] = [];
   let json = false;
+  let compact = false;
   let dryRun = false;
+  let full = false;
+  let help = false;
   let format: string | undefined;
   let root: string | undefined;
+  let parseOptions = true;
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
-    if (argument === "--json") {
+    if (parseOptions && argument === "--") {
+      parseOptions = false;
+    } else if (parseOptions && (argument === "--help" || argument === "-h")) {
+      help = true;
+    } else if (parseOptions && argument === "--json") {
       json = true;
-    } else if (argument === "--dry-run") {
+    } else if (parseOptions && argument === "--compact") {
+      compact = true;
+    } else if (parseOptions && argument === "--full") {
+      full = true;
+    } else if (parseOptions && argument === "--dry-run") {
       dryRun = true;
-    } else if (argument === "--format" || argument === "--root") {
+    } else if (parseOptions && (argument === "--format" || argument === "--root")) {
       const value = args[index + 1];
       if (value === undefined || value.startsWith("--")) {
         throw new UsageError(`${argument} requires a value.`);
@@ -101,7 +118,7 @@ const parseArguments = (args: readonly string[]): ParsedArguments => {
       if (argument === "--format") format = value;
       else root = value;
       index += 1;
-    } else if (argument?.startsWith("--") === true) {
+    } else if (parseOptions && argument?.startsWith("--") === true) {
       throw new UsageError(`Unknown option '${argument}'.`);
     } else if (argument !== undefined) {
       positional.push(argument);
@@ -110,26 +127,39 @@ const parseArguments = (args: readonly string[]): ParsedArguments => {
   return {
     positional,
     json,
+    compact,
     dryRun,
+    full,
+    help,
     ...(format === undefined ? {} : { format }),
     ...(root === undefined ? {} : { root }),
   };
 };
 
-const loadFreshIndex = (rootDir: string): AgentIndex => {
-  try {
-    const index = readIndex(rootDir);
-    if (!checkIndexStaleness(index, rootDir).stale) return index;
-  } catch {
-    // Missing, incompatible, or malformed projections are regenerated from source.
-  }
-  return generateIndex({ rootDir, write: true }).index;
+const serializeJson = (value: unknown, compact: boolean): string => {
+  return stableJson(value, { compact });
 };
+
+const loadFreshIndex = (rootDir: string): AgentIndex =>
+  // Generated indexes are disposable outputs, never trusted inputs to agent context.
+  generateIndex({ rootDir, write: true }).index;
 
 const diagnosticText = (diagnostic: CompilerDiagnostic): string =>
   `${diagnostic.source.file}:${diagnostic.source.line}:${diagnostic.source.column} ${diagnostic.severity} ${diagnostic.code}: ${diagnostic.message}`;
 
-const inspectTarget = (index: AgentIndex, target: string, rootDir: string): unknown => {
+const inspectTarget = (
+  index: AgentIndex,
+  target: string,
+  rootDir: string,
+  full: boolean,
+): unknown => {
+  if (full) {
+    const detail = createOperationDetail(index, target, rootDir);
+    if (detail === undefined) {
+      throw new UsageError("inspect --full requires an indexed operation target.");
+    }
+    return detail;
+  }
   const feature = index.features.find((candidate) => candidate.id === target);
   if (feature !== undefined) {
     return {
@@ -142,16 +172,22 @@ const inspectTarget = (index: AgentIndex, target: string, rootDir: string): unkn
   }
   const operation = index.operations.find((candidate) => candidate.id === target);
   if (operation !== undefined) {
-    return {
-      schemaVersion: "1",
-      ...operation,
-      affected: computeAffected(index, target, rootDir),
-      verification: planVerification(index, target, rootDir),
-    };
+    return createOperationContext(index, target, rootDir);
   }
   const port = index.ports.find((candidate) => candidate.id === target);
   if (port !== undefined) {
     return { schemaVersion: "1", kind: "port", ...port };
+  }
+  for (const owner of index.ports) {
+    const operation = owner.operations.find((candidate) => candidate.id === target);
+    if (operation !== undefined) {
+      return {
+        schemaVersion: "1",
+        artifactKind: "port-operation",
+        port: owner.id,
+        ...operation,
+      };
+    }
   }
   const event = index.events.find((candidate) => candidate.id === target);
   if (event !== undefined) {
@@ -168,6 +204,7 @@ const formatInspect = (value: unknown): string => {
   const inspected = value as {
     readonly id: string;
     readonly kind: string;
+    readonly artifactKind?: string;
     readonly source: { readonly file: string; readonly line: number };
     readonly dependencies?: readonly string[];
     readonly consumers?: readonly string[];
@@ -178,9 +215,11 @@ const formatInspect = (value: unknown): string => {
     readonly invariants?: readonly string[];
     readonly tests?: readonly string[];
     readonly verification?: { readonly scope: string; readonly reason: string };
+    readonly analysis?: OperationContext["analysis"];
+    readonly projection?: OperationContext["projection"];
   };
   const lines = [
-    `${inspected.kind} ${inspected.id}`,
+    `${inspected.artifactKind === "port-operation" ? inspected.artifactKind : inspected.kind} ${inspected.id}`,
     `source: ${inspected.source.file}:${inspected.source.line}`,
   ];
   const list = (label: string, values: readonly string[] | undefined): void => {
@@ -199,8 +238,36 @@ const formatInspect = (value: unknown): string => {
   list("events", inspected.events);
   list("invariants", inspected.invariants);
   list("tests", inspected.tests);
+  if (inspected.analysis !== undefined) {
+    const { project } = inspected.analysis;
+    lines.push(
+      `analysis: ${inspected.analysis.agentixValid ? "valid" : "invalid"}; ` +
+      `${project.errors} error(s), ${project.warnings} warning(s), ` +
+      `${project.unresolved} unresolved; typecheck ${inspected.analysis.typecheck}`,
+    );
+    lines.push(`source-digest: ${inspected.analysis.sourceDigest}`);
+    for (const diagnostic of inspected.analysis.targetDiagnostics) {
+      lines.push(`diagnostic: ${diagnostic.code} ${diagnostic.message}`);
+    }
+  }
   if (inspected.verification !== undefined) {
     lines.push(`verify: ${inspected.verification.scope} (${inspected.verification.reason})`);
+  }
+  if (inspected.projection?.truncated === true) {
+    lines.push(
+      `projection: truncated to ${inspected.projection.byteLimit} bytes; ` +
+      `${inspected.projection.omissions.length} omission(s)`,
+    );
+    for (const omission of inspected.projection.omissions) {
+      const expansion = omission.expand.kind === "source"
+        ? `open ${omission.expand.source.file}:${omission.expand.source.line}`
+        : `run from ${omission.expand.cwd}: ${
+          omission.expand.argv.map(shellArgument).join(" ")
+        }`;
+      lines.push(
+        `omitted: ${omission.path} (${omission.included}/${omission.total} included); ${expansion}`,
+      );
+    }
   }
   return `${lines.join("\n")}\n`;
 };
@@ -225,8 +292,11 @@ const dotEscape = (value: string): string => value.replaceAll("\\", "\\\\").repl
 const formatGraph = (
   edges: readonly GraphEdge[],
   format: "text" | "json" | "dot",
+  compact = false,
 ): string => {
-  if (format === "json") return stableJson({ schemaVersion: "1", edges });
+  if (format === "json") {
+    return serializeJson({ schemaVersion: "1", edges }, compact);
+  }
   if (format === "dot") {
     const lines = ["digraph agentix {"];
     for (const edge of edges) {
@@ -248,7 +318,20 @@ const featureName = (name: string): { camel: string; pascal: string } => {
   }
   const pieces = name.split("-");
   const pascal = pieces.map((piece) => `${piece[0]?.toUpperCase()}${piece.slice(1)}`).join("");
-  return { camel: `${pieces[0]}${pascal.slice(pieces[0]?.length ?? 0)}`, pascal };
+  const candidate = `${pieces[0]}${pascal.slice(pieces[0]?.length ?? 0)}`;
+  const reservedBindings = new Set([
+    "arguments", "await", "break", "case", "catch", "class", "const",
+    "continue", "debugger", "default", "delete", "do", "else", "enum",
+    "eval", "export", "extends", "false", "finally", "for", "function",
+    "if", "implements", "import", "in", "instanceof", "interface", "let",
+    "new", "null", "package", "private", "protected", "public", "return",
+    "static", "super", "switch", "this", "throw", "true", "try", "typeof",
+    "var", "void", "while", "with", "yield",
+  ]);
+  return {
+    camel: reservedBindings.has(candidate) ? `${candidate}Feature` : candidate,
+    pascal,
+  };
 };
 
 const scaffoldTemplates = (name: string): ReadonlyMap<string, string> => {
@@ -258,9 +341,6 @@ const scaffoldTemplates = (name: string): ReadonlyMap<string, string> => {
       "contract.ts",
       `import { defineFeatureContract } from "@agentix/core";\n\nexport interface ${pascal}View {\n  readonly id: string;\n}\n\nexport const ${camel}Contract = defineFeatureContract({\n  id: "${name}",\n  exports: {},\n});\n`,
     ],
-    ["model.ts", `export interface ${pascal} {\n  readonly id: string;\n}\n`],
-    ["operations.ts", "// Declare this feature's commands and queries here.\n"],
-    ["invariants.ts", "// Declare executable feature invariants here.\n"],
     [
       "feature.ts",
       `import { defineFeature } from "@agentix/core";\n\nimport { ${camel}Contract } from "./contract.js";\n\nexport const ${camel} = defineFeature({\n  id: "${name}",\n  contract: ${camel}Contract,\n  dependencies: [],\n  operations: [],\n  invariants: [],\n});\n`,
@@ -272,11 +352,22 @@ const scaffoldTemplates = (name: string): ReadonlyMap<string, string> => {
   ]);
 };
 
+const shellArgument = (value: string): string =>
+  /^[A-Za-z0-9_./:@%+=,-]+$/u.test(value)
+    ? value
+    : `'${value.replaceAll("'", `'"'"'`)}'`;
+
 const scaffold = (
   rootDir: string,
   name: string,
   dryRun: boolean,
-): { readonly schemaVersion: "1"; readonly dryRun: boolean; readonly directory: string; readonly files: readonly string[] } => {
+): {
+  readonly schemaVersion: "1";
+  readonly dryRun: boolean;
+  readonly directory: string;
+  readonly files: readonly string[];
+  readonly nextActions: readonly string[];
+} => {
   const templates = scaffoldTemplates(name);
   const directory = resolve(rootDir, "src/features", name);
   if (existsSync(directory)) {
@@ -289,7 +380,17 @@ const scaffold = (
       writeFileSync(resolve(directory, file), contents, { encoding: "utf8", flag: "wx" });
     }
   }
-  return { schemaVersion: "1", dryRun, directory: `src/features/${name}`, files };
+  return {
+    schemaVersion: "1",
+    dryRun,
+    directory: `src/features/${name}`,
+    files,
+    nextActions: [
+      `Register the feature from src/features/${name}/feature.ts in application assembly.`,
+      `cd ${shellArgument(rootDir)} && npm exec -- agentix inspect ${name} --root .`,
+      `cd ${shellArgument(rootDir)} && npm exec -- agentix verify ${name} --root .`,
+    ],
+  };
 };
 
 const requireTarget = (values: readonly string[], command: string): string => {
@@ -310,9 +411,15 @@ export const runCli = (
     const parsed = parseArguments(argv);
     const [command, ...positionals] = parsed.positional;
     const rootDir = resolve(dependencies.cwd ?? process.cwd(), parsed.root ?? ".");
-    if (command === undefined || command === "help") {
+    if (parsed.help || command === undefined || command === "help") {
       io.stdout(usage);
       return ExitCode.success;
+    }
+    if (parsed.compact && !parsed.json) {
+      throw new UsageError("--compact requires --json.");
+    }
+    if (parsed.full && command !== "inspect") {
+      throw new UsageError("--full is supported only by inspect.");
     }
     if (command === "scaffold") {
       if (positionals[0] !== "feature" || positionals[1] === undefined || positionals.length !== 2) {
@@ -321,8 +428,8 @@ export const runCli = (
       const result = scaffold(rootDir, positionals[1], parsed.dryRun);
       io.stdout(
         parsed.json
-          ? stableJson(result)
-          : `${result.dryRun ? "Would create" : "Created"} ${result.directory}\n${result.files.map((file) => `  ${file}`).join("\n")}\n`,
+          ? serializeJson(result, parsed.compact)
+          : `${result.dryRun ? "Would create" : "Created"} ${result.directory}\n${result.files.map((file) => `  ${file}`).join("\n")}\nNext:\n${result.nextActions.map((action) => `  ${action}`).join("\n")}\n`,
       );
       return ExitCode.success;
     }
@@ -330,8 +437,12 @@ export const runCli = (
     const index = loadFreshIndex(rootDir);
     if (command === "inspect") {
       const target = requireTarget(positionals, "inspect");
-      const inspected = inspectTarget(index, target, rootDir);
-      io.stdout(parsed.json ? stableJson(inspected) : formatInspect(inspected));
+      const inspected = inspectTarget(index, target, rootDir, parsed.full);
+      io.stdout(
+        parsed.json
+          ? serializeJson(inspected, parsed.compact)
+          : formatInspect(inspected),
+      );
       return ExitCode.success;
     }
     if (command === "graph") {
@@ -340,7 +451,7 @@ export const runCli = (
       if (format !== "text" && format !== "json" && format !== "dot") {
         throw new UsageError("graph --format must be text, json, or dot.");
       }
-      io.stdout(formatGraph(graphEdges(index, positionals[0]), format));
+      io.stdout(formatGraph(graphEdges(index, positionals[0]), format, parsed.compact));
       return ExitCode.success;
     }
     if (command === "affected") {
@@ -351,7 +462,7 @@ export const runCli = (
       }
       io.stdout(
         parsed.json
-          ? stableJson(affected)
+          ? serializeJson(affected, parsed.compact)
           : `${affected.widened ? "scope: workspace (widened)\n" : ""}${affected.items
               .map((item) => `${item.id} [${item.kind}] <- ${item.reasons.map((reason) => reason.message).join("; ")}`)
               .join("\n")}\n`,
@@ -394,7 +505,7 @@ export const runCli = (
         checks,
       };
       if (parsed.json) {
-        io.stdout(stableJson(result));
+        io.stdout(serializeJson(result, parsed.compact));
       } else {
         for (const diagnostic of architectureErrors) io.stderr(`${diagnosticText(diagnostic)}\n`);
         io.stdout(`verify ${target}: ${passed ? "passed" : "failed"} (${plan.scope})\n`);

@@ -48,6 +48,14 @@ export interface EventTraceEntry {
   readonly payload: unknown;
 }
 
+export interface EmittedEvent {
+  readonly operationId: string;
+  readonly alias: string;
+  readonly eventId: string;
+  readonly version: number;
+  readonly payload: unknown;
+}
+
 export type TraceEntry = EffectTraceEntry | EventTraceEntry;
 export type ExecutionTrace = readonly TraceEntry[];
 
@@ -73,6 +81,7 @@ export type DispatchRejectionError =
   | InvalidInputError;
 
 export type DispatchFaultCode =
+  | "INPUT_VALIDATION_FAILED"
   | "INVALID_OPERATION_OUTCOME"
   | "INVALID_OUTPUT"
   | "INVALID_DOMAIN_ERROR"
@@ -82,8 +91,10 @@ export type DispatchFaultCode =
   | "INVALID_EFFECT_ERROR"
   | "EFFECT_EXECUTION_FAILED"
   | "INVALID_EVENT_PAYLOAD"
+  | "EVENT_OUTSIDE_EXECUTION"
   | "EFFECT_OUTSIDE_EXECUTION"
   | "UNDECLARED_EFFECT"
+  | "OPERATION_DESCRIPTOR_MISMATCH"
   | "EXECUTION_FAILED";
 
 export interface DispatchFaultError {
@@ -99,6 +110,8 @@ export interface CompletedDispatch<T, E> {
   readonly kind: "completed";
   readonly operationId: string;
   readonly outcome: Outcome<T, E>;
+  /** Validated events emitted by a completed operation; publication is caller-owned. */
+  readonly events: readonly EmittedEvent[];
   readonly trace?: ExecutionTrace;
 }
 
@@ -197,6 +210,13 @@ export class ApplicationDefinitionError extends TypeError {
     this.name = "ApplicationDefinitionError";
     this.issues = Object.freeze([...issues]);
   }
+}
+
+interface ExecutionLifecycle {
+  active: boolean;
+  boundaryFault?: DispatchFaultError;
+  readonly pendingEffects: Set<Promise<unknown>>;
+  readonly events: EmittedEvent[];
 }
 
 export const createApplication = <
@@ -321,6 +341,21 @@ export const createApplication = <
       );
     }
 
+    if (typeof requested !== "string" && requested !== operation) {
+      return includeTrace(
+        {
+          kind: "fault",
+          operationId: requestedId,
+          error: fault(
+            "OPERATION_DESCRIPTOR_MISMATCH",
+            `Operation descriptor ${requestedId} is not the registered application descriptor`,
+          ),
+        },
+        traceEnabled,
+        trace,
+      );
+    }
+
     // Authorization deliberately precedes input parsing and context construction.
     const granted = new Set(options.principal.permissions);
     const missingPermissions = operation.permissions.filter(
@@ -342,27 +377,48 @@ export const createApplication = <
       );
     }
 
-    const parsedInput = operation.input.safeParse(options.input);
-    if (!parsedInput.success) {
+    let parsedInputData: unknown;
+    try {
+      const parsedInput = operation.input.safeParse(options.input);
+      if (!parsedInput.success) {
+        return includeTrace(
+          {
+            kind: "rejected",
+            operationId: operation.id,
+            error: Object.freeze({
+              code: "INVALID_INPUT",
+              issues: parsedInput.issues,
+            }),
+          },
+          traceEnabled,
+          trace,
+        );
+      }
+      parsedInputData = parsedInput.data;
+    } catch (cause) {
       return includeTrace(
         {
-          kind: "rejected",
+          kind: "fault",
           operationId: operation.id,
-          error: Object.freeze({
-            code: "INVALID_INPUT",
-            issues: parsedInput.issues,
-          }),
+          error: fault(
+            "INPUT_VALIDATION_FAILED",
+            `Input schema for operation ${operation.id} threw during validation`,
+            { cause },
+          ),
         },
         traceEnabled,
         trace,
       );
     }
 
-    const lifecycle = { active: true };
+    const lifecycle: ExecutionLifecycle = {
+      active: true,
+      pendingEffects: new Set(),
+      events: [],
+    };
     const effects = buildEffects(
       operation,
       adapters,
-      mode,
       lifecycle,
       trace,
     );
@@ -370,26 +426,40 @@ export const createApplication = <
 
     try {
       const rawOutcome = await operation.execute({
-        input: parsedInput.data,
+        input: parsedInputData,
         effects,
         emit,
       });
       lifecycle.active = false;
+      await drainPendingEffects(lifecycle);
+      if (lifecycle.boundaryFault !== undefined) {
+        return includeTrace(
+          { kind: "fault", operationId: operation.id, error: lifecycle.boundaryFault },
+          traceEnabled,
+          trace,
+        );
+      }
       const outcome = validateOperationOutcome(operation, rawOutcome);
       return includeTrace(
-        { kind: "completed", operationId: operation.id, outcome },
+        {
+          kind: "completed",
+          operationId: operation.id,
+          outcome,
+          events: Object.freeze([...lifecycle.events]),
+        },
         traceEnabled,
         trace,
       );
     } catch (cause) {
       lifecycle.active = false;
-      const error = cause instanceof BoundaryFault
+      await drainPendingEffects(lifecycle);
+      const error = lifecycle.boundaryFault ?? (cause instanceof BoundaryFault
         ? cause.fault
         : fault(
             "EXECUTION_FAILED",
             `Operation ${operation.id} threw an unexpected exception`,
             { cause },
-          );
+          ));
       return includeTrace(
         { kind: "fault", operationId: operation.id, error },
         traceEnabled,
@@ -412,8 +482,7 @@ export const createApplication = <
 const buildEffects = (
   operation: AnyOperationDescriptor,
   adapters: ReadonlyMap<string, BoundPortAdapter>,
-  mode: RuntimeMode,
-  lifecycle: { active: boolean },
+  lifecycle: ExecutionLifecycle,
   trace: TraceEntry[],
 ): EffectContext<EffectMap> => {
   const context: Record<
@@ -427,31 +496,44 @@ const buildEffects = (
   for (const alias of Object.keys(operation.effects).sort()) {
     const effect = operation.effects[alias];
     if (effect === undefined) continue;
-    context[alias] = async (input: unknown): Promise<Outcome<unknown, unknown>> => {
+    const executeEffect = async (input: unknown): Promise<Outcome<unknown, unknown>> => {
       if (!lifecycle.active) {
-        throw new BoundaryFault(fault(
+        throw latchBoundaryFault(lifecycle, fault(
           "EFFECT_OUTSIDE_EXECUTION",
           `Effect ${effect.id} was invoked outside ${operation.id} execution`,
           { effectId: effect.id },
         ));
       }
       if (!declaredIds.has(effect.id)) {
-        throw new BoundaryFault(fault(
+        throw latchBoundaryFault(lifecycle, fault(
           "UNDECLARED_EFFECT",
           `Effect ${effect.id} is not declared by ${operation.id}`,
           { effectId: effect.id },
         ));
       }
 
-      const parsedInput = effect.input.safeParse(input);
-      if (!parsedInput.success) {
+      let parsedInputData: unknown;
+      try {
+        const parsedInput = effect.input.safeParse(input);
+        if (!parsedInput.success) {
+          const boundary = fault(
+            "INVALID_EFFECT_INPUT",
+            `Invalid input for effect ${effect.id}`,
+            { effectId: effect.id, issues: parsedInput.issues },
+          );
+          trace.push(effectFaultTrace(operation.id, alias, effect.id, input, boundary));
+          throw latchBoundaryFault(lifecycle, boundary);
+        }
+        parsedInputData = parsedInput.data;
+      } catch (cause) {
+        if (cause instanceof BoundaryFault) throw cause;
         const boundary = fault(
           "INVALID_EFFECT_INPUT",
-          `Invalid input for effect ${effect.id}`,
-          { effectId: effect.id, issues: parsedInput.issues },
+          `Input schema for effect ${effect.id} threw during validation`,
+          { effectId: effect.id, cause },
         );
         trace.push(effectFaultTrace(operation.id, alias, effect.id, input, boundary));
-        throw new BoundaryFault(boundary);
+        throw latchBoundaryFault(lifecycle, boundary);
       }
 
       const adapter = adapters.get(effect.portId);
@@ -466,12 +548,12 @@ const buildEffects = (
           { effectId: effect.id },
         );
         trace.push(effectFaultTrace(operation.id, alias, effect.id, input, boundary));
-        throw new BoundaryFault(boundary);
+        throw latchBoundaryFault(lifecycle, boundary);
       }
 
       let raw: unknown;
       try {
-        raw = await handler(parsedInput.data);
+        raw = await handler(parsedInputData);
       } catch (cause) {
         const boundary = fault(
           "EFFECT_EXECUTION_FAILED",
@@ -479,24 +561,34 @@ const buildEffects = (
           { effectId: effect.id, cause },
         );
         trace.push(effectFaultTrace(operation.id, alias, effect.id, input, boundary));
-        throw new BoundaryFault(boundary);
+        throw latchBoundaryFault(lifecycle, boundary);
       }
 
-      if (!isOutcome(raw)) {
+      let inspectedOutcome: Outcome<unknown, unknown> | undefined;
+      try {
+        if (isOutcome(raw)) inspectedOutcome = raw;
+      } catch (cause) {
+        const boundary = fault(
+          "INVALID_EFFECT_RESULT",
+          `Could not inspect adapter result for ${effect.id}`,
+          { effectId: effect.id, cause },
+        );
+        trace.push(effectFaultTrace(operation.id, alias, effect.id, input, boundary));
+        throw latchBoundaryFault(lifecycle, boundary);
+      }
+      if (inspectedOutcome === undefined) {
         const boundary = fault(
           "INVALID_EFFECT_RESULT",
           `Adapter for ${effect.id} did not return an Outcome`,
           { effectId: effect.id },
         );
         trace.push(effectFaultTrace(operation.id, alias, effect.id, input, boundary));
-        throw new BoundaryFault(boundary);
+        throw latchBoundaryFault(lifecycle, boundary);
       }
 
       let validated: Outcome<unknown, unknown>;
       try {
-        validated = mode === "production"
-          ? raw
-          : validateEffectOutcome(effect, raw);
+        validated = validateEffectOutcome(effect, inspectedOutcome);
       } catch (cause) {
         const boundary = cause instanceof BoundaryFault
           ? cause.fault
@@ -506,18 +598,29 @@ const buildEffects = (
               { effectId: effect.id, cause },
             );
         trace.push(effectFaultTrace(operation.id, alias, effect.id, input, boundary));
-        throw cause instanceof BoundaryFault ? cause : new BoundaryFault(boundary);
+        throw cause instanceof BoundaryFault
+          ? latchBoundaryFault(lifecycle, cause.fault)
+          : latchBoundaryFault(lifecycle, boundary);
       }
       trace.push(Object.freeze({
         type: "effect",
         operationId: operation.id,
         alias,
         effectId: effect.id,
-        input: parsedInput.data,
+        input: parsedInputData,
         status: "completed",
         outcome: validated,
       }));
       return validated;
+    };
+    context[alias] = (input: unknown): Promise<Outcome<unknown, unknown>> => {
+      const pending = executeEffect(input);
+      lifecycle.pendingEffects.add(pending);
+      void pending.then(
+        () => lifecycle.pendingEffects.delete(pending),
+        () => lifecycle.pendingEffects.delete(pending),
+      );
+      return pending;
     };
   }
   return Object.freeze(context) as EffectContext<EffectMap>;
@@ -525,7 +628,7 @@ const buildEffects = (
 
 const buildEmitter = (
   operation: AnyOperationDescriptor,
-  lifecycle: { active: boolean },
+  lifecycle: ExecutionLifecycle,
   trace: TraceEntry[],
 ): EventEmitter<EventMap> => {
   const emitter: Record<string, (payload: unknown) => void> = {};
@@ -534,32 +637,115 @@ const buildEmitter = (
     if (emitted === undefined) continue;
     emitter[alias] = (payload: unknown): void => {
       if (!lifecycle.active) {
-        throw new BoundaryFault(fault(
-          "INVALID_EVENT_PAYLOAD",
+        throw latchBoundaryFault(lifecycle, fault(
+          "EVENT_OUTSIDE_EXECUTION",
           `Event ${emitted.id} was emitted outside ${operation.id} execution`,
           { eventId: emitted.id },
         ));
       }
-      const parsed = emitted.payload.safeParse(payload);
-      if (!parsed.success) {
-        throw new BoundaryFault(fault(
-          "INVALID_EVENT_PAYLOAD",
-          `Invalid payload for event ${emitted.id}`,
-          { eventId: emitted.id, issues: parsed.issues },
-        ));
+      let eventPayload: unknown;
+      try {
+        const parsed = emitted.payload.safeParse(payload);
+        if (!parsed.success) {
+          throw new BoundaryFault(fault(
+            "INVALID_EVENT_PAYLOAD",
+            `Invalid payload for event ${emitted.id}`,
+            { eventId: emitted.id, issues: parsed.issues },
+          ));
+        }
+        eventPayload = snapshotStructuredValue(parsed.data);
+      } catch (cause) {
+        const boundary = cause instanceof BoundaryFault
+          ? cause.fault
+          : fault(
+              "INVALID_EVENT_PAYLOAD",
+              `Could not validate or snapshot payload for event ${emitted.id}`,
+              { eventId: emitted.id, cause },
+            );
+        throw latchBoundaryFault(lifecycle, boundary);
       }
-      trace.push(Object.freeze({
-        type: "event",
+      const event: EmittedEvent = Object.freeze({
         operationId: operation.id,
         alias,
         eventId: emitted.id,
         version: emitted.version,
-        payload: parsed.data,
+        payload: eventPayload,
+      });
+      lifecycle.events.push(event);
+      trace.push(Object.freeze({
+        type: "event",
+        ...event,
       }));
     };
   }
   return Object.freeze(emitter) as EventEmitter<EventMap>;
 };
+
+/**
+ * Detach and deeply freeze the structured values produced by built-in schemas.
+ * The iterative walk preserves cycles and shared references without risking
+ * unbounded recursive calls. Non-plain objects are opaque schema values.
+ */
+const snapshotStructuredValue = (value: unknown): unknown => {
+  if (!isStructuredContainer(value)) return value;
+
+  const root = createStructuredContainer(value);
+  const snapshots = new WeakMap<object, object>([[value, root]]);
+  const pending: object[] = [value];
+  const created: object[] = [root];
+
+  while (pending.length > 0) {
+    const source = pending.pop();
+    if (source === undefined) continue;
+    const target = snapshots.get(source);
+    if (target === undefined) continue;
+
+    for (const key of Reflect.ownKeys(source)) {
+      const descriptor = Object.getOwnPropertyDescriptor(source, key);
+      if (descriptor?.enumerable !== true) continue;
+
+      const sourceValue = Reflect.get(source, key);
+      let snapshotValue = sourceValue;
+      if (isStructuredContainer(sourceValue)) {
+        const existing = snapshots.get(sourceValue);
+        if (existing !== undefined) {
+          snapshotValue = existing;
+        } else {
+          const child = createStructuredContainer(sourceValue);
+          snapshots.set(sourceValue, child);
+          pending.push(sourceValue);
+          created.push(child);
+          snapshotValue = child;
+        }
+      }
+
+      Object.defineProperty(target, key, {
+        configurable: true,
+        enumerable: true,
+        value: snapshotValue,
+        writable: true,
+      });
+    }
+  }
+
+  for (let index = created.length - 1; index >= 0; index -= 1) {
+    const container = created[index];
+    if (container !== undefined) Object.freeze(container);
+  }
+  return root;
+};
+
+const isStructuredContainer = (value: unknown): value is object => {
+  if (Array.isArray(value)) return true;
+  if (typeof value !== "object" || value === null) return false;
+  const prototype = Object.getPrototypeOf(value) as object | null;
+  return prototype === Object.prototype || prototype === null;
+};
+
+const createStructuredContainer = (source: object): object =>
+  Array.isArray(source)
+    ? new Array<unknown>(source.length)
+    : Object.create(Object.getPrototypeOf(source) as object | null) as object;
 
 const validateOperationOutcome = (
   operation: AnyOperationDescriptor,
@@ -800,6 +986,22 @@ class BoundaryFault extends Error {
     this.fault = boundary;
   }
 }
+
+const latchBoundaryFault = (
+  lifecycle: ExecutionLifecycle,
+  boundary: DispatchFaultError,
+): BoundaryFault => {
+  lifecycle.boundaryFault ??= boundary;
+  return new BoundaryFault(boundary);
+};
+
+const drainPendingEffects = async (
+  lifecycle: ExecutionLifecycle,
+): Promise<void> => {
+  while (lifecycle.pendingEffects.size > 0) {
+    await Promise.allSettled([...lifecycle.pendingEffects]);
+  }
+};
 
 const effectFaultTrace = (
   operationId: string,

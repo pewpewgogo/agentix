@@ -19,11 +19,11 @@
   "fixture": {
     "framework": {
       "manifest": "benchmarks/fixtures/v1/task-05-localized-defect/framework.fixture.json",
-      "sha256": "f083aa510ae9d991fdab565f10664cac77b9fcfd8cfe337aa6c4f34d46362daf"
+      "sha256": "1b5cc858902575013641a4b4feb149630d537458dea8145c2f3927f4a57a8312"
     },
     "plain": {
       "manifest": "benchmarks/fixtures/v1/task-05-localized-defect/plain.fixture.json",
-      "sha256": "4404ba9ee48319a8b6a1337aeca2ae91216c27edef451f70397c841e1e485d9a"
+      "sha256": "c340192091601d7f5d89a6061eb97f426df41ce0a9efcd2883a0d4d67fadb5d6"
     }
   },
   "evaluator": {

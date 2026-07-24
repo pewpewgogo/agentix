@@ -1,0 +1,19 @@
+{
+  "name": "@agentix/sandbox-express-notes",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false && tsc -p tsconfig.test.json --pretty false",
+    "test": "vitest run --root ../.. sandbox/plain-notes-app"
+  },
+  "dependencies": {
+    "express": "5.2.1",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "vitest": "4.1.10"
+  }
+}

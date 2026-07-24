@@ -2,7 +2,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { createSourceManifest, discoverSourceFiles } from "./files.js";
-import type { AgentIndex } from "./types.js";
+import {
+  COMPILER_VERSION,
+  INDEX_SCHEMA_VERSION,
+  type AgentIndex,
+} from "./types.js";
 
 export interface StalenessResult {
   readonly stale: boolean;
@@ -14,6 +18,15 @@ export const checkIndexStaleness = (
   rootDir: string,
   files?: readonly string[],
 ): StalenessResult => {
+  if (
+    index.schemaVersion !== INDEX_SCHEMA_VERSION ||
+    index.compilerVersion !== COMPILER_VERSION
+  ) {
+    return {
+      stale: true,
+      reason: "The generated index uses an incompatible schema or compiler version.",
+    };
+  }
   const manifest = createSourceManifest(
     rootDir,
     discoverSourceFiles(rootDir, files),

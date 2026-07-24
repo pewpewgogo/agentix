@@ -1,17 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   assertInvariant,
-  defineOperationTest,
 } from "@agentix/testing";
 
 import { Order, Payment } from "./contract.js";
 import { paidOrderHasPayment } from "./invariants.js";
-import { createOrder } from "./operations.js";
-
-export const createOrderTest = defineOperationTest({
-  id: "orders.create.invariant",
-  operation: createOrder,
-});
 
 const order = Order.parse({
   id: "order-1",

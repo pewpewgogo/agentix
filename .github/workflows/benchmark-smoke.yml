@@ -1,0 +1,112 @@
+name: Three-arm benchmark smoke
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/benchmark-smoke.yml"
+      - "benchmarks/runtime/**"
+      - "package-lock.json"
+      - "package.json"
+      - "packages/**"
+      - "sandbox/**"
+      - "tsconfig.json"
+      - "vitest.config.ts"
+  workflow_dispatch:
+    inputs:
+      warmups:
+        description: Warmup blocks per HTTP stack
+        required: true
+        default: "10"
+        type: string
+      measured:
+        description: Measured blocks per HTTP stack
+        required: true
+        default: "100"
+        type: string
+      process_iterations:
+        description: Cold-ready and memory process samples
+        required: true
+        default: "5"
+        type: string
+      include_process_metrics:
+        description: Include slower cold-ready and memory probes
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: three-arm-benchmark-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Use the pinned npm release
+        run: npm install --global npm@11.13.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and test equivalent notes arms
+        run: npm run sandbox:test
+
+      - name: Measure deterministic context packs
+        run: npm run sandbox:token-budget
+
+      - name: Run real HTTP stack comparison
+        env:
+          WARMUPS: ${{ inputs.warmups }}
+          MEASURED: ${{ inputs.measured }}
+          PROCESS_ITERATIONS: ${{ inputs.process_iterations }}
+          INCLUDE_PROCESS: ${{ inputs.include_process_metrics }}
+        run: |
+          set -euo pipefail
+          WARMUPS="${WARMUPS:-10}"
+          MEASURED="${MEASURED:-100}"
+          PROCESS_ITERATIONS="${PROCESS_ITERATIONS:-5}"
+          INCLUDE_PROCESS="${INCLUDE_PROCESS:-true}"
+          mkdir -p benchmark-artifacts
+          process_args=()
+          if [[ "$INCLUDE_PROCESS" != "true" ]]; then
+            process_args+=(--no-process)
+          fi
+          node benchmarks/runtime/dist/http-comparison/cli.js \
+            --root=. \
+            --seed="three-arm-smoke-${GITHUB_SHA}" \
+            --warmups="$WARMUPS" \
+            --measured="$MEASURED" \
+            --process-iterations="$PROCESS_ITERATIONS" \
+            --output=benchmark-artifacts/http-frameworks.json \
+            "${process_args[@]}"
+          cp sandbox/token-budget/results/token-budget-latest.json \
+            benchmark-artifacts/token-budget.json
+          cp sandbox/token-budget/results/token-budget-latest.md \
+            benchmark-artifacts/token-budget.md
+          git rev-parse HEAD > benchmark-artifacts/commit.txt
+          node --version > benchmark-artifacts/node-version.txt
+          npm --version > benchmark-artifacts/npm-version.txt
+
+      - name: Upload raw benchmark artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: three-arm-benchmark-${{ github.sha }}
+          path: benchmark-artifacts/
+          if-no-files-found: warn
+          retention-days: 30

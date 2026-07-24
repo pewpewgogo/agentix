@@ -55,8 +55,9 @@ npm --workspace @agentix/benchmark-evaluator run freeze:check
 
 `freeze:check` is read-only. It validates the corpus lock, task-to-fixture and
 task-to-hidden-manifest hashes, every base source hash, paired-equivalence
-metadata, and arm isolation. To update the corpus, change source or overlays,
-regenerate the base inventory and reference hashes as a reviewable patch, then
-regenerate `benchmarks/tasks/corpus.lock.json`. Run the three commands above and
-materialize both arms before accepting the new freeze. Never update hashes only
-to make an unexplained mismatch disappear.
+metadata, and arm isolation. V1 source bytes come from its recorded Git commit;
+live product changes do not refresh that inventory. Create a new corpus version
+for a new product baseline or intervention. After intentionally changing a new
+version's overlays/specification, regenerate its references and corpus lock as a
+reviewable experiment patch, run the three commands above, and materialize both
+arms. Never move an existing source pin or update hashes only to hide a mismatch.

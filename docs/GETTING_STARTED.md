@@ -33,15 +33,22 @@ npm exec -- agentix inspect orders.create --root examples/framework-app
 ```
 
 The output points to the declaration and lists its permission, seven effects,
-event, invariant, associated tests, and verification scope. Try the other views:
+event, invariant, associated tests, verification scope, and compiler trust. The
+JSON form is a source-derived operation context with a hard 8 KiB limit; it is
+not the full generated index. Check `projection.truncated` and follow any
+machine-readable `projection.omissions` expansion before assuming a list is
+complete. Try the other views:
 
 ```sh
 npm exec -- agentix graph orders --root examples/framework-app
 npm exec -- agentix affected src/features/orders/contract.ts \
   --root examples/framework-app
 npm exec -- agentix inspect orders.create \
-  --root examples/framework-app --json
+  --root examples/framework-app --json --compact
 ```
+
+The compact form preserves every field while removing indentation overhead from
+agent context. Omit `--compact` when you want indented JSON for manual reading.
 
 Run the behavior shared with the plain TypeScript implementation:
 
@@ -68,7 +75,9 @@ src/features/notes/
   notes.test.ts
 ```
 
-The CLI can preview the standard six-file scaffold without writing anything:
+The CLI can preview the minimal three-file scaffold without writing anything.
+It creates a contract, feature descriptor, and test; add operations, models, and
+invariants only when the feature needs them:
 
 ```sh
 npm exec -- agentix scaffold feature notes --root path/to/your-app --dry-run
@@ -249,14 +258,15 @@ if (result.kind === "completed" && result.outcome.ok) {
 A dispatch has two layers:
 
 - `kind: "completed"` contains either a successful value or an expected typed
-  domain error.
+  domain error, plus the validated events emitted by the completed execution.
 - `kind: "rejected"` represents an unknown operation, missing permission, or
   invalid input. No operation code runs.
 - `kind: "fault"` represents an unexpected execution or boundary failure.
 
 Authorization runs before input parsing. Development and test applications add
 an effect/event trace by default; production applications do not unless a
-dispatch opts in.
+dispatch opts in. Completed events are available independently of tracing; they
+are not automatically published or persisted.
 
 ## Expose the operation through HTTP
 
@@ -268,11 +278,11 @@ import { createServer } from "node:http";
 
 import {
   createHttpHandler,
-  createNodeHttpListener,
   createTrustedHeaderPrincipalExtractor,
   defineHttpRoute,
   readJsonBody,
-} from "@agentix/adapters-http";
+} from "@agentix/adapters-http/web";
+import { createNodeHttpListener } from "@agentix/adapters-http/node";
 import type { Infer } from "@agentix/core";
 
 import { application } from "./application.js";

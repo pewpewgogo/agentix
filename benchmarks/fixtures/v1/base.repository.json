@@ -5,7 +5,8 @@
   "hashAlgorithm": "sha256",
   "sourceRevision": {
     "kind": "repository-tree-inventory",
-    "label": "agentix-phase-5-equivalent-commerce-apps-2026-07-23"
+    "label": "agentix-phase-5-equivalent-commerce-apps-2026-07-23",
+    "commit": "5fd027e0399440179859094490b2fa6110f1b30e"
   },
   "entries": [
     {

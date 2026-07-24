@@ -23,3 +23,8 @@ The frozen 100-slot schedule is
 `harness/config/confirmatory-schedule.v1.json`, generated from
 `agentix-commerce-v1-2026-07-23`. Current engineering-gate evidence and the
 remaining operational blockers are recorded in `../docs/PHASE5_READINESS.md`.
+
+The Agentix/Express/NestJS process is documented in
+[`THREE_ARM_RUNBOOK.md`](THREE_ARM_RUNBOOK.md). The notes sandbox and HTTP runner
+are calibration/exploratory layers; a confirmatory three-arm maintenance study
+requires a new v2 corpus and must not mutate the frozen two-arm v1 evidence.

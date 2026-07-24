@@ -96,6 +96,19 @@ const routeNotFound = (): Response =>
 export const createHttpHandler = (
   options: CreateHttpHandlerOptions,
 ): HttpHandler => {
+  for (const route of options.routes) {
+    const registered = options.application.getOperation(route.operation.id);
+    if (registered === undefined) {
+      throw new TypeError(
+        `HTTP route ${route.method} ${route.path} references unknown operation ${route.operation.id}.`,
+      );
+    }
+    if (registered !== route.operation) {
+      throw new TypeError(
+        `HTTP route ${route.method} ${route.path} does not use the registered descriptor for ${route.operation.id}.`,
+      );
+    }
+  }
   const routes = compileRoutes(options.routes);
   const anonymousPrincipal = options.anonymousPrincipal ?? {
     id: "anonymous",

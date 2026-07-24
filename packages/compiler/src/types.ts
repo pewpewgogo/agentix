@@ -200,3 +200,108 @@ export interface VerificationPlan {
   readonly tests: readonly string[];
   readonly testFiles: readonly string[];
 }
+
+export interface OperationContextAnalysis {
+  readonly compilerVersion: typeof COMPILER_VERSION;
+  readonly sourceDigest: string;
+  /** Agentix architecture/metadata validity. This is not a TypeScript typecheck. */
+  readonly agentixValid: boolean;
+  /** False when static relationships are unresolved and context must widen. */
+  readonly complete: boolean;
+  readonly typecheck: "not-run";
+  readonly project: {
+    readonly errors: number;
+    readonly warnings: number;
+    readonly unresolved: number;
+  };
+  readonly targetDiagnostics: readonly CompilerDiagnostic[];
+  readonly targetUnresolved: readonly string[];
+}
+
+export interface OperationContextAffectedItem {
+  readonly id: string;
+  readonly kind: AffectedItem["kind"];
+  readonly reasons: readonly AffectedReason[];
+  /** Total reasons before bounded projection. */
+  readonly totalReasons: number;
+}
+
+export interface OperationContextAffected {
+  readonly schemaVersion: "1";
+  readonly target: string;
+  readonly widened: boolean;
+  readonly totalItems: number;
+  readonly countsByKind: readonly {
+    readonly kind: AffectedItem["kind"];
+    readonly count: number;
+  }[];
+  readonly items: readonly OperationContextAffectedItem[];
+  readonly diagnostics: readonly string[];
+}
+
+export interface OperationContextOmission {
+  readonly path: string;
+  readonly total: number;
+  readonly included: number;
+  readonly expand:
+    | {
+        readonly kind: "source";
+        readonly source: SourceLocation;
+      }
+    | {
+        readonly kind: "command";
+        readonly cwd: "application-root";
+        readonly argv: readonly string[];
+      };
+}
+
+export interface OperationContextProjection {
+  readonly byteLimit: number;
+  readonly truncated: boolean;
+  /** Every omitted collection is reported here with an exact next action. */
+  readonly omissions: readonly OperationContextOmission[];
+}
+
+export interface OperationContextVerification {
+  readonly schemaVersion: "1";
+  readonly target: string;
+  readonly scope: "project" | "workspace";
+  readonly reason: string;
+  readonly typecheck: readonly string[];
+  readonly tests: readonly string[];
+  readonly testFiles: readonly string[];
+}
+
+/** Explicit, unbounded per-operation detail used to expand a bounded context. */
+export interface OperationDetail extends IndexedOperation {
+  readonly schemaVersion: "1";
+  readonly artifactKind: "operation-detail";
+  readonly analysis: OperationContextAnalysis;
+  readonly verification: VerificationPlan;
+}
+
+/**
+ * Bounded, source-bound context for one operation. The full generated index is
+ * a disposable artifact; agents should consume this projection instead.
+ */
+export interface OperationContext {
+  readonly schemaVersion: "1";
+  readonly artifactKind: "operation-context";
+  readonly id: string;
+  readonly symbol: string;
+  readonly kind: "command" | "query";
+  readonly feature?: string;
+  readonly source: SourceLocation;
+  readonly input?: string;
+  readonly output?: string;
+  readonly errors: readonly string[];
+  readonly permissions: readonly string[];
+  readonly effects: readonly IndexedEffect[];
+  readonly events: readonly string[];
+  readonly invariants: readonly string[];
+  readonly tests: readonly string[];
+  readonly analysis: OperationContextAnalysis;
+  readonly affected: OperationContextAffected;
+  readonly verification: OperationContextVerification;
+  readonly projection: OperationContextProjection;
+}

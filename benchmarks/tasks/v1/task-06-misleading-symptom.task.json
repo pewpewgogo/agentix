@@ -20,11 +20,11 @@
   "fixture": {
     "framework": {
       "manifest": "benchmarks/fixtures/v1/task-06-misleading-symptom/framework.fixture.json",
-      "sha256": "5765ad0776ce053552f73e5730618c64367ea6cd585ea8da1a1579655c1afd92"
+      "sha256": "d2e8047429d8f12517297bb5825118b81cdf5fb950f401cc7a3b722fbf7386fc"
     },
     "plain": {
       "manifest": "benchmarks/fixtures/v1/task-06-misleading-symptom/plain.fixture.json",
-      "sha256": "3aa95ec210fc05701ea56eba50625fbd8736bb95a5a1ca08c535f23d877a4bcc"
+      "sha256": "ada324e299473cf97c86f5f15a9e512c8af4cd753a05dd69dcf6deef4b084f91"
     }
   },
   "evaluator": {

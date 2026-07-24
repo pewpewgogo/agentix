@@ -1,7 +1,11 @@
 import { chmod, copyFile, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
-import { assertFileDigest, resolveInside } from "./integrity.js";
+import {
+  assertFileDigest,
+  readVerifiedGitBlobs,
+  resolveInside,
+} from "./integrity.js";
 import { loadBaseInventory } from "./load.js";
 import type { FixtureManifest, Implementation } from "./schemas.js";
 
@@ -59,12 +63,25 @@ export const materializeFixture = async (
       throw new Error(`Fixture inventory has duplicate target ${entry.target}.`);
     }
     targets.add(entry.target);
-    const source = resolveInside(repositoryRoot, entry.source);
-    await assertFileDigest(source, entry.sha256);
+  }
+  const sourceBlobs = await readVerifiedGitBlobs(
+    repositoryRoot,
+    inventory.sourceRevision.commit,
+    selected.map((entry) => ({
+      repositoryPath: entry.source,
+      expectedSha256: entry.sha256,
+    })),
+  );
+
+  for (const entry of selected) {
+    const source = sourceBlobs.get(entry.source);
+    if (source === undefined) {
+      throw new Error(`Frozen source read omitted ${entry.source}.`);
+    }
     const target = resolveInside(destination, entry.target);
     await mkdir(dirname(target), { recursive: true });
-    await copyFile(source, target);
-    if (entry.executable) await chmod(target, 0o755);
+    await writeFile(target, source);
+    await chmod(target, entry.executable ? 0o755 : 0o644);
     copied.push(entry.target);
   }
 

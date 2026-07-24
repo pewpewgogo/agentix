@@ -10,7 +10,8 @@ shared files and the selected arm. The other implementation is never present.
 
 1. Refuse a non-empty destination.
 2. Verify the task manifest and base-inventory hashes.
-3. Verify every source file before copying its audience into the workspace.
+3. Read every selected source from the pinned Git commit and verify its hash
+   before copying its audience into the workspace.
 4. Apply exact-count text edits and hashed data-file overlays.
 5. Refuse any target under an excluded evaluator, harness, result, or task path.
 
@@ -23,9 +24,13 @@ behavior; none of the overlays contains a completed solution.
 
 Before a corpus freeze, run the inventory refresh utility, review every changed
 source hash and overlay, then regenerate cross-reference hashes and
-`benchmarks/tasks/corpus.lock.json`. Run the evaluator type-check and tests. A
-source change after freezing makes materialization fail; update by creating a
-new fixture or corpus version, not by weakening verification.
+`benchmarks/tasks/corpus.lock.json`. Run the evaluator type-check and tests.
+After freezing, working-tree product changes do not alter v1 materialization:
+its source bytes come from the recorded commit. Update the corpus only by
+creating a new fixture or corpus version, not by moving the existing pin.
+Materialization therefore requires that commit object to exist locally. Fetch
+full history in a shallow clone; a source archive without Git objects cannot run
+the frozen corpus.
 
 Dependency installation and all agent activity happen after materialization
 with networking disabled. The arm-specific root files keep the application

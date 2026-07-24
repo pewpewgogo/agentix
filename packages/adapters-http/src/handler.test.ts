@@ -233,6 +233,32 @@ describe("Web HTTP handler", () => {
     expect(execution.count).toBe(before);
   });
 
+  it("refuses route descriptors that are not registered by identity", () => {
+    const impostor = defineCommand({
+      id: greet.id,
+      input: GreetingInput,
+      output: Greeting,
+      errors: {},
+      permissions: [],
+      effects: {},
+      emits: {},
+      execute: ({ input }) => ok({ message: input.name }),
+    });
+    const impostorRoute = defineHttpRoute({
+      method: "post",
+      path: "/impostor",
+      operation: impostor,
+      mapRequest: () => ({ name: "impostor" }),
+    });
+    const application = createApplication({
+      features: [greetings],
+      adapters: [],
+    });
+
+    expect(() => createHttpHandler({ application, routes: [impostorRoute] }))
+      .toThrow(/does not use the registered descriptor/);
+  });
+
   it("returns route and method errors before authentication", async () => {
     const handler = createHandler();
     const notFound = await handler(new Request("https://example.test/missing"));

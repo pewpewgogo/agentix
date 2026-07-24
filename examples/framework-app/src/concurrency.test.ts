@@ -2,9 +2,16 @@ import {
   COMMERCE_ERRORS,
   COMMERCE_PERMISSIONS,
 } from "@agentix/shared-contract";
+import { associateOperationTest } from "@agentix/testing";
 import { describe, expect, it } from "vitest";
 
 import { createFrameworkSystem } from "./application.js";
+import { createOrder } from "./features/orders/operations.js";
+
+export const createOrderConcurrencyTest = associateOperationTest(
+  createOrder,
+  "orders.create.concurrency",
+);
 
 const request = (
   method: string,
@@ -77,6 +84,45 @@ describe("order stock reservation", () => {
       events: [{}],
     });
     expect(orderNumber).toBe(1);
+  });
+
+  it("releases reserved stock when a later declared effect faults", async () => {
+    let clockCalls = 0;
+    const system = await createFrameworkSystem({
+      now: () => {
+        clockCalls += 1;
+        if (clockCalls === 3) throw new Error("order clock failed");
+        return "2040-10-01T00:00:00.000Z";
+      },
+      paymentOutcomes: ["approved"],
+    });
+    await system.handle(request(
+      "POST",
+      "/customers",
+      COMMERCE_PERMISSIONS.createCustomer,
+      { id: "customer-1", name: "Ada" },
+    ));
+    await system.handle(request(
+      "POST",
+      "/products",
+      COMMERCE_PERMISSIONS.createProduct,
+      { id: "product-1", name: "Engine", unitPriceCents: 1_000, stock: 2 },
+    ));
+
+    const response = await system.handle(request(
+      "POST",
+      "/orders",
+      COMMERCE_PERMISSIONS.createOrder,
+      { customerId: "customer-1", productId: "product-1", quantity: 1 },
+    ));
+
+    expect(response.status).toBe(COMMERCE_ERRORS.internal.status);
+    expect(await system.snapshot()).toMatchObject({
+      products: [{ stock: 2 }],
+      orders: [],
+      payments: [],
+      events: [],
+    });
   });
 });
 

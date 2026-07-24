@@ -3,7 +3,10 @@ dist/
 coverage/
 *.tsbuildinfo
 .DS_Store
-.agentix/index.json
-.agentix/source-manifest.json
+**/.agentix/index.json
+**/.agentix/source-manifest.json
 .agentix-tmp/
 benchmarks/.workspaces/
+sandbox/token-budget/results/*.json
+sandbox/token-budget/results/*.md
+!sandbox/token-budget/results/README.md

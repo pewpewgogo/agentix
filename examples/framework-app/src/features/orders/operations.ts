@@ -95,104 +95,83 @@ export const createOrder = defineCommand({
         : err(domainError("OUT_OF_STOCK", reservedProduct.error.details));
     }
 
-    const totalCents = reservedProduct.value.unitPriceCents * input.quantity;
-    if (!Number.isSafeInteger(totalCents)) {
-      const released = await effects.releaseProduct({
-        productId,
-        quantity: input.quantity,
-      });
-      if (!released.ok) return released;
-      throw new RangeError("The order total exceeds the safe integer range.");
-    }
-    const charge = await effects.chargePayment({
-      customerId,
-      productId,
-      quantity: input.quantity,
-      amountCents: totalCents,
-    });
-    if (!charge.ok) {
-      const released = await effects.releaseProduct({
-        productId,
-        quantity: input.quantity,
-      });
-      if (!released.ok) {
-        throw new Error("Reserved product could not be released");
+    let committed = false;
+    try {
+      const totalCents = reservedProduct.value.unitPriceCents * input.quantity;
+      if (!Number.isSafeInteger(totalCents)) {
+        throw new RangeError("The order total exceeds the safe integer range.");
       }
-      return err(domainError("PAYMENT_DECLINED", {}));
-    }
-
-    const nextId = await effects.nextId({});
-    if (!nextId.ok) {
-      const released = await effects.releaseProduct({
-        productId,
-        quantity: input.quantity,
-      });
-      return released.ok ? nextId : released;
-    }
-    const parsedId = OrderId.safeParse(nextId.value.trim());
-    if (!parsedId.success) {
-      const released = await effects.releaseProduct({
-        productId,
-        quantity: input.quantity,
-      });
-      if (!released.ok) return released;
-      throw new TypeError("The order ID generator returned a blank ID.");
-    }
-    const instant = await effects.now({});
-    if (!instant.ok) {
-      const released = await effects.releaseProduct({
-        productId,
-        quantity: input.quantity,
-      });
-      return released.ok ? instant : released;
-    }
-
-    const order = Order.parse({
-      id: parsedId.data,
-      customerId,
-      productId,
-      quantity: input.quantity,
-      totalCents,
-      status: "paid",
-      createdAt: instant.value,
-    });
-    const payment = Payment.parse({
-      id: `payment:${order.id}`,
-      orderId: order.id,
-      amountCents: totalCents,
-      status: "approved",
-      processedAt: instant.value,
-    });
-    if (!paidOrderHasPayment.check({ order, payment })) {
-      throw new Error(`Invariant ${paidOrderHasPayment.id} failed`);
-    }
-    const event = OrderCreatedEvent.parse({
-      id: `event:order.created:${order.id}`,
-      type: "order.created",
-      occurredAt: instant.value,
-      data: {
-        orderId: order.id,
+      const charge = await effects.chargePayment({
         customerId,
         productId,
-        quantity: order.quantity,
-        totalCents,
-      },
-    });
+        quantity: input.quantity,
+        amountCents: totalCents,
+      });
+      if (!charge.ok) {
+        return err(domainError("PAYMENT_DECLINED", {}));
+      }
 
-    const committed = await effects.commitPaid({
-      order,
-      payment,
-      event,
-    });
-    if (!committed.ok) {
-      const released = await effects.releaseProduct({
+      const nextId = await effects.nextId({});
+      if (!nextId.ok) return nextId;
+      const parsedId = OrderId.safeParse(nextId.value.trim());
+      if (!parsedId.success) {
+        throw new TypeError("The order ID generator returned a blank ID.");
+      }
+      const instant = await effects.now({});
+      if (!instant.ok) return instant;
+
+      const order = Order.parse({
+        id: parsedId.data,
+        customerId,
         productId,
         quantity: input.quantity,
+        totalCents,
+        status: "paid",
+        createdAt: instant.value,
       });
-      return released.ok ? committed : released;
+      const payment = Payment.parse({
+        id: `payment:${order.id}`,
+        orderId: order.id,
+        amountCents: totalCents,
+        status: "approved",
+        processedAt: instant.value,
+      });
+      if (!paidOrderHasPayment.check({ order, payment })) {
+        throw new Error(`Invariant ${paidOrderHasPayment.id} failed`);
+      }
+      const event = OrderCreatedEvent.parse({
+        id: `event:order.created:${order.id}`,
+        type: "order.created",
+        occurredAt: instant.value,
+        data: {
+          orderId: order.id,
+          customerId,
+          productId,
+          quantity: order.quantity,
+          totalCents,
+        },
+      });
+
+      const commitResult = await effects.commitPaid({
+        order,
+        payment,
+        event,
+      });
+      if (!commitResult.ok) return commitResult;
+      committed = true;
+      emit.orderCreated(event);
+      return ok(order);
+    } finally {
+      if (!committed) {
+        const released = await effects.releaseProduct({
+          productId,
+          quantity: input.quantity,
+        });
+        if (!released.ok) {
+          throw new Error("Reserved product could not be released");
+        }
+      }
     }
-    emit.orderCreated(event);
-    return ok(order);
   },
 });
 

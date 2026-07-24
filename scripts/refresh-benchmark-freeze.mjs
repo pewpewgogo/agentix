@@ -1,8 +1,13 @@
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile, readdir, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { isAbsolute, posix, resolve } from "node:path";
+import { promisify } from "node:util";
 
 const repositoryRoot = resolve(process.argv[2] ?? process.cwd());
+const execFileAsync = promisify(execFile);
+const frozenV1SourceCommit = "5fd027e0399440179859094490b2fa6110f1b30e";
+const maxGitBlobBytes = 64 * 1024 * 1024;
 const fromRoot = (path) => resolve(repositoryRoot, path);
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const digest = async (path) => sha256(await readFile(fromRoot(path)));
@@ -10,14 +15,56 @@ const readJson = async (path) => JSON.parse(await readFile(fromRoot(path), "utf8
 const writeJson = async (path, value) => {
   await writeFile(fromRoot(path), `${JSON.stringify(value, null, 2)}\n`, "utf8");
 };
+const runGit = async (arguments_) => {
+  const { stdout } = await execFileAsync(
+    "git",
+    ["--no-replace-objects", "-C", repositoryRoot, ...arguments_],
+    { encoding: null, maxBuffer: maxGitBlobBytes },
+  );
+  return stdout;
+};
+const assertNormalizedGitPath = (path) => {
+  if (
+    typeof path !== "string" ||
+    path.length === 0 ||
+    path.includes("\0") ||
+    path.includes("\n") ||
+    path.includes("\r") ||
+    isAbsolute(path) ||
+    path.startsWith("/") ||
+    path.includes("\\") ||
+    posix.normalize(path) !== path ||
+    path === ".." ||
+    path.startsWith("../")
+  ) {
+    throw new TypeError(`Unsafe repository-relative Git path: ${path}`);
+  }
+};
+const readFrozenV1Blob = async (path) => {
+  assertNormalizedGitPath(path);
+  return runGit(["cat-file", "blob", `${frozenV1SourceCommit}:${path}`]);
+};
 
 const basePath = "benchmarks/fixtures/v1/base.repository.json";
 const base = await readJson(basePath);
 if (base.id !== "agentix-commerce-app-base") {
   throw new Error(`Refusing to refresh unexpected base inventory ${base.id}.`);
 }
+if (base.sourceRevision?.commit !== frozenV1SourceCommit) {
+  throw new Error(
+    `Refusing to refresh v1 inventory from ${base.sourceRevision?.commit ?? "no commit"}; expected ${frozenV1SourceCommit}.`,
+  );
+}
+const sourceObjectType = (await runGit(["cat-file", "-t", frozenV1SourceCommit]))
+  .toString("utf8")
+  .trim();
+if (sourceObjectType !== "commit") {
+  throw new Error(
+    `Frozen v1 source revision ${frozenV1SourceCommit} is ${sourceObjectType}, not a commit.`,
+  );
+}
 for (const entry of base.entries) {
-  entry.sha256 = await digest(entry.source);
+  entry.sha256 = sha256(await readFrozenV1Blob(entry.source));
 }
 await writeJson(basePath, base);
 const baseSha256 = await digest(basePath);

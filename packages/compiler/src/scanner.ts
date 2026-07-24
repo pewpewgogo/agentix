@@ -238,6 +238,13 @@ const expressionSymbol = (
 const symbolSource = (symbol: TypeScriptSymbol | undefined): ts.SourceFile | undefined =>
   symbol?.declarations[0]?.resolve()?.getSourceFile();
 
+const symbolDeclarationKey = (symbol: TypeScriptSymbol | undefined): string | undefined => {
+  const declaration = symbol?.declarations[0]?.resolve();
+  if (declaration === undefined) return undefined;
+  const sourceFile = declaration.getSourceFile();
+  return `${resolve(sourceFile.fileName)}:${declaration.getStart(sourceFile)}`;
+};
+
 const exportedNames = (sourceFile: ts.SourceFile): string[] => {
   const names: string[] = [];
   for (const statement of sourceFile.statements) {
@@ -580,12 +587,20 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
   }
 
   const draftBySymbol = new Map<TypeScriptSymbol, Draft>();
+  const draftByDeclaration = new Map<string, Draft>();
   for (const draft of drafts) {
-    if (draft.symbol !== undefined) draftBySymbol.set(draft.symbol, draft);
+    if (draft.symbol !== undefined) {
+      draftBySymbol.set(draft.symbol, draft);
+      const key = symbolDeclarationKey(draft.symbol);
+      if (key !== undefined) draftByDeclaration.set(key, draft);
+    }
   }
   const resolveDraft = (expression: ts.Expression): Draft | undefined => {
     const symbol = expressionSymbol(checkerFor(expression), expression);
-    return symbol === undefined ? undefined : draftBySymbol.get(symbol);
+    if (symbol === undefined) return undefined;
+    const declarationKey = symbolDeclarationKey(symbol);
+    return draftBySymbol.get(symbol) ??
+      (declarationKey === undefined ? undefined : draftByDeclaration.get(declarationKey));
   };
 
   const idFor = (draft: Draft): string | undefined => {
@@ -799,9 +814,7 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
 
   const testsMutable: IndexedTest[] = [];
   for (const sourceFile of sourceFiles.filter(
-    (candidate) =>
-      /\.(?:agent-test|test|spec)\.[cm]?tsx?$/u.test(candidate.fileName) &&
-      featureSegment(rootDir, candidate.fileName) !== undefined,
+    (candidate) => /\.(?:agent-test|test|spec)\.[cm]?tsx?$/u.test(candidate.fileName),
   )) {
     const associated = new Set<string>();
     const imports = canonicalImports(sourceFile);
@@ -837,6 +850,7 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
         associated.add(operation.id);
       }
     }
+    if (associated.size === 0 && feature === undefined) continue;
     const id = repositoryPath(rootDir, sourceFile.fileName);
     testsMutable.push({
       id,

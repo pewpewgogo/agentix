@@ -224,9 +224,9 @@ export const Payments = definePort({
 ```
 
 Adapters implement complete port contracts and are bound explicitly at
-application construction. The runtime validates adapter results in development
-and test modes. The testing package supplies deterministic fakes for clocks, ID
-generation, storage, and service calls and records effect traces for replay.
+application construction. The runtime validates adapter results in every mode.
+The testing package supplies deterministic fakes for clocks, ID generation,
+storage, and service calls and records effect traces for replay.
 
 Three layers enforce effect declarations:
 
@@ -258,8 +258,9 @@ and reverse-maps them to operations.
 
 Events are schema-backed public descriptors with stable IDs and versions.
 Commands receive an emitter limited to their declared event map. Emitted payloads
-are validated and appended to the execution trace. Persistence or publication is
-an explicit adapter decision; the core does not install a hidden event bus.
+are validated, returned as completed-dispatch data, and appended to the execution
+trace when tracing is enabled. Persistence or publication is an explicit adapter
+decision; the core does not install a hidden event bus.
 
 The initial application will use an explicit unit-of-work boundary supplied by a
 storage port. It will define when state and an event outbox commit together. A
@@ -321,9 +322,10 @@ Dispatch follows a fixed visible sequence:
 2. Check the principal's required permissions.
 3. Parse input.
 4. Build the exact effect and emitter contexts.
-5. Call `execute`.
-6. Validate declared success or error output.
-7. Return the outcome plus an optional trace in test/development mode.
+5. Call `execute` and drain every effect it started.
+6. Fail on any latched effect/event boundary fault.
+7. Validate declared success or error output.
+8. Return the outcome and emitted events, plus an optional trace.
 
 Application code may call a descriptor directly through the same dispatcher in
 tests; HTTP is only one inbound adapter.
@@ -344,8 +346,9 @@ introduced.
 
 The compiler uses the TypeScript compiler API to inspect source declarations,
 imports, and inferred descriptor types. It never treats the index as input to
-application execution. Generation fails on non-literal IDs or metadata that
-cannot be resolved deterministically.
+application execution. Unresolved or non-literal metadata is recorded as
+diagnostics/unresolved state in the generated projection; `verify` fails or
+widens rather than allowing a narrow correctness claim.
 
 The canonical projection is `.agentix/index.json`, with a versioned JSON schema
 and normalized, repository-relative POSIX paths. Arrays are sorted by stable ID,
@@ -367,10 +370,10 @@ The index includes:
 - direct and transitive likely-affected operations; and
 - reasons for every affected edge.
 
-Source locations are hints and include file plus declaration line. The CLI must
-detect a stale index by comparing a deterministic source manifest. It either
-regenerates it or reports that it cannot safely answer; it never silently uses a
-stale index.
+Source locations are hints and include file plus declaration line. Programmatic
+staleness checks compare schema/compiler versions and a deterministic source
+manifest. The CLI takes the stronger trust boundary: it reanalyzes TypeScript
+for every answer and treats the on-disk index only as disposable output.
 
 ## Affected-set algorithm
 
@@ -398,15 +401,21 @@ The binary is `agentix`. Human output is concise and deterministic; `--json`
 uses versioned schemas and stable ordering.
 
 ```text
-agentix inspect <feature-or-operation> [--json]
-agentix graph [<feature>] [--format text|json|dot]
-agentix affected <feature-or-file> [--json]
-agentix verify <feature-or-operation> [--json]
-agentix scaffold feature <name> [--dry-run]
+agentix inspect <feature-or-operation> [--json [--compact]]
+agentix inspect <operation> --full [--json [--compact]]
+agentix graph [<feature>] [--format text|json|dot] [--json [--compact]]
+agentix affected <feature-or-file> [--json [--compact]]
+agentix verify <feature-or-operation> [--json [--compact]]
+agentix scaffold feature <name> [--dry-run] [--json [--compact]]
 ```
+
+`--compact` preserves the stable JSON schema and key ordering while removing
+indentation for agent and machine transport. It requires `--json`.
 
 - `inspect` shows contract, dependencies, consumers, permissions, effects,
   events, invariants, source locations, tests, and suggested verification.
+  Operation JSON is hard-limited to 8 KiB and reports every summarized
+  collection through projection omissions.
 - `graph` shows dependency and reverse-consumer edges and can emit DOT without
   needing a graph-rendering dependency.
 - `affected` prints the conservative closure and reasons for inclusion.
