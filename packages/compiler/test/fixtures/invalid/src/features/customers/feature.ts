@@ -1,10 +1,3 @@
-import { defineFeature } from "@agentix/core";
-import { customersContract } from "./contract.js";
+import { feature } from "@agentix/core";
 
-export const customers = defineFeature({
-  id: "customers",
-  contract: customersContract,
-  dependencies: [],
-  operations: [],
-  invariants: [],
-});
+export const customers = feature("customers", { operations: {} });

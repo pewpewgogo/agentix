@@ -1,7 +1,7 @@
 {
   "name": "@agentix/testing",
   "version": "0.1.0",
-  "description": "Deterministic Agentix operation harnesses, traces, contracts, invariants, and replay.",
+  "description": "Deterministic Agentix test applications, HTTP drivers, operation harnesses, traces, and contracts.",
   "license": "MIT",
   "type": "module",
   "repository": {

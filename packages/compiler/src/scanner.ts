@@ -1,9 +1,14 @@
-import { basename, dirname, extname, resolve } from "node:path";
+import { dirname, extname, resolve } from "node:path";
 
 import { API, SymbolFlags, type Checker, type Symbol as TypeScriptSymbol } from "typescript/unstable/sync";
 import * as ts from "typescript/unstable/ast";
 
-import { createSourceManifest, discoverSourceFiles, repositoryPath } from "./files.js";
+import {
+  createSourceManifest,
+  discoverSourceFiles,
+  featureSegmentOf,
+  repositoryPath,
+} from "./files.js";
 import {
   COMPILER_VERSION,
   INDEX_SCHEMA_VERSION,
@@ -14,22 +19,20 @@ import {
   type IndexedEffect,
   type IndexedEvent,
   type IndexedFeature,
-  type IndexedInvariant,
+  type IndexedHttp,
   type IndexedOperation,
+  type IndexedOperationError,
   type IndexedPort,
   type IndexedPortOperation,
   type IndexedTest,
+  type SchemaExcerpt,
   type SourceLocation,
 } from "./types.js";
 
-const descriptorCalls = new Map([
-  ["defineFeature", "feature"],
-  ["defineCommand", "command"],
-  ["defineQuery", "query"],
-  ["definePort", "port"],
-  ["defineEvent", "event"],
-  ["defineInvariant", "invariant"],
-] as const);
+const EXCERPT_LIMIT = 1024;
+
+const PORT_OP_KINDS = ["read", "write", "time", "random", "external"] as const;
+type PortOpKind = (typeof PORT_OP_KINDS)[number];
 
 const testCalls = new Set([
   "associateOperationTest",
@@ -38,13 +41,11 @@ const testCalls = new Set([
   "testQuery",
 ]);
 
-type DescriptorCallName = typeof descriptorCalls extends Map<infer K, unknown> ? K : never;
-type DescriptorKind = "feature" | "command" | "query" | "port" | "event" | "invariant";
+type DraftKind = "feature" | "port" | "store" | "event";
 
 interface Draft {
-  readonly kind: DescriptorKind;
+  readonly kind: DraftKind;
   readonly call: ts.CallExpression;
-  readonly object: ts.ObjectLiteralExpression;
   readonly declaration: ts.VariableDeclaration;
   readonly symbolName: string;
   readonly symbol?: TypeScriptSymbol;
@@ -54,14 +55,11 @@ interface Draft {
 
 interface PortOperationDraft extends IndexedPortOperation {
   readonly symbol?: TypeScriptSymbol;
-  readonly qualifiedName: string;
 }
 
-interface ImportUse {
-  readonly fromSegment: string;
-  readonly toSegment: string;
-  readonly source: SourceLocation;
-  readonly publicContract: boolean;
+interface UnboundOperationDraft {
+  readonly kind: "command" | "query";
+  readonly call: ts.CallExpression;
 }
 
 const compare = (left: string, right: string): number => left.localeCompare(right);
@@ -83,9 +81,7 @@ const propertyName = (name: ts.PropertyName | undefined): string | undefined => 
   if (name === undefined) return undefined;
   if (ts.isIdentifier(name)) return name.text;
   if (ts.isStringLiteralLikeNode(name)) return name.text;
-  if (ts.isNumericLiteral(name)) {
-    return name.text;
-  }
+  if (ts.isNumericLiteral(name)) return name.text;
   return undefined;
 };
 
@@ -150,15 +146,15 @@ const numberLiteral = (expression: ts.Expression | undefined): number | undefine
     : undefined;
 };
 
-const expressionText = (expression: ts.Expression): string =>
-  expression.getText(expression.getSourceFile()).replace(/\s+/gu, " ");
-
-const featureSegment = (rootDir: string, file: string): string | undefined => {
-  const match = /(?:^|\/)src\/features\/([^/]+)(?:\/|$)/u.exec(
-    repositoryPath(rootDir, file),
-  );
-  return match?.[1];
+const boundedText = (text: string): string => {
+  const collapsed = text.replace(/\s+/gu, " ").trim();
+  return collapsed.length > EXCERPT_LIMIT
+    ? `${collapsed.slice(0, EXCERPT_LIMIT - 1)}…`
+    : collapsed;
 };
+
+const expressionText = (expression: ts.Expression): string =>
+  boundedText(expression.getText(expression.getSourceFile()));
 
 const sourceLocation = (
   rootDir: string,
@@ -205,16 +201,37 @@ const canonicalImports = (sourceFile: ts.SourceFile): Map<string, string> => {
   return names;
 };
 
+interface CalleeDescription {
+  readonly name: string;
+  readonly namespace?: string;
+}
+
+/**
+ * Canonical callee for a call expression: `feature(...)` -> {name: "feature"},
+ * `port.store(...)` -> {name: "store", namespace: "port"}, resolving import
+ * aliases and namespace imports (`ax.feature`, `ax.port.store`).
+ */
 const calledName = (
   call: ts.CallExpression,
   imports: ReadonlyMap<string, string>,
-): string | undefined => {
+): CalleeDescription | undefined => {
   const expression = unwrap(call.expression);
   if (ts.isIdentifier(expression)) {
-    return imports.get(expression.text) ?? expression.text;
+    return { name: imports.get(expression.text) ?? expression.text };
   }
-  if (ts.isPropertyAccessExpression(expression)) {
-    return expression.name.text;
+  if (!ts.isPropertyAccessExpression(expression)) return undefined;
+  const base = unwrap(expression.expression);
+  if (ts.isIdentifier(base)) {
+    const canonical = imports.get(base.text) ?? base.text;
+    if (canonical === "*") return { name: expression.name.text };
+    return { name: expression.name.text, namespace: canonical };
+  }
+  if (
+    ts.isPropertyAccessExpression(base) &&
+    ts.isIdentifier(base.expression) &&
+    (imports.get(base.expression.text) ?? base.expression.text) === "*"
+  ) {
+    return { name: expression.name.text, namespace: base.name.text };
   }
   return undefined;
 };
@@ -235,11 +252,11 @@ const expressionSymbol = (
   return unalias(checker, checker.getSymbolAtLocation(target));
 };
 
-const symbolSource = (symbol: TypeScriptSymbol | undefined): ts.SourceFile | undefined =>
-  symbol?.declarations[0]?.resolve()?.getSourceFile();
+const symbolDeclaration = (symbol: TypeScriptSymbol | undefined): ts.Node | undefined =>
+  symbol?.declarations[0]?.resolve();
 
 const symbolDeclarationKey = (symbol: TypeScriptSymbol | undefined): string | undefined => {
-  const declaration = symbol?.declarations[0]?.resolve();
+  const declaration = symbolDeclaration(symbol);
   if (declaration === undefined) return undefined;
   const sourceFile = declaration.getSourceFile();
   return `${resolve(sourceFile.fileName)}:${declaration.getStart(sourceFile)}`;
@@ -248,6 +265,16 @@ const symbolDeclarationKey = (symbol: TypeScriptSymbol | undefined): string | un
 const exportedNames = (sourceFile: ts.SourceFile): string[] => {
   const names: string[] = [];
   for (const statement of sourceFile.statements) {
+    if (
+      ts.isExportDeclaration(statement) &&
+      statement.exportClause !== undefined &&
+      ts.isNamedExports(statement.exportClause)
+    ) {
+      for (const specifier of statement.exportClause.elements) {
+        names.push(specifier.name.text);
+      }
+      continue;
+    }
     if (!/^export\b/u.test(statement.getText(sourceFile))) continue;
     if (ts.isVariableStatement(statement)) {
       for (const declaration of statement.declarationList.declarations) {
@@ -277,15 +304,22 @@ const sortDiagnostics = (diagnostics: CompilerDiagnostic[]): CompilerDiagnostic[
       compare(left.message, right.message),
   );
 
+interface ArchitectureResult {
+  readonly diagnostics: CompilerDiagnostic[];
+  readonly unresolved: string[];
+  /** Feature id -> feature ids it imports (feature-file imports only). */
+  readonly dependencies: Map<string, Set<string>>;
+}
+
 const architectureDiagnostics = (
   rootDir: string,
   sourceFiles: readonly ts.SourceFile[],
   featureIds: ReadonlyMap<string, string>,
-  declaredDependencies: ReadonlyMap<string, ReadonlySet<string>>,
-): { diagnostics: CompilerDiagnostic[]; unresolved: string[] } => {
+  featureFileBases: ReadonlySet<string>,
+): ArchitectureResult => {
   const diagnostics: CompilerDiagnostic[] = [];
   const unresolved: string[] = [];
-  const importUses: ImportUse[] = [];
+  const dependencies = new Map<string, Set<string>>();
   const databaseImports = new Set([
     "@prisma/client",
     "better-sqlite3",
@@ -308,12 +342,10 @@ const architectureDiagnostics = (
   };
 
   for (const sourceFile of sourceFiles) {
-    const fromSegment = featureSegment(rootDir, sourceFile.fileName);
-    if (fromSegment === undefined) continue;
     const relativeFile = repositoryPath(rootDir, sourceFile.fileName);
-    const isDomain =
-      !/(?:^|\/)contract\.[cm]?tsx?$/u.test(relativeFile) &&
-      !/\.(?:agent-test|test|spec)\.[cm]?tsx?$/u.test(relativeFile);
+    const fromSegment = featureSegmentOf(relativeFile);
+    if (fromSegment === undefined) continue;
+    const isDomain = !/\.(?:agent-test|test|spec)\.[cm]?tsx?$/u.test(relativeFile);
 
     const inspectImport = (
       specifier: string,
@@ -332,26 +364,30 @@ const architectureDiagnostics = (
         ? specifier.slice(0, -extension.length)
         : specifier;
       const target = resolve(dirname(sourceFile.fileName), withoutExtension);
-      const targetSegment = featureSegment(rootDir, target);
+      const targetBase = repositoryPath(rootDir, target);
+      const targetSegment = featureSegmentOf(targetBase);
       if (targetSegment === undefined || targetSegment === fromSegment) return;
-      const publicContract = basename(target) === "contract";
-      importUses.push({
-        fromSegment,
-        toSegment: targetSegment,
-        source: sourceLocation(rootDir, sourceFile, node),
-        publicContract,
-      });
-      if (!publicContract) {
+      const isFeatureFile = featureFileBases.has(targetBase);
+      if (isFeatureFile) {
+        const fromId = featureIds.get(fromSegment);
+        const toId = featureIds.get(targetSegment);
+        if (fromId !== undefined && toId !== undefined) {
+          const set = dependencies.get(fromId) ?? new Set<string>();
+          set.add(toId);
+          dependencies.set(fromId, set);
+        }
+      } else {
         add(
           sourceFile,
           node,
           "architecture.private-cross-feature-import",
           "error",
-          `Feature '${featureIds.get(fromSegment) ?? fromSegment}' imports private source from feature '${featureIds.get(targetSegment) ?? targetSegment}'. Import its public contract instead.`,
+          `Feature '${featureIds.get(fromSegment) ?? fromSegment}' imports private source from feature '${featureIds.get(targetSegment) ?? targetSegment}'. Import its feature file (the public contract) instead.`,
         );
       }
-      if (dynamic && !publicContract) {
-        unresolved.push(`${relativeFile}: dynamic private cross-feature import '${specifier}'`);
+      if (dynamic && !isFeatureFile) {
+        const location = sourceLocation(rootDir, sourceFile, node);
+        unresolved.push(`${location.file}:${location.line}: dynamic private cross-feature import '${specifier}'`);
       }
     };
 
@@ -409,111 +445,7 @@ const architectureDiagnostics = (
     visit(sourceFile);
   }
 
-  const used = new Map<string, Set<string>>();
-  for (const use of importUses.filter((candidate) => candidate.publicContract)) {
-    const fromId = featureIds.get(use.fromSegment) ?? use.fromSegment;
-    const toId = featureIds.get(use.toSegment) ?? use.toSegment;
-    const set = used.get(fromId) ?? new Set<string>();
-    set.add(toId);
-    used.set(fromId, set);
-    if (!declaredDependencies.get(fromId)?.has(toId)) {
-      diagnostics.push({
-        code: "architecture.undeclared-feature-dependency",
-        severity: "error",
-        message: `Feature '${fromId}' imports public contract '${toId}' without declaring it as a dependency.`,
-        source: use.source,
-      });
-    }
-  }
-  for (const [fromId, dependencies] of declaredDependencies) {
-    for (const dependency of dependencies) {
-      if (!used.get(fromId)?.has(dependency)) {
-        const featureSource = sourceFiles.find(
-          (sourceFile) => featureIds.get(featureSegment(rootDir, sourceFile.fileName) ?? "") === fromId,
-        );
-        if (featureSource !== undefined) {
-          diagnostics.push({
-            code: "architecture.unused-feature-dependency",
-            severity: "warning",
-            message: `Feature '${fromId}' declares unused dependency '${dependency}'.`,
-            source: sourceLocation(rootDir, featureSource, featureSource),
-          });
-        }
-      }
-    }
-  }
-  return { diagnostics: sortDiagnostics(diagnostics), unresolved: uniqueSorted(unresolved) };
-};
-
-const likelyAffected = (
-  features: readonly IndexedFeature[],
-  operations: readonly IndexedOperation[],
-  ports: readonly IndexedPort[],
-  events: readonly IndexedEvent[],
-  invariants: readonly IndexedInvariant[],
-): AgentIndex["likelyAffected"] => {
-  const entries: { target: string; operations: { id: string; reason: string }[] }[] = [];
-  const consumers = new Map(features.map((feature) => [feature.id, feature.consumers]));
-  const featureClosure = (id: string): Set<string> => {
-    const selected = new Set([id]);
-    const queue = [id];
-    while (queue.length > 0) {
-      const current = queue.shift();
-      if (current === undefined) break;
-      for (const consumer of consumers.get(current) ?? []) {
-        if (!selected.has(consumer)) {
-          selected.add(consumer);
-          queue.push(consumer);
-        }
-      }
-    }
-    return selected;
-  };
-  for (const feature of features) {
-    const closure = featureClosure(feature.id);
-    entries.push({
-      target: feature.id,
-      operations: operations
-        .filter((operation) => operation.feature !== undefined && closure.has(operation.feature))
-        .map((operation) => ({
-          id: operation.id,
-          reason: operation.feature === feature.id ? "owned by selected feature" : `owned by transitive consumer '${operation.feature}'`,
-        })),
-    });
-  }
-  for (const operation of operations) {
-    entries.push({ target: operation.id, operations: [{ id: operation.id, reason: "selected operation" }] });
-  }
-  for (const port of ports) {
-    for (const portOperation of port.operations) {
-      entries.push({
-        target: portOperation.id,
-        operations: operations
-          .filter((operation) => operation.effects.some((effect) => effect.operationId === portOperation.id))
-          .map((operation) => ({ id: operation.id, reason: `declares effect '${portOperation.id}'` })),
-      });
-    }
-  }
-  for (const event of events) {
-    entries.push({
-      target: event.id,
-      operations: operations
-        .filter((operation) => operation.events.includes(event.id))
-        .map((operation) => ({ id: operation.id, reason: `declares event '${event.id}'` })),
-    });
-  }
-  for (const invariant of invariants) {
-    entries.push({
-      target: invariant.id,
-      operations: invariant.preservers.map((id) => ({ id, reason: `preserves invariant '${invariant.id}'` })),
-    });
-  }
-  return entries
-    .map((entry) => ({
-      target: entry.target,
-      operations: entry.operations.sort((left, right) => compare(left.id, right.id)),
-    }))
-    .sort((left, right) => compare(left.target, right.target));
+  return { diagnostics: sortDiagnostics(diagnostics), unresolved: uniqueSorted(unresolved), dependencies };
 };
 
 export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
@@ -541,6 +473,7 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
   const diagnostics: CompilerDiagnostic[] = [];
   const unresolved: string[] = [];
   const drafts: Draft[] = [];
+  const unboundOperations = new Map<string, UnboundOperationDraft>();
 
   const diagnostic = (
     sourceFile: ts.SourceFile,
@@ -552,32 +485,59 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
     diagnostics.push({ code, message, severity, source: sourceLocation(rootDir, sourceFile, node) });
   };
 
+  const segmentOf = (sourceFile: ts.SourceFile): string | undefined =>
+    featureSegmentOf(repositoryPath(rootDir, sourceFile.fileName));
+
+  /* ------------------------------------------------------------------ */
+  /* Pass 1: collect descriptor drafts (feature/port/port.store/event)  */
+  /* and standalone command()/query() variable declarations.            */
+  /* ------------------------------------------------------------------ */
+
   for (const sourceFile of sourceFiles) {
-    if (featureSegment(rootDir, sourceFile.fileName) === undefined) continue;
+    if (segmentOf(sourceFile) === undefined) continue;
     const imports = canonicalImports(sourceFile);
     const visit = (node: ts.Node): void => {
       if (ts.isCallExpression(node)) {
-        const name = calledName(node, imports) as DescriptorCallName | undefined;
-        const kind = name === undefined ? undefined : descriptorCalls.get(name);
+        const callee = calledName(node, imports);
+        const kind: DraftKind | undefined =
+          callee === undefined
+            ? undefined
+            : callee.namespace === undefined &&
+                (callee.name === "feature" || callee.name === "port" || callee.name === "event")
+              ? (callee.name as DraftKind)
+              : callee.namespace === "port" && callee.name === "store"
+                ? "store"
+                : undefined;
         if (kind !== undefined) {
           const declaration = variableForCall(node);
-          const argument = node.arguments[0];
-          const object = argument === undefined ? undefined : unwrap(argument);
-          if (declaration === undefined || object === undefined || !ts.isObjectLiteralExpression(object) || !ts.isIdentifier(declaration.name)) {
-            diagnostic(sourceFile, node, "metadata.static-object-required", `${name} must initialize a named variable from a static object literal.`);
+          if (declaration === undefined || !ts.isIdentifier(declaration.name)) {
+            diagnostic(sourceFile, node, "metadata.static-descriptor-required", `${kind === "store" ? "port.store" : kind} must initialize a named variable.`);
           } else {
             const checker = checkerFor(declaration.name);
             const symbol = unalias(checker, checker.getSymbolAtLocation(declaration.name));
             drafts.push({
               kind,
               call: node,
-              object,
               declaration,
               symbolName: declaration.name.text,
               ...(symbol === undefined ? {} : { symbol }),
               source: sourceLocation(rootDir, sourceFile, declaration.name),
               sourceFile,
             });
+          }
+        } else if (
+          callee !== undefined &&
+          callee.namespace === undefined &&
+          (callee.name === "command" || callee.name === "query")
+        ) {
+          const declaration = variableForCall(node);
+          if (declaration !== undefined && ts.isIdentifier(declaration.name)) {
+            const checker = checkerFor(declaration.name);
+            const symbol = unalias(checker, checker.getSymbolAtLocation(declaration.name));
+            const key = symbolDeclarationKey(symbol);
+            if (key !== undefined) {
+              unboundOperations.set(key, { kind: callee.name, call: node });
+            }
           }
         }
       }
@@ -603,214 +563,524 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
       (declarationKey === undefined ? undefined : draftByDeclaration.get(declarationKey));
   };
 
-  const idFor = (draft: Draft): string | undefined => {
-    const idExpression = propertyExpression(draft.object, "id");
-    const id = stringLiteral(idExpression);
-    if (id === undefined) {
-      diagnostic(draft.sourceFile, idExpression ?? draft.call, "metadata.literal-id-required", `${draft.kind} '${draft.symbolName}' must declare a string-literal id.`);
-      unresolved.push(`${draft.source.file}:${draft.source.line}: non-literal ${draft.kind} id`);
-    }
-    return id;
-  };
+  /* ------------------------------------------------------------------ */
+  /* Ids: literal arg 0 for feature/port/store/event; duplicates.       */
+  /* ------------------------------------------------------------------ */
+
   const ids = new Map<Draft, string>();
-  const seenIds = new Map<string, Draft>();
-  for (const draft of drafts) {
-    const id = idFor(draft);
-    if (id === undefined) continue;
+  const seenIds = new Map<string, SourceLocation>();
+  const registerId = (id: string, sourceFile: ts.SourceFile, node: ts.Node): void => {
+    const source = sourceLocation(rootDir, sourceFile, node);
     const previous = seenIds.get(id);
     if (previous !== undefined) {
-      diagnostic(draft.sourceFile, draft.declaration.name, "metadata.duplicate-id", `Stable id '${id}' is already declared at ${previous.source.file}:${previous.source.line}.`);
+      diagnostic(sourceFile, node, "metadata.duplicate-id", `Stable id '${id}' is already declared at ${previous.file}:${previous.line}.`);
     } else {
-      seenIds.set(id, draft);
+      seenIds.set(id, source);
     }
+  };
+  for (const draft of drafts) {
+    const label = draft.kind === "store" ? "port.store" : draft.kind;
+    const id = stringLiteral(draft.call.arguments[0]);
+    if (id === undefined) {
+      diagnostic(draft.sourceFile, draft.call.arguments[0] ?? draft.call, "metadata.literal-id-required", `${label} '${draft.symbolName}' must declare a string-literal id.`);
+      unresolved.push(`${draft.source.file}:${draft.source.line}: non-literal ${label} id`);
+      continue;
+    }
+    registerId(id, draft.sourceFile, draft.declaration.name);
     ids.set(draft, id);
   }
 
   const featureDrafts = drafts.filter((draft) => draft.kind === "feature" && ids.has(draft));
   const featureIdsBySegment = new Map<string, string>();
+  const featureFileBases = new Set<string>();
   for (const draft of featureDrafts) {
-    const segment = featureSegment(rootDir, draft.sourceFile.fileName);
+    const segment = segmentOf(draft.sourceFile);
     const id = ids.get(draft);
     if (segment !== undefined && id !== undefined) featureIdsBySegment.set(segment, id);
+    featureFileBases.add(
+      repositoryPath(rootDir, draft.sourceFile.fileName).replace(/\.[cm]?tsx?$/u, ""),
+    );
   }
-  const featureForExpression = (expression: ts.Expression): string | undefined => {
-    const resolved = resolveDraft(expression);
-    if (resolved?.kind === "feature") return ids.get(resolved);
-    const source = symbolSource(expressionSymbol(checkerFor(expression), expression));
-    const segment = source === undefined ? undefined : featureSegment(rootDir, source.fileName);
-    return segment === undefined ? undefined : featureIdsBySegment.get(segment) ?? segment;
-  };
+
+  /* ------------------------------------------------------------------ */
+  /* Ports: explicit port(id, {op: port.kind({...})}) and port.store.   */
+  /* ------------------------------------------------------------------ */
 
   const portOperationBySymbol = new Map<TypeScriptSymbol, PortOperationDraft>();
+  const portOperationByDeclaration = new Map<string, PortOperationDraft>();
   const portOperationByText = new Map<string, PortOperationDraft>();
+  const portOperationsByDraft = new Map<Draft, Map<string, PortOperationDraft>>();
   const ports: IndexedPort[] = [];
+
+  const registerPortOperation = (
+    draft: Draft,
+    operation: PortOperationDraft,
+  ): void => {
+    const byName = portOperationsByDraft.get(draft) ?? new Map<string, PortOperationDraft>();
+    byName.set(operation.name, operation);
+    portOperationsByDraft.set(draft, byName);
+    if (operation.symbol !== undefined) {
+      portOperationBySymbol.set(operation.symbol, operation);
+      const key = symbolDeclarationKey(operation.symbol);
+      if (key !== undefined) portOperationByDeclaration.set(key, operation);
+    }
+    portOperationByText.set(`${draft.symbolName}.${operation.name}`, operation);
+    portOperationByText.set(`${draft.symbolName}.operations.${operation.name}`, operation);
+  };
+
   for (const draft of drafts.filter((candidate) => candidate.kind === "port" && ids.has(candidate))) {
-    const operationsObject = objectExpression(draft.object, "operations");
+    const portId = ids.get(draft) as string;
+    const imports = canonicalImports(draft.sourceFile);
+    const definition = draft.call.arguments[1];
+    const object = definition === undefined ? undefined : unwrap(definition);
     const operations: PortOperationDraft[] = [];
-    if (operationsObject !== undefined) {
-      for (const property of operationsObject.properties) {
+    if (object === undefined || !ts.isObjectLiteralExpression(object)) {
+      diagnostic(draft.sourceFile, definition ?? draft.call, "metadata.static-object-required", `port '${draft.symbolName}' requires a static operations object literal.`);
+      unresolved.push(`${draft.source.file}:${draft.source.line}: non-static port operations`);
+    } else {
+      for (const property of object.properties) {
         if (!ts.isPropertyAssignment(property) && !ts.isShorthandPropertyAssignment(property)) continue;
         const name = propertyName(property.name);
         const initializer = initializerForProperty(property);
-        if (name === undefined || initializer === undefined || !ts.isCallExpression(initializer)) continue;
-        const argument = initializer.arguments[0];
-        const object = argument === undefined ? undefined : unwrap(argument);
-        if (object === undefined || !ts.isObjectLiteralExpression(object)) continue;
-        const operationId = stringLiteral(propertyExpression(object, "id"));
-        const kind = stringLiteral(propertyExpression(object, "kind"));
-        if (operationId === undefined || !["read", "write", "time", "random", "external"].includes(kind ?? "")) {
-          diagnostic(draft.sourceFile, property, "metadata.invalid-port-operation", `Port operation '${draft.symbolName}.${name}' requires literal id and kind.`);
+        const callee =
+          initializer !== undefined && ts.isCallExpression(initializer)
+            ? calledName(initializer, imports)
+            : undefined;
+        const kind =
+          callee?.namespace === "port" && (PORT_OP_KINDS as readonly string[]).includes(callee.name)
+            ? (callee.name as PortOpKind)
+            : undefined;
+        if (name === undefined || kind === undefined) {
+          diagnostic(draft.sourceFile, property, "metadata.invalid-port-operation", `Port operation '${draft.symbolName}.${name ?? "?"}' must be created with port.read/write/time/random/external.`);
           continue;
         }
         const checker = checkerFor(property.name);
         const symbol = unalias(checker, checker.getSymbolAtLocation(property.name));
+        const operationId = `${portId}.${name}`;
+        registerId(operationId, draft.sourceFile, property.name);
         const operation: PortOperationDraft = {
           name,
           id: operationId,
-          kind: kind as PortOperationDraft["kind"],
+          kind,
           source: sourceLocation(rootDir, draft.sourceFile, property.name),
-          qualifiedName: `${draft.symbolName}.operations.${name}`,
+          signature: boundedText(property.getText(draft.sourceFile)),
           ...(symbol === undefined ? {} : { symbol }),
         };
         operations.push(operation);
-        if (symbol !== undefined) portOperationBySymbol.set(symbol, operation);
-        portOperationByText.set(operation.qualifiedName, operation);
-        // Retain the pre-Phase-3 shorthand for diagnostics/older source fixtures,
-        // while indexing the real core API shape above.
-        portOperationByText.set(`${draft.symbolName}.${name}`, operation);
+        registerPortOperation(draft, operation);
       }
     }
+    const segment = segmentOf(draft.sourceFile);
     ports.push({
-      id: ids.get(draft) as string,
+      id: portId,
       symbol: draft.symbolName,
+      ...(segment === undefined ? {} : { feature: featureIdsBySegment.get(segment) ?? segment }),
       source: draft.source,
       operations: operations
-        .map(({ symbol: _symbol, qualifiedName: _qualifiedName, ...operation }) => operation)
+        .map(({ symbol: _symbol, ...operation }) => operation)
         .sort((left, right) => compare(left.id, right.id)),
     });
   }
 
-  const events: IndexedEvent[] = drafts
-    .filter((draft) => draft.kind === "event" && ids.has(draft))
+  const STORE_OPERATIONS: readonly { name: string; kind: PortOpKind }[] = [
+    { name: "get", kind: "read" },
+    { name: "save", kind: "write" },
+    { name: "delete", kind: "write" },
+    { name: "list", kind: "read" },
+  ];
+  for (const draft of drafts.filter((candidate) => candidate.kind === "store" && ids.has(candidate))) {
+    const portId = ids.get(draft) as string;
+    const signature = boundedText(draft.call.getText(draft.sourceFile));
+    const operations: PortOperationDraft[] = STORE_OPERATIONS.map(({ name, kind }) => ({
+      name,
+      id: `${portId}.${name}`,
+      kind,
+      source: draft.source,
+      signature,
+    }));
+    for (const operation of operations) {
+      registerId(operation.id, draft.sourceFile, draft.declaration.name);
+      registerPortOperation(draft, operation);
+    }
+    const segment = segmentOf(draft.sourceFile);
+    ports.push({
+      id: portId,
+      symbol: draft.symbolName,
+      ...(segment === undefined ? {} : { feature: featureIdsBySegment.get(segment) ?? segment }),
+      source: draft.source,
+      operations: operations
+        .map(({ symbol: _symbol, ...operation }) => operation)
+        .sort((left, right) => compare(left.id, right.id)),
+    });
+  }
+
+  const resolvePortOperation = (expression: ts.Expression): PortOperationDraft | undefined => {
+    const unwrapped = unwrap(expression);
+    const symbol = expressionSymbol(checkerFor(unwrapped), unwrapped);
+    if (symbol !== undefined) {
+      const direct = portOperationBySymbol.get(symbol);
+      if (direct !== undefined) return direct;
+      const key = symbolDeclarationKey(symbol);
+      const byDeclaration = key === undefined ? undefined : portOperationByDeclaration.get(key);
+      if (byDeclaration !== undefined) return byDeclaration;
+    }
+    if (ts.isPropertyAccessExpression(unwrapped)) {
+      const name = unwrapped.name.text;
+      let base = unwrap(unwrapped.expression);
+      if (ts.isPropertyAccessExpression(base) && base.name.text === "operations") {
+        base = unwrap(base.expression);
+      }
+      const draft = resolveDraft(base);
+      if (draft !== undefined && (draft.kind === "port" || draft.kind === "store")) {
+        const operation = portOperationsByDraft.get(draft)?.get(name);
+        if (operation !== undefined) return operation;
+      }
+    }
+    return portOperationByText.get(expressionText(unwrapped));
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* Events: event(id, version, payload) — positional.                  */
+  /* ------------------------------------------------------------------ */
+
+  const eventDrafts = drafts.filter((draft) => draft.kind === "event" && ids.has(draft));
+  const events: IndexedEvent[] = eventDrafts
     .map((draft) => {
-      const version = numberLiteral(propertyExpression(draft.object, "version"));
+      const version = numberLiteral(draft.call.arguments[1]);
+      const segment = segmentOf(draft.sourceFile);
       return {
         id: ids.get(draft) as string,
         symbol: draft.symbolName,
-        source: draft.source,
         ...(version === undefined ? {} : { version }),
+        ...(segment === undefined ? {} : { feature: featureIdsBySegment.get(segment) ?? segment }),
+        source: draft.source,
       };
     })
     .sort((left, right) => compare(left.id, right.id));
 
-  const operationDrafts = drafts.filter(
-    (draft): draft is Draft & { kind: "command" | "query" } =>
-      (draft.kind === "command" || draft.kind === "query") && ids.has(draft),
-  );
+  /* ------------------------------------------------------------------ */
+  /* Excerpts: bounded schema declaration text and execute signatures.  */
+  /* ------------------------------------------------------------------ */
+
+  const schemaExcerpt = (expression: ts.Expression): SchemaExcerpt => {
+    const unwrapped = unwrap(expression);
+    const text = expressionText(unwrapped);
+    if (!ts.isIdentifier(unwrapped) && !ts.isPropertyAccessExpression(unwrapped)) {
+      return { text };
+    }
+    const declaration = symbolDeclaration(expressionSymbol(checkerFor(unwrapped), unwrapped));
+    if (declaration === undefined || !ts.isVariableDeclaration(declaration)) return { text };
+    const declarationFile = declaration.getSourceFile();
+    const repoFile = repositoryPath(rootDir, declarationFile.fileName);
+    if (repoFile.startsWith("..")) return { text };
+    return {
+      text,
+      declaration: boundedText(declaration.getText(declarationFile)),
+      source: sourceLocation(rootDir, declarationFile, declaration),
+    };
+  };
+
+  const detailsText = (expression: ts.Expression): string => {
+    const excerpt = schemaExcerpt(expression);
+    return excerpt.declaration ?? excerpt.text;
+  };
+
+  const signatureBeforeBody = (
+    node: ts.Node,
+    body: ts.Node | undefined,
+    sourceFile: ts.SourceFile,
+  ): string => {
+    const text = node.getText(sourceFile);
+    const sliced = body === undefined
+      ? text
+      : text.slice(0, body.getStart(sourceFile) - node.getStart(sourceFile));
+    return boundedText(sliced).replace(/\s*(?:=>|\{)?\s*$/u, "");
+  };
+
+  const executeSignature = (
+    object: ts.ObjectLiteralExpression,
+    sourceFile: ts.SourceFile,
+  ): string | undefined => {
+    const property = getProperty(object, "execute");
+    if (property === undefined) return undefined;
+    if (ts.isMethodDeclaration(property)) {
+      return signatureBeforeBody(property, property.body, sourceFile);
+    }
+    if (ts.isPropertyAssignment(property)) {
+      const initializer = unwrap(property.initializer);
+      if (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)) {
+        return `execute: ${signatureBeforeBody(initializer, initializer.body, sourceFile)}`;
+      }
+    }
+    return undefined;
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* Operations: iterate each feature's `operations` object literal.    */
+  /* ------------------------------------------------------------------ */
+
+  const operationBySymbol = new Map<TypeScriptSymbol, string>();
+  const operationByDeclaration = new Map<string, string>();
+  const operationByText = new Map<string, string>();
+  const operationKeysByFeatureDraft = new Map<Draft, Map<string, string>>();
   const operationsMutable: IndexedOperation[] = [];
-  for (const draft of operationDrafts) {
-    const effectsObject = objectExpression(draft.object, "effects");
-    const effects: IndexedEffect[] = [];
-    if (effectsObject !== undefined) {
-      for (const property of effectsObject.properties) {
-        if (!ts.isPropertyAssignment(property) && !ts.isShorthandPropertyAssignment(property)) continue;
-        const name = propertyName(property.name);
-        const expression = initializerForProperty(property);
-        if (name === undefined || expression === undefined) continue;
-        const symbol = expressionSymbol(checkerFor(expression), expression);
-        const resolved = symbol === undefined ? undefined : portOperationBySymbol.get(symbol);
-        const fallback = portOperationByText.get(expressionText(expression));
-        const portOperation = resolved ?? fallback;
-        effects.push({
-          name,
-          reference: expressionText(expression),
-          ...(portOperation === undefined
-            ? {}
-            : { operationId: portOperation.id, kind: portOperation.kind }),
-        });
-        if (portOperation === undefined) {
-          unresolved.push(`${draft.source.file}:${draft.source.line}: unresolved effect ${expressionText(expression)}`);
+  const featureEventIds = new Map<Draft, string[]>();
+
+  for (const draft of featureDrafts) {
+    const featureId = ids.get(draft) as string;
+    const imports = canonicalImports(draft.sourceFile);
+    const definitionArgument = draft.call.arguments[1];
+    const definition = definitionArgument === undefined ? undefined : unwrap(definitionArgument);
+    if (definition === undefined || !ts.isObjectLiteralExpression(definition)) {
+      diagnostic(draft.sourceFile, definitionArgument ?? draft.call, "metadata.static-object-required", `feature '${draft.symbolName}' requires a static definition object literal.`);
+      unresolved.push(`${draft.source.file}:${draft.source.line}: non-static feature definition`);
+      continue;
+    }
+
+    featureEventIds.set(
+      draft,
+      arrayExpressions(definition, "events").map((expression) => {
+        const resolved = resolveDraft(expression);
+        return (resolved !== undefined ? ids.get(resolved) : undefined) ?? expressionText(expression);
+      }),
+    );
+
+    const operationsExpression = propertyExpression(definition, "operations");
+    if (operationsExpression === undefined || !ts.isObjectLiteralExpression(operationsExpression)) {
+      diagnostic(draft.sourceFile, operationsExpression ?? definition, "metadata.static-operation-required", `feature '${featureId}' requires a static operations object literal.`);
+      unresolved.push(`${draft.source.file}:${draft.source.line}: non-static feature operations`);
+      continue;
+    }
+
+    const keyMap = new Map<string, string>();
+    operationKeysByFeatureDraft.set(draft, keyMap);
+
+    for (const property of operationsExpression.properties) {
+      if (!ts.isPropertyAssignment(property) && !ts.isShorthandPropertyAssignment(property)) continue;
+      const key = propertyName(property.name);
+      if (key === undefined) continue;
+      const operationId = `${featureId}.${key}`;
+      const propertySource = sourceLocation(rootDir, draft.sourceFile, property.name);
+
+      let initializer = initializerForProperty(property);
+      let kind: "command" | "query" | undefined;
+      let call: ts.CallExpression | undefined;
+      if (initializer !== undefined && ts.isCallExpression(initializer)) {
+        const callee = calledName(initializer, imports);
+        if (callee?.namespace === undefined && (callee?.name === "command" || callee?.name === "query")) {
+          kind = callee.name;
+          call = initializer;
+        }
+      } else if (initializer !== undefined && ts.isIdentifier(initializer)) {
+        const checker = checkerFor(initializer);
+        const symbol = ts.isShorthandPropertyAssignment(property)
+          ? unalias(checker, checker.getShorthandAssignmentValueSymbol(property))
+          : expressionSymbol(checker, initializer);
+        const declarationKey = symbolDeclarationKey(symbol);
+        const standalone = declarationKey === undefined ? undefined : unboundOperations.get(declarationKey);
+        if (standalone !== undefined) {
+          kind = standalone.kind;
+          call = standalone.call;
         }
       }
+      const objectArgument = call?.arguments[0];
+      const object = objectArgument === undefined ? undefined : unwrap(objectArgument);
+      if (kind === undefined || call === undefined || object === undefined || !ts.isObjectLiteralExpression(object)) {
+        diagnostic(draft.sourceFile, property, "metadata.static-operation-required", `Operation '${operationId}' must be a static command() or query() call.`);
+        unresolved.push(`${propertySource.file}:${propertySource.line}: non-static operation '${operationId}'`);
+        continue;
+      }
+
+      registerId(operationId, draft.sourceFile, property.name);
+      keyMap.set(key, operationId);
+      const checker = checkerFor(property.name);
+      const propertySymbol = unalias(checker, checker.getSymbolAtLocation(property.name));
+      if (propertySymbol !== undefined) {
+        operationBySymbol.set(propertySymbol, operationId);
+        const declarationKey = symbolDeclarationKey(propertySymbol);
+        if (declarationKey !== undefined) operationByDeclaration.set(declarationKey, operationId);
+      }
+      if (initializer !== undefined && ts.isIdentifier(initializer)) {
+        const standaloneSymbol = expressionSymbol(checkerFor(initializer), initializer);
+        if (standaloneSymbol !== undefined) operationBySymbol.set(standaloneSymbol, operationId);
+      }
+      operationByText.set(`${draft.symbolName}.operations.${key}`, operationId);
+
+      const operationFile = call.getSourceFile();
+
+      // Effects: `{ alias: Port.opName }` property accesses.
+      const effectsObject = objectExpression(object, "effects");
+      const effects: IndexedEffect[] = [];
+      if (effectsObject !== undefined) {
+        for (const effectProperty of effectsObject.properties) {
+          if (!ts.isPropertyAssignment(effectProperty) && !ts.isShorthandPropertyAssignment(effectProperty)) continue;
+          const effectName = propertyName(effectProperty.name);
+          const expression = initializerForProperty(effectProperty);
+          if (effectName === undefined || expression === undefined) continue;
+          const portOperation = resolvePortOperation(expression);
+          effects.push({
+            name: effectName,
+            reference: expressionText(expression),
+            ...(portOperation === undefined
+              ? {}
+              : { operationId: portOperation.id, kind: portOperation.kind }),
+          });
+          if (portOperation === undefined) {
+            unresolved.push(`${propertySource.file}:${propertySource.line}: unresolved effect ${expressionText(expression)}`);
+          }
+        }
+      }
+
+      // Emits: `{ alias: EventDescriptor }`.
+      const eventIds: string[] = [];
+      const emits = objectExpression(object, "emits");
+      if (emits !== undefined) {
+        for (const emitProperty of emits.properties) {
+          if (!ts.isPropertyAssignment(emitProperty) && !ts.isShorthandPropertyAssignment(emitProperty)) continue;
+          const expression = initializerForProperty(emitProperty);
+          if (expression === undefined) continue;
+          const resolved = resolveDraft(expression);
+          eventIds.push((resolved !== undefined ? ids.get(resolved) : undefined) ?? expressionText(expression));
+        }
+      }
+
+      const ensuresObject = objectExpression(object, "ensures");
+      const ensures = ensuresObject === undefined
+        ? []
+        : ensuresObject.properties
+            .map((ensureProperty) => "name" in ensureProperty ? propertyName(ensureProperty.name) : undefined)
+            .filter((name): name is string => name !== undefined);
+
+      const permissions = arrayExpressions(object, "permissions").map((expression) => {
+        const value = stringLiteral(expression);
+        if (value === undefined) {
+          diagnostic(draft.sourceFile, expression, "metadata.literal-permission-required", `Operation '${operationId}' has a non-literal permission.`);
+          return expressionText(expression);
+        }
+        return value;
+      });
+
+      if (kind === "query") {
+        for (const effect of effects.filter((candidate) => candidate.kind === "write")) {
+          diagnostic(draft.sourceFile, effectsObject ?? object, "operation.query-write-effect", `Query '${operationId}' declares write effect '${effect.operationId ?? effect.reference}'.`);
+        }
+        if (eventIds.length > 0) {
+          diagnostic(draft.sourceFile, emits ?? object, "operation.query-emits-event", `Query '${operationId}' must not emit domain events.`);
+        }
+      }
+
+      // Unified errors: `{ CODE: { http?, details? } }` or bare schema.
+      const errorsObject = objectExpression(object, "errors");
+      const errors: IndexedOperationError[] = [];
+      if (errorsObject !== undefined) {
+        for (const errorProperty of errorsObject.properties) {
+          if (!("name" in errorProperty)) continue;
+          const code = propertyName(errorProperty.name);
+          if (code === undefined) continue;
+          const initializerExpression = initializerForProperty(errorProperty);
+          if (initializerExpression === undefined) {
+            errors.push({ code });
+            continue;
+          }
+          const spec = unwrap(initializerExpression);
+          if (
+            ts.isObjectLiteralExpression(spec) &&
+            (getProperty(spec, "http") !== undefined || getProperty(spec, "details") !== undefined)
+          ) {
+            const http = numberLiteral(propertyExpression(spec, "http"));
+            const detailsExpression = propertyExpression(spec, "details");
+            errors.push({
+              code,
+              ...(http === undefined ? {} : { http }),
+              ...(detailsExpression === undefined ? {} : { details: detailsText(detailsExpression) }),
+            });
+          } else {
+            errors.push({ code, details: detailsText(spec) });
+          }
+        }
+      }
+      errors.sort((left, right) => compare(left.code, right.code));
+
+      // HTTP metadata with derived per-error statuses.
+      let http: IndexedHttp | undefined;
+      const httpObject = objectExpression(object, "http");
+      if (httpObject !== undefined) {
+        const method = stringLiteral(propertyExpression(httpObject, "method"));
+        const path = stringLiteral(propertyExpression(httpObject, "path"));
+        const status = numberLiteral(propertyExpression(httpObject, "status"));
+        if (method === undefined || path === undefined) {
+          diagnostic(draft.sourceFile, httpObject, "metadata.literal-http-required", `Operation '${operationId}' http metadata requires literal method and path.`);
+        } else {
+          const errorStatus: Record<string, number> = {};
+          for (const error of errors) {
+            if (error.http !== undefined) errorStatus[error.code] = error.http;
+          }
+          http = {
+            method,
+            path,
+            ...(status === undefined ? {} : { status }),
+            errorStatus,
+          };
+        }
+      }
+
+      const input = propertyExpression(object, "input");
+      const output = propertyExpression(object, "output");
+      const signature = executeSignature(object, operationFile);
+      operationsMutable.push({
+        id: operationId,
+        key,
+        symbol: `${draft.symbolName}.operations.${key}`,
+        kind,
+        feature: featureId,
+        source: propertySource,
+        ...(input === undefined ? {} : { input: schemaExcerpt(input) }),
+        ...(output === undefined ? {} : { output: schemaExcerpt(output) }),
+        errors,
+        ...(http === undefined ? {} : { http }),
+        permissions: uniqueSorted(permissions),
+        effects: effects.sort((left, right) => compare(left.name, right.name)),
+        events: uniqueSorted(eventIds),
+        ensures: uniqueSorted(ensures),
+        ...(signature === undefined ? {} : { executeSignature: signature }),
+        tests: [],
+      });
     }
-    const eventIds = arrayExpressions(draft.object, "events").map((expression) => ids.get(resolveDraft(expression) as Draft) ?? expressionText(expression));
-    const emits = objectExpression(draft.object, "emits");
-    if (emits !== undefined) {
-      for (const property of emits.properties) {
-        if (!ts.isPropertyAssignment(property) && !ts.isShorthandPropertyAssignment(property)) continue;
-        const expression = initializerForProperty(property);
-        if (expression === undefined) continue;
-        eventIds.push(ids.get(resolveDraft(expression) as Draft) ?? expressionText(expression));
-      }
-    }
-    const invariantIds = arrayExpressions(draft.object, "invariants").map((expression) => ids.get(resolveDraft(expression) as Draft) ?? expressionText(expression));
-    const permissions = arrayExpressions(draft.object, "permissions").map((expression) => {
-      const value = stringLiteral(expression);
-      if (value === undefined) {
-        diagnostic(draft.sourceFile, expression, "metadata.literal-permission-required", `Operation '${ids.get(draft)}' has a non-literal permission.`);
-        return expressionText(expression);
-      }
-      return value;
-    });
-    if (draft.kind === "query") {
-      for (const effect of effects.filter((candidate) => candidate.kind === "write")) {
-        diagnostic(draft.sourceFile, effectsObject ?? draft.object, "operation.query-write-effect", `Query '${ids.get(draft)}' declares write effect '${effect.operationId ?? effect.reference}'.`);
-      }
-      if (eventIds.length > 0) {
-        diagnostic(draft.sourceFile, emits ?? draft.object, "operation.query-emits-event", `Query '${ids.get(draft)}' must not emit domain events.`);
-      }
-    }
-    const errorsObject = objectExpression(draft.object, "errors");
-    const errors = errorsObject === undefined
-      ? []
-      : errorsObject.properties
-          .map((property) => "name" in property ? propertyName(property.name) : undefined)
-          .filter((name): name is string => name !== undefined);
-    const segment = featureSegment(rootDir, draft.sourceFile.fileName);
-    const input = propertyExpression(draft.object, "input");
-    const output = propertyExpression(draft.object, "output");
-    operationsMutable.push({
-      id: ids.get(draft) as string,
-      symbol: draft.symbolName,
-      kind: draft.kind,
-      ...(segment === undefined ? {} : { feature: featureIdsBySegment.get(segment) ?? segment }),
-      source: draft.source,
-      ...(input === undefined ? {} : { input: expressionText(input) }),
-      ...(output === undefined ? {} : { output: expressionText(output) }),
-      errors: uniqueSorted(errors),
-      permissions: uniqueSorted(permissions),
-      effects: effects.sort((left, right) => compare(left.name, right.name)),
-      events: uniqueSorted(eventIds),
-      invariants: uniqueSorted(invariantIds),
-      tests: [],
-    });
   }
 
-  const invariantDrafts = drafts.filter((draft) => draft.kind === "invariant" && ids.has(draft));
-  const invariantsMutable: IndexedInvariant[] = invariantDrafts.map((draft) => {
-    const segment = featureSegment(rootDir, draft.sourceFile.fileName);
-    const dependencies = arrayExpressions(draft.object, "dependsOn")
-      .map(featureForExpression)
-      .filter((id): id is string => id !== undefined);
-    return {
-      id: ids.get(draft) as string,
-      symbol: draft.symbolName,
-      ...(segment === undefined ? {} : { feature: featureIdsBySegment.get(segment) ?? segment }),
-      source: draft.source,
-      dependencies: uniqueSorted(dependencies),
-      preservers: [],
-      tests: [],
-    };
-  });
-  const invariantById = new Map(invariantsMutable.map((invariant) => [invariant.id, invariant]));
-  for (const operation of operationsMutable) {
-    for (const invariantId of operation.invariants) {
-      const invariant = invariantById.get(invariantId);
-      if (invariant !== undefined) {
-        (invariant.preservers as string[]).push(operation.id);
+  /* ------------------------------------------------------------------ */
+  /* Tests: markers first, then feature-segment fallback.               */
+  /* ------------------------------------------------------------------ */
+
+  const knownOperationIds = new Set(operationsMutable.map((operation) => operation.id));
+  const resolveOperationReference = (expression: ts.Expression): string | undefined => {
+    const unwrapped = unwrap(expression);
+    const literal = stringLiteral(unwrapped);
+    if (literal !== undefined) {
+      return knownOperationIds.has(literal) ? literal : undefined;
+    }
+    const symbol = expressionSymbol(checkerFor(unwrapped), unwrapped);
+    if (symbol !== undefined) {
+      const direct = operationBySymbol.get(symbol);
+      if (direct !== undefined) return direct;
+      const declarationKey = symbolDeclarationKey(symbol);
+      const byDeclaration = declarationKey === undefined ? undefined : operationByDeclaration.get(declarationKey);
+      if (byDeclaration !== undefined) return byDeclaration;
+    }
+    if (ts.isPropertyAccessExpression(unwrapped)) {
+      const key = unwrapped.name.text;
+      let base = unwrap(unwrapped.expression);
+      if (ts.isPropertyAccessExpression(base) && base.name.text === "operations") {
+        base = unwrap(base.expression);
+      }
+      const draft = resolveDraft(base);
+      if (draft !== undefined && draft.kind === "feature") {
+        const resolved = operationKeysByFeatureDraft.get(draft)?.get(key);
+        if (resolved !== undefined) return resolved;
       }
     }
-  }
+    return operationByText.get(expressionText(unwrapped));
+  };
 
   const testsMutable: IndexedTest[] = [];
   for (const sourceFile of sourceFiles.filter(
@@ -819,7 +1089,7 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
     const associated = new Set<string>();
     const imports = canonicalImports(sourceFile);
     const visit = (node: ts.Node): void => {
-      if (ts.isCallExpression(node) && testCalls.has(calledName(node, imports) ?? "")) {
+      if (ts.isCallExpression(node) && testCalls.has(calledName(node, imports)?.name ?? "")) {
         const expressions: ts.Expression[] = [];
         for (const argument of node.arguments) {
           const unwrapped = unwrap(argument);
@@ -833,17 +1103,14 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
           }
         }
         for (const expression of expressions) {
-          const draft = resolveDraft(expression);
-          if (draft !== undefined && (draft.kind === "command" || draft.kind === "query")) {
-            const id = ids.get(draft);
-            if (id !== undefined) associated.add(id);
-          }
+          const id = resolveOperationReference(expression);
+          if (id !== undefined) associated.add(id);
         }
       }
       node.forEachChild(visit);
     };
     visit(sourceFile);
-    const segment = featureSegment(rootDir, sourceFile.fileName);
+    const segment = segmentOf(sourceFile);
     const feature = segment === undefined ? undefined : featureIdsBySegment.get(segment) ?? segment;
     if (associated.size === 0 && feature !== undefined) {
       for (const operation of operationsMutable.filter((candidate) => candidate.feature === feature)) {
@@ -870,80 +1137,62 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
   const operations = operationsMutable
     .map((operation) => ({ ...operation, tests: uniqueSorted(testByOperation.get(operation.id) ?? []) }))
     .sort((left, right) => compare(left.id, right.id));
-  const invariants = invariantsMutable
-    .map((invariant) => ({
-      ...invariant,
-      preservers: uniqueSorted(invariant.preservers),
-      tests: uniqueSorted(invariant.preservers.flatMap((operation) => testByOperation.get(operation) ?? [])),
-    }))
-    .sort((left, right) => compare(left.id, right.id));
 
-  const dependencyMap = new Map<string, Set<string>>();
-  for (const draft of featureDrafts) {
-    const id = ids.get(draft) as string;
-    dependencyMap.set(
-      id,
-      new Set(
-        arrayExpressions(draft.object, "dependencies")
-          .map(featureForExpression)
-          .filter((dependency): dependency is string => dependency !== undefined),
-      ),
-    );
-  }
+  /* ------------------------------------------------------------------ */
+  /* Architecture: the feature file IS the public contract.             */
+  /* ------------------------------------------------------------------ */
+
+  const architecture = architectureDiagnostics(
+    rootDir,
+    sourceFiles,
+    featureIdsBySegment,
+    featureFileBases,
+  );
+  diagnostics.push(...architecture.diagnostics);
+  unresolved.push(...architecture.unresolved);
+
   const consumerMap = new Map<string, Set<string>>();
-  for (const [feature, dependencies] of dependencyMap) {
+  for (const [feature, dependencies] of architecture.dependencies) {
     for (const dependency of dependencies) {
       const consumers = consumerMap.get(dependency) ?? new Set<string>();
       consumers.add(feature);
       consumerMap.set(dependency, consumers);
     }
   }
+
   const features: IndexedFeature[] = featureDrafts
     .map((draft): IndexedFeature => {
       const id = ids.get(draft) as string;
-      const contractExpression = propertyExpression(draft.object, "contract");
-      const contractSourceFile = contractExpression === undefined
-        ? undefined
-        : symbolSource(expressionSymbol(checkerFor(contractExpression), contractExpression));
-      const contract: IndexedFeature["contract"] = contractSourceFile === undefined
-        ? {
-            expression: contractExpression === undefined ? "" : expressionText(contractExpression),
-            exports: [],
-          }
-        : {
-            expression: contractExpression === undefined ? "" : expressionText(contractExpression),
-            source: sourceLocation(
-              rootDir,
-              contractSourceFile,
-              expressionSymbol(checkerFor(contractExpression as ts.Expression), contractExpression as ts.Expression)?.declarations[0]?.resolve() ?? contractSourceFile,
-            ),
-            exports: exportedNames(contractSourceFile),
-          };
       return {
         id,
         symbol: draft.symbolName,
         source: draft.source,
-        contract,
-        dependencies: uniqueSorted(dependencyMap.get(id) ?? []),
+        exports: exportedNames(draft.sourceFile),
+        dependencies: uniqueSorted(architecture.dependencies.get(id) ?? []),
         consumers: uniqueSorted(consumerMap.get(id) ?? []),
         operations: uniqueSorted(operations.filter((operation) => operation.feature === id).map((operation) => operation.id)),
-        invariants: uniqueSorted(invariants.filter((invariant) => invariant.feature === id).map((invariant) => invariant.id)),
+        events: uniqueSorted(featureEventIds.get(draft) ?? []),
         tests: uniqueSorted(testsMutable.filter((test) => test.features.includes(id)).map((test) => test.id)),
       };
     })
     .sort((left, right) => compare(left.id, right.id));
 
-  const architecture = architectureDiagnostics(rootDir, sourceFiles, featureIdsBySegment, dependencyMap);
-  diagnostics.push(...architecture.diagnostics);
-  unresolved.push(...architecture.unresolved);
+  /* ------------------------------------------------------------------ */
+  /* Graph edges.                                                       */
+  /* ------------------------------------------------------------------ */
 
   const edges: GraphEdge[] = [];
   for (const feature of features) {
     for (const dependency of feature.dependencies) {
-      edges.push({ from: feature.id, to: dependency, kind: "feature-dependency", reason: `${feature.id} depends on public contract ${dependency}` });
+      edges.push({ from: feature.id, to: dependency, kind: "feature-dependency", reason: `${feature.id} imports the feature file of ${dependency}` });
     }
     for (const operation of feature.operations) {
       edges.push({ from: feature.id, to: operation, kind: "feature-operation", reason: `${feature.id} owns operation ${operation}` });
+    }
+  }
+  for (const port of ports) {
+    for (const operation of port.operations) {
+      edges.push({ from: port.id, to: operation.id, kind: "port-operation", reason: `${port.id} declares operation ${operation.id}` });
     }
   }
   for (const operation of operations) {
@@ -952,18 +1201,10 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
       edges.push({ from: operation.id, to: target, kind: "operation-effect", reason: `${operation.id} declares effect ${target}` });
     }
     for (const event of operation.events) {
-      edges.push({ from: operation.id, to: event, kind: "operation-event", reason: `${operation.id} declares event ${event}` });
-    }
-    for (const invariant of operation.invariants) {
-      edges.push({ from: operation.id, to: invariant, kind: "operation-invariant", reason: `${operation.id} preserves invariant ${invariant}` });
+      edges.push({ from: operation.id, to: event, kind: "operation-event", reason: `${operation.id} emits event ${event}` });
     }
     for (const test of operation.tests) {
       edges.push({ from: operation.id, to: test, kind: "operation-test", reason: `${operation.id} is associated with test ${test}` });
-    }
-  }
-  for (const invariant of invariants) {
-    for (const dependency of invariant.dependencies) {
-      edges.push({ from: invariant.id, to: dependency, kind: "invariant-dependency", reason: `${invariant.id} depends on public contract ${dependency}` });
     }
   }
   edges.sort((left, right) => compare(left.from, right.from) || compare(left.to, right.to) || compare(left.kind, right.kind));
@@ -976,10 +1217,8 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
     operations,
     ports: ports.sort((left, right) => compare(left.id, right.id)),
     events,
-    invariants,
     tests: testsMutable.sort((left, right) => compare(left.id, right.id)),
     edges,
-    likelyAffected: likelyAffected(features, operations, ports, events, invariants),
     diagnostics: sortDiagnostics(diagnostics),
     unresolved: uniqueSorted(unresolved),
   };

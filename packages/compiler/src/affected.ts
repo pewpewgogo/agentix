@@ -1,14 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 
-import { repositoryPath } from "./files.js";
+import { featureSegmentOf, repositoryPath } from "./files.js";
 import type {
   AffectedItem,
   AffectedReason,
   AffectedResult,
   AgentIndex,
   DeclarationKind,
-  GraphEdge,
   VerificationPlan,
 } from "./types.js";
 
@@ -16,6 +15,12 @@ interface NodeDescription {
   readonly id: string;
   readonly kind: DeclarationKind;
   readonly file?: string;
+}
+
+interface TraversalEdge {
+  readonly to: string;
+  readonly kind: AffectedReason["edge"];
+  readonly reason: string;
 }
 
 const compare = (left: string, right: string): number => left.localeCompare(right);
@@ -28,7 +33,6 @@ const nodesFor = (index: AgentIndex): NodeDescription[] => [
     port.operations.map((operation) => ({ id: operation.id, kind: "port" as const, file: operation.source.file })),
   ),
   ...index.events.map((event) => ({ id: event.id, kind: "event" as const, file: event.source.file })),
-  ...index.invariants.map((invariant) => ({ id: invariant.id, kind: "invariant" as const, file: invariant.source.file })),
   ...index.tests.map((test) => ({ id: test.id, kind: "test" as const, file: test.source.file })),
 ];
 
@@ -37,7 +41,7 @@ const wholeWorkspace = (
   target: string,
   message: string,
 ): AffectedResult => ({
-  schemaVersion: "1",
+  schemaVersion: "2",
   target,
   widened: true,
   items: nodesFor(index)
@@ -56,40 +60,42 @@ const wholeWorkspace = (
   diagnostics: [message],
 });
 
-const traversalEdges = (index: AgentIndex): GraphEdge[] => {
-  const edges: GraphEdge[] = [];
+/**
+ * Adjacency map for affected traversal, built once per computeAffected.
+ * Dependency-like edges are reversed so traversal flows from a changed
+ * declaration toward everything it can break.
+ */
+const adjacencyFor = (index: AgentIndex): Map<string, TraversalEdge[]> => {
+  const adjacency = new Map<string, TraversalEdge[]>();
+  const add = (from: string, edge: TraversalEdge): void => {
+    const edges = adjacency.get(from) ?? [];
+    edges.push(edge);
+    adjacency.set(from, edges);
+  };
   for (const edge of index.edges) {
-    if (edge.kind === "feature-dependency") {
-      edges.push({
-        ...edge,
-        from: edge.to,
-        to: edge.from,
-        reason: `${edge.to} public contract is consumed by ${edge.from}`,
-      });
-      continue;
-    }
-    if (
-      edge.kind === "operation-effect" ||
-      edge.kind === "operation-event" ||
-      edge.kind === "operation-invariant" ||
-      edge.kind === "invariant-dependency"
-    ) {
-      edges.push({ ...edge, from: edge.to, to: edge.from });
-    }
-    if (
-      edge.kind === "feature-operation" ||
-      edge.kind === "operation-test" ||
-      edge.kind === "operation-invariant"
-    ) {
-      edges.push(edge);
+    switch (edge.kind) {
+      case "feature-dependency":
+        add(edge.to, {
+          to: edge.from,
+          kind: edge.kind,
+          reason: `${edge.to} feature file is consumed by ${edge.from}`,
+        });
+        break;
+      case "operation-effect":
+      case "operation-event":
+        add(edge.to, { to: edge.from, kind: edge.kind, reason: edge.reason });
+        break;
+      case "feature-operation":
+      case "port-operation":
+      case "operation-test":
+        add(edge.from, { to: edge.to, kind: edge.kind, reason: edge.reason });
+        break;
     }
   }
-  return edges.sort(
-    (left, right) =>
-      compare(left.from, right.from) ||
-      compare(left.to, right.to) ||
-      compare(left.kind, right.kind),
-  );
+  for (const edges of adjacency.values()) {
+    edges.sort((left, right) => compare(left.to, right.to) || compare(left.kind, right.kind));
+  }
+  return adjacency;
 };
 
 const normalizeTargetFile = (rootDir: string | undefined, target: string): string => {
@@ -98,16 +104,46 @@ const normalizeTargetFile = (rootDir: string | undefined, target: string): strin
   return repositoryPath(rootDir, absolute);
 };
 
+/**
+ * Partition unresolved entries (formatted `file:line: reason`) into features
+ * whose static edges are incomplete versus entries that cannot be attributed
+ * to an indexed feature (those force workspace-wide verification).
+ */
+const partitionUnresolved = (
+  index: AgentIndex,
+): { features: Set<string>; global: string[] } => {
+  const featureBySegment = new Map<string, string>();
+  for (const feature of index.features) {
+    const segment = featureSegmentOf(feature.source.file);
+    if (segment !== undefined) featureBySegment.set(segment, feature.id);
+  }
+  const features = new Set<string>();
+  const global: string[] = [];
+  for (const entry of index.unresolved) {
+    const separator = entry.indexOf(":");
+    const file = separator === -1 ? entry : entry.slice(0, separator);
+    const segment = featureSegmentOf(file);
+    const feature = segment === undefined ? undefined : featureBySegment.get(segment);
+    if (feature === undefined) {
+      global.push(entry);
+    } else {
+      features.add(feature);
+    }
+  }
+  return { features, global };
+};
+
 export const computeAffected = (
   index: AgentIndex,
   target: string,
   rootDir?: string,
 ): AffectedResult => {
-  if (index.unresolved.length > 0) {
+  const unresolved = partitionUnresolved(index);
+  if (unresolved.global.length > 0) {
     return wholeWorkspace(
       index,
       target,
-      `Unresolved static edges force workspace verification: ${index.unresolved.join("; ")}`,
+      `Unresolved static edges outside any indexed feature force workspace verification: ${unresolved.global.join("; ")}`,
     );
   }
   const normalizedFile = normalizeTargetFile(rootDir, target);
@@ -131,12 +167,12 @@ export const computeAffected = (
     );
   }
   if (selected.length === 0) {
-    const segment = /(?:^|\/)src\/features\/([^/]+)(?:\/|$)/u.exec(normalizedFile)?.[1];
+    const segment = featureSegmentOf(normalizedFile);
     if (segment !== undefined) {
       selected = nodes.filter(
         (node) =>
           node.kind === "feature" &&
-          /(?:^|\/)src\/features\/([^/]+)(?:\/|$)/u.exec(node.file ?? "")?.[1] === segment,
+          featureSegmentOf(node.file ?? "") === segment,
       );
     }
   }
@@ -150,7 +186,7 @@ export const computeAffected = (
       );
     }
     return {
-      schemaVersion: "1",
+      schemaVersion: "2",
       target,
       widened: false,
       items: [],
@@ -158,31 +194,35 @@ export const computeAffected = (
     };
   }
 
+  const adjacency = adjacencyFor(index);
   const reasons = new Map<string, AffectedReason[]>();
   const queue: string[] = [];
+  const seed = (id: string, reason: AffectedReason): void => {
+    const existing = reasons.get(id);
+    if (existing === undefined) {
+      reasons.set(id, [reason]);
+      queue.push(id);
+    } else if (!existing.some((candidate) => candidate.from === reason.from && candidate.edge === reason.edge)) {
+      existing.push(reason);
+    }
+  };
   for (const node of selected.sort((left, right) => compare(left.id, right.id))) {
-    reasons.set(node.id, [
-      { from: target, edge: "selected", message: `${node.id} matches '${target}'.` },
-    ]);
-    queue.push(node.id);
+    seed(node.id, { from: target, edge: "selected", message: `${node.id} matches '${target}'.` });
   }
-  const edges = traversalEdges(index);
+  // Unresolved static edges widen conservatively, scoped to the owning
+  // feature's reachable subgraph instead of the whole workspace.
+  for (const feature of [...unresolved.features].sort(compare)) {
+    seed(feature, {
+      from: target,
+      edge: "conservative-widening",
+      message: `Feature '${feature}' has unresolved static edges, so its subgraph is conservatively included.`,
+    });
+  }
   while (queue.length > 0) {
     const current = queue.shift();
     if (current === undefined) break;
-    for (const edge of edges.filter((candidate) => candidate.from === current)) {
-      const reason: AffectedReason = {
-        from: current,
-        edge: edge.kind,
-        message: edge.reason,
-      };
-      const existing = reasons.get(edge.to);
-      if (existing === undefined) {
-        reasons.set(edge.to, [reason]);
-        queue.push(edge.to);
-      } else if (!existing.some((candidate) => candidate.from === reason.from && candidate.edge === reason.edge)) {
-        existing.push(reason);
-      }
+    for (const edge of adjacency.get(current) ?? []) {
+      seed(edge.to, { from: current, edge: edge.kind, message: edge.reason });
     }
   }
 
@@ -195,7 +235,7 @@ export const computeAffected = (
       ),
     }))
     .sort((left, right) => compare(left.id, right.id));
-  return { schemaVersion: "1", target, widened: false, items, diagnostics: [] };
+  return { schemaVersion: "2", target, widened: false, items, diagnostics: [] };
 };
 
 const nearestProject = (rootDir: string, sourceFile: string): string | undefined => {
@@ -229,12 +269,31 @@ const declaredPackageScript = (
   }
 };
 
+/** Workspace-scope verification plan without recomputing the affected closure. */
+export const workspaceVerificationPlan = (
+  target: string,
+  rootDir: string,
+  reason: string,
+): VerificationPlan => ({
+  schemaVersion: "2",
+  target,
+  scope: "workspace",
+  reason,
+  typecheck:
+    declaredPackageScript(rootDir, "typecheck") ??
+    ["npm", "exec", "--", "tsc", "-b", "--pretty", "false"],
+  tests:
+    declaredPackageScript(rootDir, "test") ??
+    ["npm", "exec", "--", "vitest", "run"],
+  testFiles: [],
+});
+
 export const planVerification = (
   index: AgentIndex,
   target: string,
   rootDir: string,
+  affected: AffectedResult = computeAffected(index, target, rootDir),
 ): VerificationPlan => {
-  const affected = computeAffected(index, target, rootDir);
   const selectedTests = affected.items
     .filter((item) => item.kind === "test")
     .map((item) => item.id)
@@ -247,37 +306,27 @@ export const planVerification = (
     !affected.widened &&
     affected.diagnostics.length === 0 &&
     project !== undefined &&
-    resolve(project) !== resolve(rootDir) &&
     selectedTests.length > 0;
   if (!narrow) {
-    return {
-      schemaVersion: "1",
+    return workspaceVerificationPlan(
       target,
-      scope: "workspace",
-      reason:
-        affected.diagnostics[0] ??
+      rootDir,
+      affected.diagnostics[0] ??
         "Project references and associated tests do not prove a narrower scope safe.",
-      typecheck:
-        declaredPackageScript(rootDir, "typecheck") ??
-        ["npm", "exec", "--", "tsc", "-b", "--pretty", "false"],
-      tests:
-        declaredPackageScript(rootDir, "test") ??
-        ["npm", "exec", "--", "vitest", "run"],
-      testFiles: [],
-    };
+    );
   }
   return {
-    schemaVersion: "1",
+    schemaVersion: "2",
     target,
     scope: "project",
-    reason: "A single referenced TypeScript project and explicit associated tests cover the affected closure.",
+    reason: "A referenced TypeScript project and explicit associated tests cover the affected closure.",
     typecheck: [
       "npm",
       "exec",
       "--",
       "tsc",
       "-b",
-      repositoryPath(rootDir, project),
+      repositoryPath(rootDir, project) || ".",
       "--pretty",
       "false",
     ],

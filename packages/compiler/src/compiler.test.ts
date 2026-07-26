@@ -23,6 +23,13 @@ const fixture = (name: "valid" | "invalid"): string =>
 
 const temporaryDirectories: string[] = [];
 
+const temporaryFixture = (name: "valid" | "invalid"): string => {
+  const temporary = mkdtempSync(join(tmpdir(), "agentix-compiler-"));
+  temporaryDirectories.push(temporary);
+  cpSync(fixture(name), temporary, { recursive: true });
+  return temporary;
+};
+
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { force: true, recursive: true });
@@ -30,42 +37,138 @@ afterEach(() => {
 });
 
 describe("agent index compiler", () => {
-  it("extracts statically declared metadata without loading application modules", () => {
+  it("extracts v2 single-file and directory features with derived ids", () => {
     const index = analyzeProject({ rootDir: fixture("valid") });
 
     expect(index.diagnostics).toEqual([]);
     expect(index.unresolved).toEqual([]);
+    expect(index).not.toHaveProperty("likelyAffected");
     expect(index.features.map(({ id }) => id)).toEqual(["customers", "orders"]);
     expect(index.features[0]?.consumers).toEqual(["orders"]);
-    expect(index.features[1]?.contract.exports).toEqual([
-      "ordersContract",
-      "OrderView",
+    expect(index.features[1]?.dependencies).toEqual(["customers"]);
+    // The feature file is the public contract; export {} declarations count.
+    expect(index.features[0]?.exports).toEqual([
+      "Customer",
+      "customers",
+      "customersContractVersion",
+      "CustomerStore",
     ]);
-    expect(index.operations).toMatchObject([
-      {
-        id: "orders.create",
-        kind: "command",
-        permissions: ["orders:create"],
-        effects: [
-          {
-            name: "chargePayment",
-            operationId: "payments.charge",
-            kind: "external",
-          },
-        ],
-        events: ["orders.created"],
-        invariants: ["orders.customer-exists"],
-        tests: ["src/features/orders/orders.agent-test.ts"],
-      },
+    expect(index.operations.map(({ id }) => id)).toEqual([
+      "customers.create",
+      "customers.get",
+      "orders.create",
+    ]);
+    expect(index.operations[2]).toMatchObject({
+      id: "orders.create",
+      key: "create",
+      symbol: "orders.operations.create",
+      kind: "command",
+      feature: "orders",
+      permissions: ["orders:create"],
+      effects: [
+        { name: "chargePayment", operationId: "payments.charge", kind: "external" },
+        { name: "loadCustomer", operationId: "customerStore.get", kind: "read" },
+      ],
+      events: ["orders.created"],
+      ensures: ["chargedOnce"],
+      tests: ["src/features/orders/orders.test.ts"],
+    });
+    // Standalone `const create = command(...)` referenced by shorthand resolves.
+    expect(index.operations[0]).toMatchObject({
+      id: "customers.create",
+      kind: "command",
+      effects: [
+        { name: "load", operationId: "customerStore.get", kind: "read" },
+        { name: "save", operationId: "customerStore.save", kind: "write" },
+      ],
+    });
+    expect(index.events).toMatchObject([
+      { id: "orders.created", version: 1, feature: "orders" },
     ]);
     expect(index.sourceManifest.files.every(({ file }) => !file.startsWith("/"))).toBe(true);
-    expect(index.likelyAffected.find(({ target }) => target === "customers")?.operations)
-      .toEqual([
-        {
-          id: "orders.create",
-          reason: "owned by transitive consumer 'orders'",
-        },
-      ]);
+  });
+
+  it("expands port.store into its four operations and keys explicit port ops", () => {
+    const index = analyzeProject({ rootDir: fixture("valid") });
+
+    expect(index.ports.map(({ id }) => id)).toEqual(["customerStore", "payments"]);
+    expect(index.ports[0]?.operations.map(({ id, kind }) => `${id}:${kind}`)).toEqual([
+      "customerStore.delete:write",
+      "customerStore.get:read",
+      "customerStore.list:read",
+      "customerStore.save:write",
+    ]);
+    expect(index.ports[0]?.operations[0]?.signature).toContain('port.store("customerStore", Customer)');
+    expect(index.ports[1]?.operations).toMatchObject([
+      { id: "payments.charge", name: "charge", kind: "external" },
+    ]);
+    expect(index.ports[1]?.operations[0]?.signature).toContain("port.external");
+  });
+
+  it("derives unified error metadata and http routes with error statuses", () => {
+    const index = analyzeProject({ rootDir: fixture("valid") });
+    const create = index.operations.find(({ id }) => id === "orders.create");
+    const get = index.operations.find(({ id }) => id === "customers.get");
+
+    expect(create?.errors).toEqual([
+      { code: "CUSTOMER_NOT_FOUND", details: "{ id: s.string() }" },
+      { code: "ORDER_INVALID", details: "s.object({ reason: s.string() })" },
+      { code: "PAYMENT_FAILED", http: 402, details: "{ reason: s.string() }" },
+    ]);
+    expect(create?.http).toEqual({
+      method: "POST",
+      path: "/orders",
+      status: 201,
+      errorStatus: { PAYMENT_FAILED: 402 },
+    });
+    expect(get?.http).toEqual({
+      method: "GET",
+      path: "/customers/:id",
+      errorStatus: { CUSTOMER_NOT_FOUND: 404 },
+    });
+  });
+
+  it("embeds bounded source excerpts for schemas, execute, and port operations", () => {
+    const rootDir = fixture("valid");
+    const index = analyzeProject({ rootDir });
+    const create = index.operations.find(({ id }) => id === "orders.create");
+
+    expect(create?.input?.text).toBe("OrderDraft");
+    expect(create?.input?.declaration).toContain("OrderDraft = s.object(");
+    expect(create?.input?.source?.file).toBe("src/features/orders/model.ts");
+    expect(create?.executeSignature).toBe("async execute({ input, effects, emit, fail })");
+
+    const context = createOperationContext(index, "orders.create", rootDir);
+    expect(context?.excerpts?.input).toContain("OrderDraft = s.object(");
+    expect(context?.excerpts?.execute).toBe("async execute({ input, effects, emit, fail })");
+    expect(context?.excerpts?.errors).toContainEqual({
+      code: "PAYMENT_FAILED",
+      text: "{ reason: s.string() }",
+    });
+    expect(context?.excerpts?.effects).toContainEqual(
+      expect.objectContaining({ name: "chargePayment" }),
+    );
+  });
+
+  it("caps every source excerpt at 1 KiB", () => {
+    const temporary = temporaryFixture("valid");
+    const fields = Array.from({ length: 80 }, (_, index) => `f${index}: s.string({ min: 1 })`);
+    writeFileSync(
+      join(temporary, "src/features/bulk.ts"),
+      `import { feature, query, s } from "@agentix/core";\n\n` +
+      `export const Bulk = s.object({ ${fields.join(", ")} });\n\n` +
+      `export const bulk = feature("bulk", {\n` +
+      `  operations: {\n` +
+      `    read: query({ input: Bulk, output: Bulk, async execute({ input }) { return input; } }),\n` +
+      `  },\n` +
+      `});\n`,
+      "utf8",
+    );
+
+    const operation = analyzeProject({ rootDir: temporary }).operations
+      .find(({ id }) => id === "bulk.read");
+    expect(operation?.input?.declaration?.length).toBe(1024);
+    expect(operation?.input?.declaration?.endsWith("…")).toBe(true);
   });
 
   it("emits byte-identical, machine-independent JSON for unchanged sources", () => {
@@ -98,8 +201,15 @@ describe("agent index compiler", () => {
     const json = stableJson(first);
     expect(Buffer.byteLength(json)).toBeLessThan(8 * 1024);
     expect(first).toMatchObject({
+      schemaVersion: "2",
       artifactKind: "operation-context",
       id: "orders.create",
+      key: "create",
+      errors: [
+        { code: "CUSTOMER_NOT_FOUND" },
+        { code: "ORDER_INVALID" },
+        { code: "PAYMENT_FAILED", http: 402 },
+      ],
       projection: {
         byteLimit: OPERATION_CONTEXT_BYTE_LIMIT,
         truncated: false,
@@ -117,7 +227,6 @@ describe("agent index compiler", () => {
     expect(first).not.toHaveProperty("features");
     expect(first).not.toHaveProperty("ports");
     expect(first).not.toHaveProperty("edges");
-    expect(first).not.toHaveProperty("likelyAffected");
     expect(first).not.toHaveProperty("sourceManifest.files");
   });
 
@@ -132,10 +241,16 @@ describe("agent index compiler", () => {
     const oversizedOperation = {
       ...operation,
       permissions: Array.from({ length: 100 }, (_, index) => repeated("permission", index)),
-      errors: Array.from({ length: 100 }, (_, index) => repeated("error", index)),
+      errors: Array.from({ length: 100 }, (_, index) => ({
+        code: repeated("error", index),
+        http: 500,
+        details: repeated("details", index),
+      })),
       events: Array.from({ length: 100 }, (_, index) => repeated("event", index)),
-      invariants: Array.from({ length: 100 }, (_, index) => repeated("invariant", index)),
+      ensures: Array.from({ length: 100 }, (_, index) => repeated("ensure", index)),
       tests: Array.from({ length: 100 }, (_, index) => repeated("test", index)),
+      input: { text: repeated("input", 0), declaration: repeated("input-decl", 0) },
+      executeSignature: repeated("execute", 0),
       effects: Array.from({ length: 100 }, (_, index) => ({
         name: repeated("effect", index),
         reference: repeated("Port.effect", index),
@@ -149,8 +264,8 @@ describe("agent index compiler", () => {
         oversizedOperation,
         ...Array.from({ length: 100 }, (_, index) => ({
           ...operation,
-          id: `orders.extra.${index}`,
-          symbol: `extra${index}`,
+          id: `customers.extra${index}`,
+          key: `extra${index}`,
         })),
       ],
       diagnostics: Array.from({ length: 40 }, (_, index) => ({
@@ -161,7 +276,7 @@ describe("agent index compiler", () => {
       })),
       unresolved: Array.from(
         { length: 100 },
-        (_, index) => `orders.create unresolved ${repeated("edge", index)}`,
+        (_, index) => `${operation.id} unresolved ${repeated("edge", index)}`,
       ),
     };
 
@@ -178,14 +293,21 @@ describe("agent index compiler", () => {
     const workspacePlan = planVerification(oversized, "tsconfig.json", rootDir);
     expect(context.verification.typecheck).toEqual(workspacePlan.typecheck);
     expect(context.verification.tests).toEqual(workspacePlan.tests);
+    const affected = computeAffected(oversized, operation.id, rootDir);
+    expect(affected.widened).toBe(true);
     expect(context.affected).toMatchObject({
       widened: true,
-      totalItems: 108,
+      totalItems: affected.items.length,
       items: [],
     });
+    expect(context.affected.totalItems).toBeGreaterThan(100);
+    expect(context).not.toHaveProperty("excerpts");
     expect(context.projection.omissions).toContainEqual(expect.objectContaining({
       path: "affected.items",
-      total: 108,
+      included: 0,
+    }));
+    expect(context.projection.omissions).toContainEqual(expect.objectContaining({
+      path: "excerpts",
       included: 0,
     }));
     expect(context.projection.omissions).toContainEqual(expect.objectContaining({
@@ -205,12 +327,13 @@ describe("agent index compiler", () => {
           ".",
           "--json",
           "--",
-          "orders.create",
+          operation.id,
         ],
       },
     }));
     const detail = createOperationDetail(oversized, operation.id, rootDir);
     expect(detail?.artifactKind).toBe("operation-detail");
+    expect(detail?.schemaVersion).toBe("2");
     expect(detail?.permissions).toHaveLength(100);
     expect(detail?.analysis.targetUnresolved).toHaveLength(100);
   });
@@ -227,29 +350,33 @@ describe("agent index compiler", () => {
       agentixValid: false,
       complete: true,
       typecheck: "not-run",
-      project: { errors: 5, warnings: 0, unresolved: 0 },
+      project: { errors: 7, warnings: 0, unresolved: 0 },
     });
     expect(context?.analysis.targetDiagnostics.map(({ code }) => code)).toEqual([
       "architecture.private-cross-feature-import",
       "operation.query-write-effect",
       "operation.query-emits-event",
       "architecture.ambient-fetch",
+      "architecture.ambient-time",
+      "architecture.ambient-randomness",
       "architecture.ambient-environment",
     ]);
   });
 
-  it("detects private feature imports, ambient effects, and invalid queries", () => {
+  it("still bans ambient effects and private imports inside v2 feature files", () => {
     const diagnostics = checkArchitecture({ rootDir: fixture("invalid") });
     expect(diagnostics.map(({ code }) => code)).toEqual([
       "architecture.private-cross-feature-import",
       "operation.query-write-effect",
       "operation.query-emits-event",
       "architecture.ambient-fetch",
+      "architecture.ambient-time",
+      "architecture.ambient-randomness",
       "architecture.ambient-environment",
     ]);
   });
 
-  it("explains transitive consumers, preserving operations, and tests", () => {
+  it("explains transitive consumers, derived operations, and tests", () => {
     const affected = computeAffected(
       analyzeProject({ rootDir: fixture("valid") }),
       "customers",
@@ -259,12 +386,32 @@ describe("agent index compiler", () => {
     expect(affected.widened).toBe(false);
     expect(affected.items.map(({ id }) => id)).toEqual([
       "customers",
+      "customers.create",
+      "customers.get",
       "orders",
       "orders.create",
-      "orders.customer-exists",
-      "src/features/orders/orders.agent-test.ts",
+      "src/features/customers.test.ts",
+      "src/features/orders/orders.test.ts",
     ]);
     expect(affected.items.every(({ reasons }) => reasons.length > 0)).toBe(true);
+  });
+
+  it("traverses from a port operation to every declaring operation", () => {
+    const affected = computeAffected(
+      analyzeProject({ rootDir: fixture("valid") }),
+      "customerStore.get",
+      fixture("valid"),
+    );
+
+    expect(affected.widened).toBe(false);
+    expect(affected.items.map(({ id }) => id)).toEqual([
+      "customers.create",
+      "customers.get",
+      "customerStore.get",
+      "orders.create",
+      "src/features/customers.test.ts",
+      "src/features/orders/orders.test.ts",
+    ]);
   });
 
   it("widens shared and unowned changes instead of claiming a narrow scope", () => {
@@ -276,27 +423,108 @@ describe("agent index compiler", () => {
     expect(affected.diagnostics[0]).toContain("entire workspace");
   });
 
-  it("maps an ordinary capsule source file to its owning feature", () => {
+  it("maps a single-file feature path and a capsule source to their owners", () => {
     const rootDir = fixture("valid");
-    const affected = computeAffected(
-      analyzeProject({ rootDir }),
-      "src/features/orders/contract.ts",
-      rootDir,
-    );
+    const index = analyzeProject({ rootDir });
 
-    expect(affected.widened).toBe(false);
-    expect(affected.items.map(({ id }) => id)).toEqual([
+    const byFeatureFile = computeAffected(index, "src/features/customers.ts", rootDir);
+    expect(byFeatureFile.widened).toBe(false);
+    expect(byFeatureFile.items.map(({ id }) => id)).toContain("orders.create");
+    expect(byFeatureFile.items.map(({ id }) => id)).toContain("customerStore.get");
+
+    const byCapsuleFile = computeAffected(index, "src/features/orders/model.ts", rootDir);
+    expect(byCapsuleFile.widened).toBe(false);
+    expect(byCapsuleFile.items.map(({ id }) => id)).toEqual([
       "orders",
       "orders.create",
-      "orders.customer-exists",
-      "src/features/orders/orders.agent-test.ts",
+      "src/features/orders/orders.test.ts",
+    ]);
+  });
+
+  it("scopes unresolved-edge widening to the owning feature's subgraph", () => {
+    const temporary = temporaryFixture("valid");
+    writeFileSync(
+      join(temporary, "src/features/billing.ts"),
+      `import { feature, query, s } from "@agentix/core";\n\n` +
+      `export const billing = feature("billing", {\n` +
+      `  operations: {\n` +
+      `    list: query({ input: s.object({}), output: s.object({}), async execute() { return {}; } }),\n` +
+      `  },\n` +
+      `});\n`,
+      "utf8",
+    );
+    writeFileSync(
+      join(temporary, "src/features/orders/dynamic.ts"),
+      `export const load = (name: string) => import(name);\n`,
+      "utf8",
+    );
+
+    const index = analyzeProject({ rootDir: temporary });
+    expect(index.unresolved.some((entry) => entry.includes("dynamic.ts"))).toBe(true);
+
+    const affected = computeAffected(index, "billing", temporary);
+    expect(affected.widened).toBe(false);
+    expect(affected.items.map(({ id }) => id)).toEqual([
+      "billing",
+      "billing.list",
+      "orders",
+      "orders.create",
+      "src/features/orders/orders.test.ts",
+    ]);
+    const orders = affected.items.find(({ id }) => id === "orders");
+    expect(orders?.reasons[0]?.edge).toBe("conservative-widening");
+  });
+
+  it("widens globally when unresolved edges cannot be attributed to a feature", () => {
+    const temporary = temporaryFixture("valid");
+    writeFileSync(
+      join(temporary, "src/features/broken.ts"),
+      `import { feature } from "@agentix/core";\n\n` +
+      `const dynamicId = "broken" as string;\n` +
+      `export const broken = feature(dynamicId, { operations: {} });\n`,
+      "utf8",
+    );
+
+    const index = analyzeProject({ rootDir: temporary });
+    const affected = computeAffected(index, "customers", temporary);
+    expect(affected.widened).toBe(true);
+    expect(affected.diagnostics[0]).toContain("outside any indexed feature");
+  });
+
+  it("plans narrow verification for root-tsconfig applications", () => {
+    const temporary = temporaryFixture("valid");
+    writeFileSync(
+      join(temporary, "tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: {
+          module: "NodeNext",
+          moduleResolution: "NodeNext",
+          target: "ES2022",
+        },
+        include: ["src/**/*.ts"],
+        exclude: ["src/**/*.test.ts"],
+      }),
+      "utf8",
+    );
+
+    const index = analyzeProject({ rootDir: temporary });
+    const plan = planVerification(index, "orders.create", temporary);
+
+    expect(plan.scope).toBe("project");
+    expect(plan.typecheck).toEqual(["npm", "exec", "--", "tsc", "-b", ".", "--pretty", "false"]);
+    expect(plan.testFiles).toEqual(["src/features/orders/orders.test.ts"]);
+    expect(plan.tests).toEqual([
+      "npm",
+      "exec",
+      "--",
+      "vitest",
+      "run",
+      "src/features/orders/orders.test.ts",
     ]);
   });
 
   it("indexes explicit operation tests outside a feature directory", () => {
-    const temporary = mkdtempSync(join(tmpdir(), "agentix-compiler-root-test-"));
-    temporaryDirectories.push(temporary);
-    cpSync(fixture("valid"), temporary, { recursive: true });
+    const temporary = temporaryFixture("valid");
     writeFileSync(
       join(temporary, "tsconfig.json"),
       JSON.stringify({
@@ -313,8 +541,8 @@ describe("agent index compiler", () => {
     writeFileSync(
       join(temporary, "src/orders.acceptance.test.ts"),
       `import { associateOperationTest } from "@agentix/testing";\n` +
-      `import { createOrder } from "./features/orders/operations.js";\n\n` +
-      `export const acceptance = associateOperationTest(createOrder, "orders.acceptance");\n`,
+      `import { orders } from "./features/orders/feature.js";\n\n` +
+      `export const acceptance = associateOperationTest(orders.operations.create, "orders.acceptance");\n`,
       "utf8",
     );
 
@@ -324,12 +552,10 @@ describe("agent index compiler", () => {
   });
 
   it("detects index staleness from a deterministic source manifest", () => {
-    const temporary = mkdtempSync(join(tmpdir(), "agentix-compiler-"));
-    temporaryDirectories.push(temporary);
-    cpSync(fixture("valid"), temporary, { recursive: true });
+    const temporary = temporaryFixture("valid");
     const index = analyzeProject({ rootDir: temporary });
-    const contract = join(temporary, "src/features/orders/contract.ts");
-    writeFileSync(contract, `${readFileSync(contract, "utf8")}\nexport type Changed = true;\n`);
+    const featureFile = join(temporary, "src/features/customers.ts");
+    writeFileSync(featureFile, `${readFileSync(featureFile, "utf8")}\nexport type Changed = true;\n`);
 
     expect(checkIndexStaleness(index, temporary)).toEqual({
       stale: true,
@@ -341,7 +567,8 @@ describe("agent index compiler", () => {
     const rootDir = fixture("valid");
     const index = analyzeProject({ rootDir });
 
-    expect(checkIndexStaleness({ ...index, schemaVersion: "0" as never }, rootDir))
+    expect(checkIndexStaleness(index, rootDir)).toEqual({ stale: false });
+    expect(checkIndexStaleness({ ...index, schemaVersion: "1" as never }, rootDir))
       .toEqual({
         stale: true,
         reason: "The generated index uses an incompatible schema or compiler version.",
@@ -354,9 +581,7 @@ describe("agent index compiler", () => {
   });
 
   it("uses declared package verification scripts for a workspace scope", () => {
-    const temporary = mkdtempSync(join(tmpdir(), "agentix-compiler-"));
-    temporaryDirectories.push(temporary);
-    cpSync(fixture("valid"), temporary, { recursive: true });
+    const temporary = temporaryFixture("valid");
     writeFileSync(
       join(temporary, "package.json"),
       JSON.stringify({ scripts: { typecheck: "tsc -b", test: "vitest run --root ../.." } }),

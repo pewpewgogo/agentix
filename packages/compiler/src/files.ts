@@ -28,6 +28,24 @@ export const repositoryPath = (rootDir: string, path: string): string => {
   return toPosixPath(relative(resolve(rootDir), absolute));
 };
 
+/**
+ * Feature segment for a repository path. Single-file features
+ * (`src/features/notes.ts`, plus `notes.test.ts` beside it) and directory
+ * features (`src/features/notes/...`) both map to segment `notes`.
+ */
+export const featureSegmentOf = (path: string): string | undefined => {
+  const match = /(?:^|\/)src\/features\/([^/]+)(\/|$)/u.exec(path);
+  if (match === null) return undefined;
+  const part = match[1] as string;
+  if (match[2] === "/") return part;
+  const withoutTestSuffix = part.replace(
+    /\.(?:agent-test|test|spec)\.[cm]?tsx?$/u,
+    "",
+  );
+  if (withoutTestSuffix !== part) return withoutTestSuffix;
+  return part.replace(/\.[cm]?tsx?$/u, "");
+};
+
 const walk = (directory: string, output: string[]): void => {
   const entries = readdirSync(directory, { withFileTypes: true }).sort((a, b) =>
     a.name.localeCompare(b.name),

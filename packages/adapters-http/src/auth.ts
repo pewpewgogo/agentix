@@ -1,15 +1,33 @@
 import type { Principal } from "@agentix/core";
 
-import type { Awaitable } from "./route.js";
+import type { Awaitable } from "./router.js";
 
+/**
+ * Minimal host-agnostic request view. Both entries provide it: the Web entry
+ * wraps `Request`, the raw Node host wraps `IncomingMessage` — neither path
+ * constructs an undici Request for authentication.
+ */
+export interface HttpRequestView {
+  readonly method: string;
+  /** Percent-encoded pathname (no query string). */
+  readonly path: string;
+  /** Case-insensitive single-value header lookup. */
+  readonly headers: (name: string) => string | undefined;
+}
+
+/**
+ * Returning `null` yields an ANONYMOUS request (core authorize() then rejects
+ * operations that require permissions). Throw AuthenticationError to answer
+ * 401 for malformed credentials.
+ */
 export type PrincipalExtractor = (
-  request: Request,
+  request: HttpRequestView,
 ) => Awaitable<Principal | null>;
 
 export class AuthenticationError extends Error {
-  public readonly code: string;
+  readonly code: string;
 
-  public constructor(message = "Authentication failed.", code = "UNAUTHENTICATED") {
+  constructor(message = "Authentication failed.", code = "UNAUTHENTICATED") {
     super(message);
     this.name = "AuthenticationError";
     this.code = code;
@@ -17,23 +35,24 @@ export class AuthenticationError extends Error {
 }
 
 export interface BearerPrincipalExtractorOptions {
-  readonly resolve: (token: string, request: Request) => Awaitable<Principal | null>;
+  readonly resolve: (
+    token: string,
+    request: HttpRequestView,
+  ) => Awaitable<Principal | null>;
 }
 
 /** Extracts a bearer token and delegates trust decisions to an explicit resolver. */
-export const createBearerPrincipalExtractor = (
-  options: BearerPrincipalExtractorOptions,
-): PrincipalExtractor =>
+export const createBearerPrincipalExtractor =
+  (options: BearerPrincipalExtractorOptions): PrincipalExtractor =>
   async (request) => {
-    const authorization = request.headers.get("authorization");
-    if (authorization === null) {
-      return null;
-    }
+    const authorization = request.headers("authorization");
+    if (authorization === undefined) return null;
     const match = /^Bearer\s+(.+)$/i.exec(authorization);
-    if (match?.[1] === undefined || match[1].trim().length === 0) {
+    const token = match?.[1]?.trim();
+    if (token === undefined || token.length === 0) {
       throw new AuthenticationError("The Authorization header is malformed.");
     }
-    return options.resolve(match[1].trim(), request);
+    return options.resolve(token, request);
   };
 
 export interface TrustedHeaderPrincipalOptions {
@@ -54,11 +73,9 @@ export const createTrustedHeaderPrincipalExtractor = (
   const separator = options.separator ?? ",";
 
   return (request) => {
-    const id = request.headers.get(idHeader)?.trim();
-    if (id === undefined || id.length === 0) {
-      return null;
-    }
-    const rawPermissions = request.headers.get(permissionsHeader) ?? "";
+    const id = request.headers(idHeader)?.trim();
+    if (id === undefined || id.length === 0) return null;
+    const rawPermissions = request.headers(permissionsHeader) ?? "";
     const permissions = [
       ...new Set(
         rawPermissions

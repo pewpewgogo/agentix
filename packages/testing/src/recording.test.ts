@@ -1,42 +1,35 @@
 import { describe, expect, it } from "vitest";
-import { definePort, ok, portOperation, schema } from "@agentix/core";
+import { port, s } from "@agentix/core";
 
-import {
-  createRecordingAdapter,
-  createScriptedEffect,
-} from "./recording.js";
+import { createRecordingAdapter, createScriptedEffect } from "./recording.js";
 
-const Payments = definePort({
-  id: "payments",
-  operations: {
-    charge: portOperation({
-      id: "payments.charge",
-      kind: "external",
-      input: schema.object({ amount: schema.number() }),
-      output: schema.object({ approved: schema.boolean() }),
-    }),
-    refund: portOperation({
-      id: "payments.refund",
-      kind: "external",
-      input: schema.object({ paymentId: schema.string() }),
-      output: schema.object({ refunded: schema.boolean() }),
-    }),
-  },
+const Payments = port("payments", {
+  charge: port.external({
+    input: s.object({ amount: s.number() }),
+    output: s.object({ approved: s.boolean() }),
+  }),
+  refund: port.external({
+    input: s.object({ paymentId: s.string() }),
+    output: s.object({ refunded: s.boolean() }),
+  }),
 });
 
 describe("createRecordingAdapter", () => {
-  it("records returned and thrown calls in completion order", async () => {
+  it("records returned and thrown plain-value calls in completion order", async () => {
     const failure = new Error("refund unavailable");
     const adapter = createRecordingAdapter(Payments, {
-      charge: (input) => ok({ approved: input.amount < 100 }),
+      charge: (input) => ({ approved: input.amount < 100 }),
       refund: (_input: { paymentId: string }) => {
         throw failure;
       },
     });
 
-    await expect(adapter.operations.charge({ amount: 10 })).resolves.toEqual(
-      ok({ approved: true }),
-    );
+    expect(adapter.descriptorType).toBe("port-adapter");
+    expect(adapter.portId).toBe("payments");
+
+    await expect(adapter.operations.charge({ amount: 10 })).resolves.toEqual({
+      approved: true,
+    });
     await expect(
       adapter.operations.refund({ paymentId: "payment-1" }),
     ).rejects.toBe(failure);
@@ -47,7 +40,7 @@ describe("createRecordingAdapter", () => {
         effectId: "payments.charge",
         input: { amount: 10 },
         status: "returned",
-        output: ok({ approved: true }),
+        output: { approved: true },
       },
       {
         sequence: 1,
@@ -65,7 +58,7 @@ describe("createRecordingAdapter", () => {
   it("fails construction when a runtime implementation is missing", () => {
     expect(() =>
       createRecordingAdapter(Payments, {
-        charge: () => ok({ approved: true }),
+        charge: () => ({ approved: true }),
       } as never),
     ).toThrow(/Missing fake implementation/);
   });

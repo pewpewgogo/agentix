@@ -1,4 +1,9 @@
-import type { PortDescriptor, PortImplementation } from "@agentix/core";
+import type {
+  AnyPort,
+  AnyPortOperation,
+  Infer,
+  PortImplementation,
+} from "@agentix/core";
 
 export type Awaitable<T> = T | Promise<T>;
 
@@ -24,90 +29,77 @@ export interface ThrownEffectCall {
 
 export type RecordedEffectCall = ReturnedEffectCall | ThrownEffectCall;
 
-type OperationImplementation<
-  Port extends PortDescriptor,
-  Name extends keyof PortImplementation<Port>,
-> = Extract<PortImplementation<Port>[Name], (input: never) => unknown>;
-
-export type RecordingPortImplementation<Port extends PortDescriptor> = {
-  readonly [Name in keyof PortImplementation<Port>]: (
-    input: Parameters<OperationImplementation<Port, Name>>[0],
-  ) => Promise<Awaited<ReturnType<OperationImplementation<Port, Name>>>>;
+export type RecordingPortImplementation<
+  Ops extends Record<string, AnyPortOperation>,
+> = {
+  readonly [Name in keyof Ops]: Ops[Name] extends AnyPortOperation
+    ? (input: Infer<Ops[Name]["input"]>) => Promise<Infer<Ops[Name]["output"]>>
+    : never;
 };
 
-export interface RecordingAdapter<Port extends PortDescriptor> {
-  readonly portId: string;
-  readonly operations: RecordingPortImplementation<Port>;
+/**
+ * Structurally a core BoundPortAdapter, so it can be passed directly to
+ * `createApplication({ adapters: [...] })` while exposing its call log.
+ */
+export interface RecordingAdapter<Port extends AnyPort> {
+  readonly descriptorType: "port-adapter";
+  readonly portId: Port["id"];
+  readonly operations: RecordingPortImplementation<Port["operations"]>;
   readonly calls: () => readonly RecordedEffectCall[];
   readonly reset: () => void;
 }
 
 /**
- * Wraps explicit port implementations and records their observable calls.
- * The returned `operations` value can be passed to the core adapter binding.
+ * Wraps explicit plain-value port implementations (amendment A1: return values
+ * or throw — no Outcome wrapping) and records their observable calls.
  */
-export const createRecordingAdapter = <
-  Port extends PortDescriptor,
->(
+export const createRecordingAdapter = <Port extends AnyPort>(
   port: Port,
-  handlers: PortImplementation<Port>,
+  handlers: PortImplementation<Port["operations"]>,
 ): RecordingAdapter<Port> => {
   const calls: RecordedEffectCall[] = [];
   let nextSequence = 0;
-  const operationNames = Object.keys(port.operations) as (keyof Port["operations"] &
-    string)[];
+  const operations = port.operations as Readonly<Record<string, AnyPortOperation>>;
   const handlerRecord = handlers as unknown as Readonly<
     Record<string, (input: unknown) => Awaitable<unknown>>
   >;
 
-  const wrapped = Object.fromEntries(
-    operationNames.map((name) => {
-      const descriptor = port.operations[name];
-      const handler = handlerRecord[name];
-      if (descriptor === undefined || handler === undefined) {
-        throw new TypeError(
-          `Missing fake implementation for ${port.id}.${String(name)}.`,
-        );
+  const wrapped: Record<string, (input: unknown) => Promise<unknown>> = {};
+  for (const name of Object.keys(operations)) {
+    const descriptor = operations[name];
+    const handler = handlerRecord[name];
+    if (descriptor === undefined || typeof handler !== "function") {
+      throw new TypeError(
+        `Missing fake implementation for ${port.id}.${name}.`,
+      );
+    }
+    const effectId = descriptor.id;
+    wrapped[name] = async (input: unknown): Promise<unknown> => {
+      const sequence = nextSequence;
+      nextSequence += 1;
+      try {
+        const output = await handler(input);
+        calls.push({ sequence, effectId, input, status: "returned", output });
+        return output;
+      } catch (error: unknown) {
+        calls.push({ sequence, effectId, input, status: "threw", error });
+        throw error;
       }
+    };
+  }
 
-      const implementation = async (input: unknown): Promise<unknown> => {
-        const sequence = nextSequence;
-        nextSequence += 1;
-        try {
-          const output = await handler(input);
-          calls.push({
-            sequence,
-            effectId: descriptor.id,
-            input,
-            status: "returned",
-            output,
-          });
-          return output;
-        } catch (error: unknown) {
-          calls.push({
-            sequence,
-            effectId: descriptor.id,
-            input,
-            status: "threw",
-            error,
-          });
-          throw error;
-        }
-      };
-
-      return [name, implementation] as const;
-    }),
-  ) as RecordingPortImplementation<Port>;
-
-  return {
-    portId: port.id,
-    operations: wrapped,
+  return Object.freeze({
+    descriptorType: "port-adapter" as const,
+    portId: port.id as Port["id"],
+    operations: Object.freeze(wrapped) as unknown as RecordingPortImplementation<
+      Port["operations"]
+    >,
     calls: () => calls.map((call) => ({ ...call })),
     reset: () => {
       calls.length = 0;
       nextSequence = 0;
     },
-  };
+  });
 };
 
 export type ScriptedEffectStep<Output> =

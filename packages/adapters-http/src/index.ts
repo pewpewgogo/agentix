@@ -1,2 +1,3 @@
 export * from "./web.js";
-export * from "./node.js";
+export { serveNode } from "./node.js";
+export type { NodeHttpServer, ServeNodeOptions } from "./node.js";

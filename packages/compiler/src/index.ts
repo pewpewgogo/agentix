@@ -10,11 +10,12 @@ export {
   createOperationContext,
   createOperationDetail,
 } from "./context.js";
-export { computeAffected, planVerification } from "./affected.js";
+export { computeAffected, planVerification, workspaceVerificationPlan } from "./affected.js";
 export { checkIndexStaleness, readIndex } from "./manifest.js";
 export {
   createSourceManifest,
   discoverSourceFiles,
+  featureSegmentOf,
   repositoryPath,
   stableJson,
   toPosixPath,

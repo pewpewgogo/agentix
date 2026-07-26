@@ -1,17 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  bindPort,
-  createApplication,
-  defineCommand,
-  defineEvent,
-  defineFeature,
-  defineFeatureContract,
-  definePort,
-  defineQuery,
-  ok,
-  portOperation,
-  schema,
-} from "@agentix/core";
+import { command, createApplication, event, feature, port, query, s } from "@agentix/core";
 
 import { createRecordingAdapter } from "./recording.js";
 import { testCommand, testQuery } from "./harness.js";
@@ -21,72 +9,42 @@ import {
   assertNoEffects,
 } from "./trace.js";
 
-const Clock = definePort({
-  id: "clock",
+const Clock = port("clock", {
+  now: port.time({ input: s.object({}), output: s.string() }),
+});
+
+const happened = event("sample.happened", 1, s.object({ at: s.string() }));
+
+const sample = feature("sample", {
   operations: {
-    now: portOperation({
-      id: "clock.now",
-      kind: "time",
-      input: schema.object({}),
-      output: schema.string(),
+    run: command({
+      input: s.object({}),
+      output: s.object({ at: s.string() }),
+      permissions: ["sample:run"],
+      effects: { now: Clock.now },
+      emits: { happened },
+      async execute({ effects, emit }) {
+        const at = await effects.now({});
+        emit.happened({ at });
+        return { at };
+      },
+    }),
+    inspect: query({
+      input: s.object({ value: s.string() }),
+      output: s.string(),
+      permissions: ["sample:read"],
+      execute: ({ input }) => input.value,
     }),
   },
 });
 
-const happened = defineEvent({
-  id: "sample.happened",
-  version: 1,
-  payload: schema.object({ at: schema.string() }),
-});
-
-const runSample = defineCommand({
-  id: "sample.run",
-  input: schema.object({}),
-  output: schema.object({ at: schema.string() }),
-  errors: {},
-  permissions: ["sample:run"],
-  effects: { now: Clock.operations.now },
-  emits: { happened },
-  async execute({ effects, emit }) {
-    const instant = await effects.now({});
-    if (!instant.ok) {
-      throw new Error("The no-error clock contract returned an error.");
-    }
-    emit.happened({ at: instant.value });
-    return ok({ at: instant.value });
-  },
-});
-
-const inspectSample = defineQuery({
-  id: "sample.inspect",
-  input: schema.object({ value: schema.string() }),
-  output: schema.string(),
-  errors: {},
-  permissions: ["sample:read"],
-  effects: {},
-  execute: ({ input }) => ok(input.value),
-});
-
-const sample = defineFeature({
-  id: "sample",
-  contract: defineFeatureContract({
-    id: "sample",
-    exports: { runSample, inspectSample, happened, Clock },
-  }),
-  dependencies: [],
-  operations: [runSample, inspectSample],
-  invariants: [],
-  events: [happened],
-  ports: [Clock],
-});
-
 const createFixture = () => {
   const clock = createRecordingAdapter(Clock, {
-    now: async () => ok("2026-07-23T10:00:00.000Z"),
+    now: () => "2026-07-23T10:00:00.000Z",
   });
   const application = createApplication({
     features: [sample],
-    adapters: [bindPort(Clock, clock.operations)],
+    adapters: [clock],
     mode: "test",
   });
   return { application, clock };
@@ -97,12 +55,13 @@ describe("operation harnesses", () => {
     const { application, clock } = createFixture();
     const result = await testCommand({
       application,
-      operation: runSample,
+      operation: sample.operations.run,
       input: {},
     });
 
     expect(result).toMatchObject({
       kind: "completed",
+      operationId: "sample.run",
       outcome: { ok: true, value: { at: "2026-07-23T10:00:00.000Z" } },
     });
     expect(clock.calls()).toHaveLength(1);
@@ -117,7 +76,7 @@ describe("operation harnesses", () => {
     const { application } = createFixture();
     const queryResult = await testQuery({
       application,
-      operation: inspectSample,
+      operation: sample.operations.inspect,
       input: { value: "visible" },
     });
     expect(queryResult).toMatchObject({
@@ -127,7 +86,7 @@ describe("operation harnesses", () => {
 
     const denied = await testCommand({
       application,
-      operation: runSample,
+      operation: sample.operations.run,
       input: {},
       principal: { id: "denied", permissions: [] },
     });
@@ -139,5 +98,23 @@ describe("operation harnesses", () => {
       throw new Error("Expected test tracing to be enabled.");
     }
     assertNoEffects(denied.trace);
+  });
+
+  it("rejects harness/operation kind mismatches", async () => {
+    const { application } = createFixture();
+    await expect(
+      testQuery({
+        application,
+        operation: sample.operations.run as never,
+        input: {} as never,
+      }),
+    ).rejects.toThrow(/not a query/);
+    await expect(
+      testCommand({
+        application,
+        operation: sample.operations.inspect as never,
+        input: { value: "x" } as never,
+      }),
+    ).rejects.toThrow(/not a command/);
   });
 });

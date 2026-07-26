@@ -1,221 +1,307 @@
+import { authorize } from "@agentix/core";
 import type {
-  AnyOperationDescriptor,
+  AnyBoundOperation,
   Application,
+  DispatchResult,
   Principal,
-  RejectedDispatch,
 } from "@agentix/core";
 
 import { AuthenticationError } from "./auth.js";
-import type { PrincipalExtractor } from "./auth.js";
-import { HttpInputError, jsonResponse, mapDispatchResult } from "./route.js";
-import type { HttpRoute, HttpRouteContext } from "./route.js";
+import type { HttpRequestView, PrincipalExtractor } from "./auth.js";
+import { compileRouteTable, matchRoute, queryRecord } from "./router.js";
+import type {
+  CompiledRoute,
+  CompiledRouteTable,
+  HttpRouteOverride,
+} from "./router.js";
 
-export type HttpHandler = (request: Request) => Promise<Response>;
+/* ------------------------------------------------------------------ */
+/* Runtime-neutral request/response model (shared by BOTH entries)    */
+/* ------------------------------------------------------------------ */
+
+/** Host-agnostic request consumed by handler.handle(); no undici types. */
+export interface HandlerRequest extends HttpRequestView {
+  /** Raw query string without the leading "?" ("" when absent). */
+  readonly query: string;
+  /**
+   * Deferred body read (UTF-8 text, undefined when absent). Called AFTER
+   * authorization so 403 responses never touch the body. May throw
+   * RequestBodyLimitError to answer 413.
+   */
+  readonly readBody: () => Promise<string | undefined>;
+}
+
+export interface HandlerResponse {
+  readonly status: number;
+  /** Serialized JSON envelope. */
+  readonly body: string;
+  /** Extra headers (e.g. `allow` on 405). Content-type is always JSON. */
+  readonly headers?: Readonly<Record<string, string>>;
+}
+
+/** Thrown by host body readers when the configured byte cap is exceeded. */
+export class RequestBodyLimitError extends Error {
+  constructor(message = "The request body is too large.") {
+    super(message);
+    this.name = "RequestBodyLimitError";
+  }
+}
+
+export interface HttpErrorInfo {
+  readonly method: string;
+  readonly path: string;
+  readonly operationId?: string;
+}
+
+/** Observability hook for faults and unexpected adapter errors (500s + 413s excluded). */
+export type HttpErrorObserver = (error: unknown, info: HttpErrorInfo) => void;
 
 export interface CreateHttpHandlerOptions {
-  readonly application: Application;
-  readonly routes: readonly HttpRoute<AnyOperationDescriptor>[];
-  readonly principal?: PrincipalExtractor;
-  readonly anonymousPrincipal?: Principal;
+  /** Opt-in authentication; absent means every request is anonymous. */
+  readonly authenticate?: PrincipalExtractor;
+  /** Defaults to console.error when app.mode === "development", else no-op. */
+  readonly onError?: HttpErrorObserver;
+  /** defineHttpRoute overrides: replace auto routes of their operations, add new ones. */
+  readonly routes?: readonly HttpRouteOverride[];
 }
 
-interface CompiledRoute {
-  readonly route: HttpRoute;
-  readonly segments: readonly string[];
+export interface HttpHandler {
+  /** Web (edge-safe) entry. */
+  readonly fetch: (request: Request) => Promise<Response>;
+  /** Runtime-neutral engine used by hosts (serveNode, benchmarks, tests). */
+  readonly handle: (request: HandlerRequest) => Promise<HandlerResponse>;
+  /** Compiled method-bucketed route table, exposed for hosts and tooling. */
+  readonly routes: CompiledRouteTable;
 }
 
-const pathSegments = (path: string): readonly string[] =>
-  path === "/" ? [] : path.slice(1).split("/");
+/* ------------------------------------------------------------------ */
+/* Envelope constants (prestringified)                                */
+/* ------------------------------------------------------------------ */
 
-const matchPath = (
+export const JSON_CONTENT_TYPE = "application/json; charset=utf-8";
+
+const NOT_FOUND_BODY = '{"ok":false,"error":{"code":"NOT_FOUND"}}';
+const METHOD_NOT_ALLOWED_BODY = '{"ok":false,"error":{"code":"METHOD_NOT_ALLOWED"}}';
+const PERMISSION_DENIED_BODY = '{"ok":false,"error":{"code":"PERMISSION_DENIED"}}';
+const INVALID_JSON_BODY = '{"ok":false,"error":{"code":"INVALID_JSON"}}';
+const PAYLOAD_TOO_LARGE_BODY = '{"ok":false,"error":{"code":"PAYLOAD_TOO_LARGE"}}';
+export const INTERNAL_ERROR_BODY = '{"ok":false,"error":{"code":"INTERNAL"}}';
+
+/** Constant bodies hosts may pre-encode once (e.g. into Buffers). */
+export const RESPONSE_BODY_CONSTANTS: readonly string[] = Object.freeze([
+  NOT_FOUND_BODY,
+  METHOD_NOT_ALLOWED_BODY,
+  PERMISSION_DENIED_BODY,
+  INVALID_JSON_BODY,
+  PAYLOAD_TOO_LARGE_BODY,
+  INTERNAL_ERROR_BODY,
+]);
+
+const NOT_FOUND_RESPONSE: HandlerResponse = Object.freeze({
+  status: 404,
+  body: NOT_FOUND_BODY,
+});
+const PERMISSION_DENIED_RESPONSE: HandlerResponse = Object.freeze({
+  status: 403,
+  body: PERMISSION_DENIED_BODY,
+});
+const INVALID_JSON_RESPONSE: HandlerResponse = Object.freeze({
+  status: 400,
+  body: INVALID_JSON_BODY,
+});
+const PAYLOAD_TOO_LARGE_RESPONSE: HandlerResponse = Object.freeze({
+  status: 413,
+  body: PAYLOAD_TOO_LARGE_BODY,
+});
+const INTERNAL_RESPONSE: HandlerResponse = Object.freeze({
+  status: 500,
+  body: INTERNAL_ERROR_BODY,
+});
+
+const successBody = (value: unknown): string => {
+  const json = JSON.stringify(value) as string | undefined;
+  return `{"ok":true,"value":${json ?? "null"}}`;
+};
+
+const errorBody = (error: unknown): string => {
+  const json = JSON.stringify(error) as string | undefined;
+  return `{"ok":false,"error":${json ?? "null"}}`;
+};
+
+/* ------------------------------------------------------------------ */
+/* Dispatch result -> envelope                                        */
+/* ------------------------------------------------------------------ */
+
+const respondDispatch = (
   route: CompiledRoute,
-  path: string,
-): Readonly<Record<string, string>> | null => {
-  const actual = pathSegments(path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path);
-  if (actual.length !== route.segments.length) {
-    return null;
-  }
-  const params: Record<string, string> = {};
-  for (let index = 0; index < route.segments.length; index += 1) {
-    const expectedSegment = route.segments[index];
-    const actualSegment = actual[index];
-    if (expectedSegment === undefined || actualSegment === undefined) {
-      return null;
+  result: DispatchResult<unknown, unknown>,
+  onError: HttpErrorObserver,
+  info: HttpErrorInfo,
+): HandlerResponse => {
+  if (result.kind === "completed") {
+    const outcome = result.outcome;
+    if (outcome.ok) {
+      return { status: route.successStatus, body: successBody(outcome.value) };
     }
-    if (expectedSegment.startsWith(":")) {
-      try {
-        params[expectedSegment.slice(1)] = decodeURIComponent(actualSegment);
-      } catch {
-        throw new HttpInputError("The request path is not valid URI encoding.", {
-          code: "INVALID_PATH_ENCODING",
-        });
-      }
-    } else if (expectedSegment !== actualSegment) {
-      return null;
-    }
+    const code = (outcome.error as { readonly code?: unknown }).code;
+    const status =
+      (typeof code === "string" ? route.errorStatus[code] : undefined) ?? 422;
+    return { status, body: errorBody(outcome.error) };
   }
-  return params;
+  if (result.kind === "rejected") {
+    const error = result.error;
+    if (error.code === "INVALID_INPUT") return { status: 400, body: errorBody(error) };
+    if (error.code === "PERMISSION_DENIED") return PERMISSION_DENIED_RESPONSE;
+    return NOT_FOUND_RESPONSE; // UNKNOWN_OPERATION: defensive, routes are validated
+  }
+  onError(result.error, info);
+  return INTERNAL_RESPONSE;
 };
 
-const compileRoutes = (
-  routes: readonly HttpRoute[],
-): readonly CompiledRoute[] => {
-  const identities = new Set<string>();
-  return routes.map((route) => {
-    const routeShape = route.path
-      .split("/")
-      .map((segment) => (segment.startsWith(":") ? ":" : segment))
-      .join("/");
-    const identity = `${route.method} ${routeShape}`;
-    if (identities.has(identity)) {
-      throw new TypeError(`Duplicate HTTP route ${identity}.`);
-    }
-    identities.add(identity);
-    return { route, segments: pathSegments(route.path) };
-  });
+/* ------------------------------------------------------------------ */
+/* createHttpHandler                                                  */
+/* ------------------------------------------------------------------ */
+
+const noopOnError: HttpErrorObserver = () => {};
+
+const developmentOnError: HttpErrorObserver = (error, info) => {
+  console.error(`[agentix:http] ${info.method} ${info.path}`, error);
 };
 
-const unauthenticated = (): Response =>
-  jsonResponse(
-    {
-      ok: false,
-      error: {
-        code: "UNAUTHENTICATED",
-        message: "Authentication is required.",
-      },
-    },
-    401,
-  );
-
-const routeNotFound = (): Response =>
-  jsonResponse(
-    { ok: false, error: { code: "ROUTE_NOT_FOUND", message: "Route not found." } },
-    404,
-  );
-
-export const createHttpHandler = (
-  options: CreateHttpHandlerOptions,
+/**
+ * Builds an HTTP handler whose routes are AUTO-derived from the app's
+ * operations' `http` metadata. Request flow (both entries): route match ->
+ * authenticate -> core authorize() 403 BEFORE body read -> body read ->
+ * JSON.parse -> input mapping -> dispatch -> JSON envelope.
+ */
+export const createHttpHandler = <Ops>(
+  app: Application<Ops>,
+  options: CreateHttpHandlerOptions = {},
 ): HttpHandler => {
-  for (const route of options.routes) {
-    const registered = options.application.getOperation(route.operation.id);
+  const overrides = options.routes ?? [];
+  for (const override of overrides) {
+    const registered = app.getOperation(override.operation.id);
     if (registered === undefined) {
       throw new TypeError(
-        `HTTP route ${route.method} ${route.path} references unknown operation ${route.operation.id}.`,
+        `HTTP route ${override.method} ${override.path} references unknown operation ${override.operation.id}`,
       );
     }
-    if (registered !== route.operation) {
+    if (registered !== override.operation) {
       throw new TypeError(
-        `HTTP route ${route.method} ${route.path} does not use the registered descriptor for ${route.operation.id}.`,
+        `HTTP route ${override.method} ${override.path} does not use the registered descriptor for ${override.operation.id}`,
       );
     }
   }
-  const routes = compileRoutes(options.routes);
-  const anonymousPrincipal = options.anonymousPrincipal ?? {
-    id: "anonymous",
-    permissions: [],
-  };
+  const operations = Object.values(
+    app.operations as Readonly<Record<string, AnyBoundOperation>>,
+  );
+  const table = compileRouteTable(operations, overrides);
+  const authenticate = options.authenticate;
+  const onError =
+    options.onError ?? (app.mode === "development" ? developmentOnError : noopOnError);
 
-  return async (request) => {
+  const handle = async (request: HandlerRequest): Promise<HandlerResponse> => {
+    const match = matchRoute(table, request.method, request.path);
+    if (match.kind === "not_found") return NOT_FOUND_RESPONSE;
+    if (match.kind === "method_not_allowed") {
+      return { status: 405, body: METHOD_NOT_ALLOWED_BODY, headers: { allow: match.allow } };
+    }
+    const route = match.route;
+    const info: HttpErrorInfo = {
+      method: request.method,
+      path: request.path,
+      operationId: route.operationId,
+    };
     try {
-      const url = new URL(request.url);
-      const pathMatches = routes.flatMap((compiled) => {
-        const params = matchPath(compiled, url.pathname);
-        return params === null ? [] : [{ compiled, params }];
-      });
-      const match = pathMatches.find(
-        ({ compiled }) => compiled.route.method === request.method.toUpperCase(),
-      );
-
-      if (match === undefined) {
-        if (pathMatches.length > 0) {
-          const allowed = [...new Set(pathMatches.map(({ compiled }) => compiled.route.method))]
-            .sort()
-            .join(", ");
-          return jsonResponse(
-            {
-              ok: false,
-              error: { code: "METHOD_NOT_ALLOWED", message: "Method not allowed." },
-            },
-            405,
-            { allow: allowed },
-          );
+      let principal: Principal | undefined;
+      if (authenticate !== undefined) {
+        try {
+          principal = (await authenticate(request)) ?? undefined;
+        } catch (error) {
+          if (error instanceof AuthenticationError) {
+            return { status: 401, body: errorBody({ code: error.code }) };
+          }
+          onError(error, info);
+          return INTERNAL_RESPONSE;
         }
-        return routeNotFound();
       }
 
-      const principal = options.principal === undefined
-        ? anonymousPrincipal
-        : await options.principal(request);
-      if (principal === null) {
-        return unauthenticated();
+      // Single permission gate, BEFORE the body is read (spec requirement).
+      if (!authorize(route.operation, principal)) return PERMISSION_DENIED_RESPONSE;
+
+      let text: string | undefined;
+      try {
+        text = await request.readBody();
+      } catch (error) {
+        if (error instanceof RequestBodyLimitError) return PAYLOAD_TOO_LARGE_RESPONSE;
+        onError(error, info);
+        return INTERNAL_RESPONSE;
+      }
+      let body: unknown;
+      if (text !== undefined && text.length > 0) {
+        try {
+          body = JSON.parse(text);
+        } catch {
+          return INVALID_JSON_RESPONSE;
+        }
       }
 
-      const context: HttpRouteContext = {
-        request,
-        url,
-        params: match.params,
-      };
-      const responseContext = {
-        ...context,
-        operationId: match.compiled.route.operation.id,
-      };
-      const grantedPermissions = new Set(principal.permissions);
-      const missingPermissions = match.compiled.route.operation.permissions.filter(
-        (permission) => !grantedPermissions.has(permission),
-      );
-      if (missingPermissions.length > 0) {
-        const result: RejectedDispatch = Object.freeze({
-          kind: "rejected",
-          operationId: match.compiled.route.operation.id,
-          error: Object.freeze({
-            code: "PERMISSION_DENIED",
-            principalId: principal.id,
-            missingPermissions: Object.freeze(missingPermissions),
-          }),
-        });
-        return match.compiled.route.mapResponse === undefined
-          ? mapDispatchResult(result, match.compiled.route.responses)
-          : await match.compiled.route.mapResponse(result, responseContext);
-      }
+      const input =
+        route.mapRequest === undefined
+          ? route.buildInput(match.params, request.query, body)
+          : await route.mapRequest({
+              method: request.method,
+              path: request.path,
+              params: match.params,
+              query: queryRecord(request.query),
+              body,
+              headers: request.headers,
+            });
 
-      const input = await match.compiled.route.mapRequest(context);
-      const dispatchOptions = {
-        input,
-        principal,
-        ...(match.compiled.route.trace === undefined
-          ? {}
-          : { trace: match.compiled.route.trace }),
-      };
-      const result = await options.application.dispatch(
-        match.compiled.route.operation,
-        dispatchOptions,
+      const result = await app.dispatch(
+        route.operation,
+        principal === undefined ? { input } : { input, principal },
       );
-      return match.compiled.route.mapResponse === undefined
-        ? mapDispatchResult(result, match.compiled.route.responses)
-        : await match.compiled.route.mapResponse(result, responseContext);
-    } catch (error: unknown) {
-      if (error instanceof AuthenticationError) {
-        return jsonResponse(
-          { ok: false, error: { code: error.code, message: error.message } },
-          401,
-        );
-      }
-      if (error instanceof HttpInputError) {
-        return jsonResponse(
-          { ok: false, error: { code: error.code, message: error.message } },
-          error.status,
-        );
-      }
-      return jsonResponse(
-        {
-          ok: false,
-          error: {
-            code: "INTERNAL_ERROR",
-            message: "The HTTP adapter failed unexpectedly.",
-          },
-        },
-        500,
-      );
+      return respondDispatch(route, result, onError, info);
+    } catch (error) {
+      onError(error, info);
+      return INTERNAL_RESPONSE;
     }
   };
+
+  const toResponse = (outcome: HandlerResponse): Response => {
+    const headers: Record<string, string> = { "content-type": JSON_CONTENT_TYPE };
+    if (outcome.headers !== undefined) {
+      for (const name of Object.keys(outcome.headers)) {
+        const value = outcome.headers[name];
+        if (value !== undefined) headers[name] = value;
+      }
+    }
+    return new Response(outcome.body, { status: outcome.status, headers });
+  };
+
+  const fetchEntry = async (request: Request): Promise<Response> => {
+    try {
+      const url = new URL(request.url);
+      const outcome = await handle({
+        method: request.method,
+        path: url.pathname,
+        query: url.search.length > 1 ? url.search.slice(1) : "",
+        headers: (name) => request.headers.get(name) ?? undefined,
+        readBody: async () => {
+          if (request.method === "GET" || request.method === "HEAD" || request.body === null) {
+            return undefined;
+          }
+          const text = await request.text();
+          return text.length === 0 ? undefined : text;
+        },
+      });
+      return toResponse(outcome);
+    } catch (error) {
+      onError(error, { method: request.method, path: request.url });
+      return toResponse(INTERNAL_RESPONSE);
+    }
+  };
+
+  return Object.freeze({ fetch: fetchEntry, handle, routes: table });
 };

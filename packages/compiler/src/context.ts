@@ -1,18 +1,22 @@
-import { computeAffected, planVerification } from "./affected.js";
+import { computeAffected, planVerification, workspaceVerificationPlan } from "./affected.js";
 import { stableJson } from "./files.js";
 import {
   COMPILER_VERSION,
   type AffectedItem,
+  type AffectedResult,
   type AgentIndex,
   type IndexedOperation,
   type OperationContext,
   type OperationContextAnalysis,
+  type OperationContextExcerpts,
   type OperationContextOmission,
   type OperationContextVerification,
   type OperationDetail,
 } from "./types.js";
 
 export const OPERATION_CONTEXT_BYTE_LIMIT = 8 * 1024;
+
+type ExcerptLevel = "full" | "core" | "none";
 
 interface ProjectionLimits {
   readonly operationItems: number;
@@ -23,7 +27,7 @@ interface ProjectionLimits {
   readonly affectedReasons: number;
   readonly affectedDiagnostics: number;
   readonly verificationTestFiles: number;
-  readonly includeSchemas: boolean;
+  readonly excerpts: ExcerptLevel;
   readonly forceWorkspaceVerification: boolean;
 }
 
@@ -41,7 +45,7 @@ const projectionLevels: readonly ProjectionLimits[] = [
     affectedReasons: 2,
     affectedDiagnostics: 4,
     verificationTestFiles: 16,
-    includeSchemas: true,
+    excerpts: "full",
     forceWorkspaceVerification: false,
   },
   {
@@ -53,7 +57,7 @@ const projectionLevels: readonly ProjectionLimits[] = [
     affectedReasons: 1,
     affectedDiagnostics: 1,
     verificationTestFiles: 4,
-    includeSchemas: true,
+    excerpts: "core",
     forceWorkspaceVerification: false,
   },
   {
@@ -65,7 +69,7 @@ const projectionLevels: readonly ProjectionLimits[] = [
     affectedReasons: 0,
     affectedDiagnostics: 0,
     verificationTestFiles: 0,
-    includeSchemas: false,
+    excerpts: "none",
     forceWorkspaceVerification: true,
   },
 ];
@@ -138,14 +142,102 @@ const take = <T>(
   return included;
 };
 
+/**
+ * Bounded source excerpts. "full" embeds schema declarations, the execute
+ * signature, error detail schemas, and port operation signatures; "core"
+ * keeps only input/output/execute; "none" drops the section entirely with
+ * an omission ledger entry.
+ */
+const projectExcerpts = (
+  index: AgentIndex,
+  operation: IndexedOperation,
+  limits: ProjectionLimits,
+  state: ProjectionState,
+): OperationContextExcerpts | undefined => {
+  const detailExpansion = commandExpansion("detail", operation);
+  const input = operation.input?.declaration ?? operation.input?.text;
+  const output = operation.output?.declaration ?? operation.output?.text;
+  const execute = operation.executeSignature;
+  const errorTexts = operation.errors
+    .filter((error) => error.details !== undefined)
+    .map((error) => ({ code: error.code, text: error.details as string }));
+  const signatureByOperationId = new Map<string, string>();
+  for (const port of index.ports) {
+    for (const portOperation of port.operations) {
+      if (portOperation.signature !== undefined) {
+        signatureByOperationId.set(portOperation.id, portOperation.signature);
+      }
+    }
+  }
+  const effectSignatures = operation.effects
+    .filter((effect) => effect.operationId !== undefined)
+    .map((effect) => ({
+      name: effect.name,
+      signature: signatureByOperationId.get(effect.operationId as string),
+    }))
+    .filter((entry): entry is { name: string; signature: string } => entry.signature !== undefined);
+  const total =
+    (input === undefined ? 0 : 1) +
+    (output === undefined ? 0 : 1) +
+    (execute === undefined ? 0 : 1) +
+    errorTexts.length +
+    effectSignatures.length;
+
+  if (limits.excerpts === "none") {
+    if (total > 0) {
+      state.omissions.push({
+        path: "excerpts",
+        total,
+        included: 0,
+        expand: detailExpansion,
+      });
+    }
+    return undefined;
+  }
+  if (limits.excerpts === "core") {
+    const omitted = errorTexts.length + effectSignatures.length;
+    if (omitted > 0) {
+      state.omissions.push({
+        path: "excerpts",
+        total,
+        included: total - omitted,
+        expand: detailExpansion,
+      });
+    }
+    if (input === undefined && output === undefined && execute === undefined) return undefined;
+    return {
+      ...(input === undefined ? {} : { input }),
+      ...(output === undefined ? {} : { output }),
+      ...(execute === undefined ? {} : { execute }),
+    };
+  }
+  if (total === 0) return undefined;
+  return {
+    ...(input === undefined ? {} : { input }),
+    ...(output === undefined ? {} : { output }),
+    ...(execute === undefined ? {} : { execute }),
+    ...(errorTexts.length === 0
+      ? {}
+      : {
+          errors: take(errorTexts, limits.operationItems, "excerpts.errors", detailExpansion, state),
+        }),
+    ...(effectSignatures.length === 0
+      ? {}
+      : {
+          effects: take(effectSignatures, limits.effects, "excerpts.effects", detailExpansion, state),
+        }),
+  };
+};
+
 const projectVerification = (
   index: AgentIndex,
   operation: IndexedOperation,
   rootDir: string,
+  affected: AffectedResult,
   limits: ProjectionLimits,
   state: ProjectionState,
 ): OperationContextVerification => {
-  const plan = planVerification(index, operation.id, rootDir);
+  const plan = planVerification(index, operation.id, rootDir, affected);
   const mustWiden = limits.forceWorkspaceVerification ||
     plan.testFiles.length > limits.verificationTestFiles ||
     plan.typecheck.length > 24 || plan.tests.length > 24;
@@ -159,29 +251,24 @@ const projectVerification = (
       expand: commandExpansion("detail", operation),
     });
   }
-  const workspace = planVerification(index, "tsconfig.json", rootDir);
-  return {
-    schemaVersion: "1",
-    target: operation.id,
-    scope: "workspace",
-    reason: "The bounded context omits part of the narrow plan, so verification widens to the workspace.",
-    typecheck: workspace.typecheck,
-    tests: workspace.tests,
-    testFiles: [],
-  };
+  return workspaceVerificationPlan(
+    operation.id,
+    rootDir,
+    "The bounded context omits part of the narrow plan, so verification widens to the workspace.",
+  );
 };
 
 const projectContext = (
   index: AgentIndex,
   operation: IndexedOperation,
   rootDir: string,
+  affected: AffectedResult,
   limits: ProjectionLimits,
 ): OperationContext => {
   const state: ProjectionState = { omissions: [] };
   const detailExpansion = commandExpansion("detail", operation);
   const affectedExpansion = commandExpansion("affected", operation);
   const analysis = operationAnalysis(index, operation);
-  const affected = computeAffected(index, operation.id, rootDir);
   const counts = new Map<AffectedItem["kind"], number>();
   for (const item of affected.items) {
     counts.set(item.kind, (counts.get(item.kind) ?? 0) + 1);
@@ -218,38 +305,23 @@ const projectContext = (
     });
   }
 
-  const input = limits.includeSchemas ? operation.input : undefined;
-  const output = limits.includeSchemas ? operation.output : undefined;
-  if (!limits.includeSchemas && operation.input !== undefined) {
-    state.omissions.push({
-      path: "input",
-      total: 1,
-      included: 0,
-      expand: detailExpansion,
-    });
-  }
-  if (!limits.includeSchemas && operation.output !== undefined) {
-    state.omissions.push({
-      path: "output",
-      total: 1,
-      included: 0,
-      expand: detailExpansion,
-    });
-  }
-
-  const verification = projectVerification(index, operation, rootDir, limits, state);
+  const excerpts = projectExcerpts(index, operation, limits, state);
+  const verification = projectVerification(index, operation, rootDir, affected, limits, state);
   return {
-    schemaVersion: "1",
+    schemaVersion: "2",
     artifactKind: "operation-context",
     id: operation.id,
+    key: operation.key,
     symbol: operation.symbol,
     kind: operation.kind,
     ...(operation.feature === undefined ? {} : { feature: operation.feature }),
     source: operation.source,
-    ...(input === undefined ? {} : { input }),
-    ...(output === undefined ? {} : { output }),
+    ...(operation.http === undefined ? {} : { http: operation.http }),
     errors: take(
-      operation.errors,
+      operation.errors.map((error) => ({
+        code: error.code,
+        ...(error.http === undefined ? {} : { http: error.http }),
+      })),
       limits.operationItems,
       "errors",
       detailExpansion,
@@ -276,10 +348,10 @@ const projectContext = (
       detailExpansion,
       state,
     ),
-    invariants: take(
-      operation.invariants,
+    ensures: take(
+      operation.ensures,
       limits.operationItems,
-      "invariants",
+      "ensures",
       detailExpansion,
       state,
     ),
@@ -290,6 +362,7 @@ const projectContext = (
       detailExpansion,
       state,
     ),
+    ...(excerpts === undefined ? {} : { excerpts }),
     analysis: {
       ...analysis,
       targetDiagnostics: take(
@@ -308,7 +381,7 @@ const projectContext = (
       ),
     },
     affected: {
-      schemaVersion: "1",
+      schemaVersion: "2",
       target: operation.id,
       widened: affected.widened,
       totalItems: affected.items.length,
@@ -340,12 +413,13 @@ export const createOperationDetail = (
 ): OperationDetail | undefined => {
   const operation = index.operations.find((candidate) => candidate.id === target);
   if (operation === undefined) return undefined;
+  const affected = computeAffected(index, operation.id, rootDir);
   return {
-    schemaVersion: "1",
+    schemaVersion: "2",
     artifactKind: "operation-detail",
     ...operation,
     analysis: operationAnalysis(index, operation),
-    verification: planVerification(index, operation.id, rootDir),
+    verification: planVerification(index, operation.id, rootDir, affected),
   };
 };
 
@@ -357,8 +431,11 @@ export const createOperationContext = (
   const operation = index.operations.find((candidate) => candidate.id === target);
   if (operation === undefined) return undefined;
 
+  // One affected computation per inspect; reused by every projection level
+  // and by the verification plan.
+  const affected = computeAffected(index, operation.id, rootDir);
   for (const limits of projectionLevels) {
-    const context = projectContext(index, operation, rootDir, limits);
+    const context = projectContext(index, operation, rootDir, affected, limits);
     if (Buffer.byteLength(stableJson(context)) <= OPERATION_CONTEXT_BYTE_LIMIT) {
       return context;
     }

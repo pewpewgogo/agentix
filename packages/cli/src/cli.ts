@@ -3,15 +3,18 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
+  checkIndexStaleness,
   computeAffected,
   createOperationContext,
   createOperationDetail,
   generateIndex,
   planVerification,
+  readIndex,
   stableJson,
   type AgentIndex,
   type CompilerDiagnostic,
   type GraphEdge,
+  type IndexedHttp,
   type OperationContext,
 } from "@agentix/compiler";
 
@@ -140,9 +143,21 @@ const serializeJson = (value: unknown, compact: boolean): string => {
   return stableJson(value, { compact });
 };
 
-const loadFreshIndex = (rootDir: string): AgentIndex =>
-  // Generated indexes are disposable outputs, never trusted inputs to agent context.
-  generateIndex({ rootDir, write: true }).index;
+/**
+ * Re-analysis per invocation stays the default trust path. The generated
+ * index is used as a fast path ONLY when its deterministic source digest
+ * still matches the working tree; anything stale, missing, or malformed
+ * falls back to a fresh analysis that rewrites the artifact.
+ */
+const loadIndex = (rootDir: string): AgentIndex => {
+  try {
+    const cached = readIndex(rootDir);
+    if (!checkIndexStaleness(cached, rootDir).stale) return cached;
+  } catch {
+    // Missing or unreadable cache: fall through to re-analysis.
+  }
+  return generateIndex({ rootDir, write: true }).index;
+};
 
 const diagnosticText = (diagnostic: CompilerDiagnostic): string =>
   `${diagnostic.source.file}:${diagnostic.source.line}:${diagnostic.source.column} ${diagnostic.severity} ${diagnostic.code}: ${diagnostic.message}`;
@@ -162,12 +177,13 @@ const inspectTarget = (
   }
   const feature = index.features.find((candidate) => candidate.id === target);
   if (feature !== undefined) {
+    const affected = computeAffected(index, target, rootDir);
     return {
-      schemaVersion: "1",
+      schemaVersion: "2",
       kind: "feature",
       ...feature,
-      affected: computeAffected(index, target, rootDir),
-      verification: planVerification(index, target, rootDir),
+      affected,
+      verification: planVerification(index, target, rootDir, affected),
     };
   }
   const operation = index.operations.find((candidate) => candidate.id === target);
@@ -176,13 +192,13 @@ const inspectTarget = (
   }
   const port = index.ports.find((candidate) => candidate.id === target);
   if (port !== undefined) {
-    return { schemaVersion: "1", kind: "port", ...port };
+    return { schemaVersion: "2", kind: "port", ...port };
   }
   for (const owner of index.ports) {
     const operation = owner.operations.find((candidate) => candidate.id === target);
     if (operation !== undefined) {
       return {
-        schemaVersion: "1",
+        schemaVersion: "2",
         artifactKind: "port-operation",
         port: owner.id,
         ...operation,
@@ -191,11 +207,7 @@ const inspectTarget = (
   }
   const event = index.events.find((candidate) => candidate.id === target);
   if (event !== undefined) {
-    return { schemaVersion: "1", kind: "event", ...event };
-  }
-  const invariant = index.invariants.find((candidate) => candidate.id === target);
-  if (invariant !== undefined) {
-    return { schemaVersion: "1", kind: "invariant", ...invariant };
+    return { schemaVersion: "2", kind: "event", ...event };
   }
   throw new UsageError(`No indexed feature or operation matches '${target}'.`);
 };
@@ -206,13 +218,16 @@ const formatInspect = (value: unknown): string => {
     readonly kind: string;
     readonly artifactKind?: string;
     readonly source: { readonly file: string; readonly line: number };
+    readonly exports?: readonly string[];
     readonly dependencies?: readonly string[];
     readonly consumers?: readonly string[];
     readonly operations?: readonly string[];
+    readonly http?: IndexedHttp;
+    readonly errors?: readonly { readonly code: string; readonly http?: number }[];
     readonly permissions?: readonly string[];
     readonly effects?: readonly { readonly name: string; readonly operationId?: string; readonly reference: string }[];
     readonly events?: readonly string[];
-    readonly invariants?: readonly string[];
+    readonly ensures?: readonly string[];
     readonly tests?: readonly string[];
     readonly verification?: { readonly scope: string; readonly reason: string };
     readonly analysis?: OperationContext["analysis"];
@@ -225,9 +240,21 @@ const formatInspect = (value: unknown): string => {
   const list = (label: string, values: readonly string[] | undefined): void => {
     if (values !== undefined) lines.push(`${label}: ${values.length === 0 ? "-" : values.join(", ")}`);
   };
+  list("exports", inspected.exports);
   list("dependencies", inspected.dependencies);
   list("consumers", inspected.consumers);
   list("operations", inspected.operations);
+  if (inspected.http !== undefined) {
+    lines.push(
+      `http: ${inspected.http.method} ${inspected.http.path}${inspected.http.status === undefined ? "" : ` ${inspected.http.status}`}`,
+    );
+  }
+  if (inspected.errors !== undefined) {
+    list(
+      "errors",
+      inspected.errors.map((error) => `${error.code}${error.http === undefined ? "" : `(${error.http})`}`),
+    );
+  }
   list("permissions", inspected.permissions);
   if (inspected.effects !== undefined) {
     list(
@@ -236,7 +263,7 @@ const formatInspect = (value: unknown): string => {
     );
   }
   list("events", inspected.events);
-  list("invariants", inspected.invariants);
+  list("ensures", inspected.ensures);
   list("tests", inspected.tests);
   if (inspected.analysis !== undefined) {
     const { project } = inspected.analysis;
@@ -281,9 +308,15 @@ const graphEdges = (index: AgentIndex, featureId?: string): readonly GraphEdge[]
     ...feature.dependencies,
     ...feature.consumers,
     ...feature.operations,
-    ...feature.invariants,
+    ...feature.events,
     ...feature.tests,
   ]);
+  for (const port of index.ports) {
+    if (port.feature === feature.id) {
+      related.add(port.id);
+      for (const operation of port.operations) related.add(operation.id);
+    }
+  }
   return index.edges.filter((edge) => related.has(edge.from) || related.has(edge.to));
 };
 
@@ -295,7 +328,7 @@ const formatGraph = (
   compact = false,
 ): string => {
   if (format === "json") {
-    return serializeJson({ schemaVersion: "1", edges }, compact);
+    return serializeJson({ schemaVersion: "2", edges }, compact);
   }
   if (format === "dot") {
     const lines = ["digraph agentix {"];
@@ -312,13 +345,25 @@ const formatGraph = (
     .join("\n")}\n`;
 };
 
-const featureName = (name: string): { camel: string; pascal: string } => {
+interface FeatureNames {
+  /** Feature binding, e.g. `priceRules` (reserved words get a suffix). */
+  readonly camel: string;
+  /** Entity schema/type name, e.g. `PriceRules`. */
+  readonly pascal: string;
+  /** Error-code prefix, e.g. `PRICE_RULES`. */
+  readonly constant: string;
+  /** Store port id, e.g. `priceRulesStorage`. */
+  readonly storeId: string;
+}
+
+const featureName = (name: string): FeatureNames => {
   if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u.test(name)) {
     throw new UsageError("Feature name must be lowercase kebab-case.");
   }
   const pieces = name.split("-");
   const pascal = pieces.map((piece) => `${piece[0]?.toUpperCase()}${piece.slice(1)}`).join("");
   const candidate = `${pieces[0]}${pascal.slice(pieces[0]?.length ?? 0)}`;
+  // JS reserved words plus every binding the emitted template already uses.
   const reservedBindings = new Set([
     "arguments", "await", "break", "case", "catch", "class", "const",
     "continue", "debugger", "default", "delete", "do", "else", "enum",
@@ -327,28 +372,101 @@ const featureName = (name: string): { camel: string; pascal: string } => {
     "new", "null", "package", "private", "protected", "public", "return",
     "static", "super", "switch", "this", "throw", "true", "try", "typeof",
     "var", "void", "while", "with", "yield",
+    "command", "createApp", "createApplication", "describe", "expect",
+    "feature", "it", "port", "query", "s",
   ]);
   return {
     camel: reservedBindings.has(candidate) ? `${candidate}Feature` : candidate,
     pascal,
+    constant: pieces.join("_").toUpperCase(),
+    storeId: `${candidate}Storage`,
   };
 };
 
+/**
+ * v2 single-file feature template (modeled on the canonical notes.ts):
+ * one feature file with schema + store port + command/query, plus one
+ * colocated dispatch-level test.
+ */
 const scaffoldTemplates = (name: string): ReadonlyMap<string, string> => {
-  const { camel, pascal } = featureName(name);
+  const { camel, pascal, constant, storeId } = featureName(name);
+  const featureFile = `import { command, feature, port, query, s } from "@agentix/core";
+
+export const ${pascal} = s.object({
+  id: s.string({ min: 1 }),
+  title: s.string({ min: 1, trim: true }),
+});
+export type ${pascal} = s.Infer<typeof ${pascal}>;
+
+export const ${pascal}Storage = port.store("${storeId}", ${pascal});
+
+export const ${camel} = feature("${name}", {
+  operations: {
+    create: command({
+      input: ${pascal},
+      output: ${pascal},
+      errors: { ${constant}_ALREADY_EXISTS: { http: 409, details: { id: s.string() } } },
+      http: { method: "POST", path: "/${name}", status: 201 },
+      effects: { load: ${pascal}Storage.get, save: ${pascal}Storage.save },
+      async execute({ input, effects, fail }) {
+        if (await effects.load(input.id)) {
+          return fail("${constant}_ALREADY_EXISTS", { id: input.id });
+        }
+        return effects.save(input);
+      },
+    }),
+    get: query({
+      input: s.object({ id: s.string({ min: 1 }) }),
+      output: ${pascal},
+      errors: { ${constant}_NOT_FOUND: { http: 404, details: { id: s.string() } } },
+      http: { method: "GET", path: "/${name}/:id" },
+      effects: { load: ${pascal}Storage.get },
+      async execute({ input, effects, fail }) {
+        return (await effects.load(input.id)) ?? fail("${constant}_NOT_FOUND", { id: input.id });
+      },
+    }),
+  },
+});
+`;
+  const testFile = `import { createApplication } from "@agentix/core";
+import { describe, expect, it } from "vitest";
+
+import { ${camel}, ${pascal}Storage } from "./${name}.js";
+
+const createApp = () =>
+  createApplication({
+    features: [${camel}],
+    adapters: [${pascal}Storage.memory()],
+    mode: "test",
+  });
+
+describe("${name}", () => {
+  it("creates and reads an entry", async () => {
+    const app = createApp();
+    const created = await app.call("${name}.create", { id: "id-1", title: "First" });
+
+    expect(created).toEqual({ ok: true, value: { id: "id-1", title: "First" } });
+    expect(await app.call("${name}.get", { id: "id-1" })).toEqual(created);
+  });
+
+  it("returns stable duplicate and missing-entry failures", async () => {
+    const app = createApp();
+    await app.call("${name}.create", { id: "id-1", title: "First" });
+
+    expect(await app.call("${name}.create", { id: "id-1", title: "Again" })).toEqual({
+      ok: false,
+      error: { code: "${constant}_ALREADY_EXISTS", details: { id: "id-1" } },
+    });
+    expect(await app.call("${name}.get", { id: "missing" })).toEqual({
+      ok: false,
+      error: { code: "${constant}_NOT_FOUND", details: { id: "missing" } },
+    });
+  });
+});
+`;
   return new Map([
-    [
-      "contract.ts",
-      `import { defineFeatureContract } from "@agentix/core";\n\nexport interface ${pascal}View {\n  readonly id: string;\n}\n\nexport const ${camel}Contract = defineFeatureContract({\n  id: "${name}",\n  exports: {},\n});\n`,
-    ],
-    [
-      "feature.ts",
-      `import { defineFeature } from "@agentix/core";\n\nimport { ${camel}Contract } from "./contract.js";\n\nexport const ${camel} = defineFeature({\n  id: "${name}",\n  contract: ${camel}Contract,\n  dependencies: [],\n  operations: [],\n  invariants: [],\n});\n`,
-    ],
-    [
-      `${name}.test.ts`,
-      `import { describe, expect, it } from "vitest";\n\nimport { ${camel} } from "./feature.js";\n\ndescribe("${name}", () => {\n  it("declares a stable feature id", () => {\n    expect(${camel}.id).toBe("${name}");\n  });\n});\n`,
-    ],
+    [`${name}.ts`, featureFile],
+    [`${name}.test.ts`, testFile],
   ]);
 };
 
@@ -362,18 +480,28 @@ const scaffold = (
   name: string,
   dryRun: boolean,
 ): {
-  readonly schemaVersion: "1";
+  readonly schemaVersion: "2";
   readonly dryRun: boolean;
-  readonly directory: string;
+  readonly feature: string;
   readonly files: readonly string[];
   readonly nextActions: readonly string[];
 } => {
   const templates = scaffoldTemplates(name);
-  const directory = resolve(rootDir, "src/features", name);
-  if (existsSync(directory)) {
-    throw new UsageError(`Refusing to overwrite existing feature directory '${directory}'.`);
+  const { camel, pascal } = featureName(name);
+  const directory = resolve(rootDir, "src/features");
+  if (existsSync(resolve(directory, name))) {
+    throw new UsageError(
+      `Refusing to overwrite existing feature directory 'src/features/${name}'.`,
+    );
   }
-  const files = [...templates.keys()].map((file) => `src/features/${name}/${file}`).sort();
+  for (const file of templates.keys()) {
+    if (existsSync(resolve(directory, file))) {
+      throw new UsageError(
+        `Refusing to overwrite existing feature source 'src/features/${file}'.`,
+      );
+    }
+  }
+  const files = [...templates.keys()].map((file) => `src/features/${file}`).sort();
   if (!dryRun) {
     mkdirSync(directory, { recursive: true });
     for (const [file, contents] of templates) {
@@ -381,12 +509,12 @@ const scaffold = (
     }
   }
   return {
-    schemaVersion: "1",
+    schemaVersion: "2",
     dryRun,
-    directory: `src/features/${name}`,
+    feature: name,
     files,
     nextActions: [
-      `Register the feature from src/features/${name}/feature.ts in application assembly.`,
+      `Register ${camel} from src/features/${name}.ts in createApplication({ features: [..., ${camel}], adapters: [..., ${pascal}Storage.memory()] }).`,
       `cd ${shellArgument(rootDir)} && npm exec -- agentix inspect ${name} --root .`,
       `cd ${shellArgument(rootDir)} && npm exec -- agentix verify ${name} --root .`,
     ],
@@ -429,12 +557,12 @@ export const runCli = (
       io.stdout(
         parsed.json
           ? serializeJson(result, parsed.compact)
-          : `${result.dryRun ? "Would create" : "Created"} ${result.directory}\n${result.files.map((file) => `  ${file}`).join("\n")}\nNext:\n${result.nextActions.map((action) => `  ${action}`).join("\n")}\n`,
+          : `${result.dryRun ? "Would create" : "Created"} feature ${result.feature}\n${result.files.map((file) => `  ${file}`).join("\n")}\nNext:\n${result.nextActions.map((action) => `  ${action}`).join("\n")}\n`,
       );
       return ExitCode.success;
     }
 
-    const index = loadFreshIndex(rootDir);
+    const index = loadIndex(rootDir);
     if (command === "inspect") {
       const target = requireTarget(positionals, "inspect");
       const inspected = inspectTarget(index, target, rootDir, parsed.full);
@@ -477,7 +605,9 @@ export const runCli = (
       ) {
         throw new UsageError(`No indexed feature or operation matches '${target}'.`);
       }
-      const plan = planVerification(index, target, rootDir);
+      // One affected computation per invocation, shared with the plan.
+      const affected = computeAffected(index, target, rootDir);
+      const plan = planVerification(index, target, rootDir, affected);
       const architectureErrors = index.diagnostics.filter(
         (diagnostic) => diagnostic.severity === "error",
       );
@@ -497,7 +627,7 @@ export const runCli = (
       }
       const passed = architectureErrors.length === 0 && checks.length === 2 && checks.every(({ status }) => status === 0);
       const result = {
-        schemaVersion: "1",
+        schemaVersion: "2",
         target,
         passed,
         plan,

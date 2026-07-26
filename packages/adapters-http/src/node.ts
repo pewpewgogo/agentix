@@ -1,136 +1,161 @@
-import type { IncomingMessage, ServerResponse } from "node:http";
+import { createServer } from "node:http";
+import type { IncomingHttpHeaders, IncomingMessage, Server, ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
 
-import { jsonResponse } from "./route.js";
-import type { HttpHandler } from "./handler.js";
+import {
+  INTERNAL_ERROR_BODY,
+  JSON_CONTENT_TYPE,
+  RESPONSE_BODY_CONSTANTS,
+  RequestBodyLimitError,
+} from "./handler.js";
+import type { HandlerRequest, HandlerResponse, HttpHandler } from "./handler.js";
 
-export interface NodeHttpListenerOptions {
-  /** Used only when the Node request has no Host header. */
-  readonly fallbackOrigin?: string;
-  readonly trustForwardedProto?: boolean;
-  /** Defaults to one mebibyte because this thin host buffers request bodies. */
+export interface ServeNodeOptions {
+  /** Pass 0 for an ephemeral port; the resolved url reflects the real one. */
+  readonly port: number;
+  /** Defaults to 127.0.0.1. */
+  readonly host?: string;
+  /** Body byte cap; defaults to one mebibyte. Exceeding it answers 413. */
   readonly maxBodyBytes?: number;
 }
 
-class RequestBodyTooLargeError extends Error {}
+export interface NodeHttpServer {
+  readonly server: Server;
+  readonly url: string;
+  readonly close: () => Promise<void>;
+}
 
-const requestUrl = (
-  request: IncomingMessage,
-  options: NodeHttpListenerOptions,
-): URL => {
-  const host = request.headers.host;
-  const forwarded = request.headers["x-forwarded-proto"];
-  const forwardedProtocol = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-  const protocol =
-    options.trustForwardedProto === true && forwardedProtocol !== undefined
-      ? forwardedProtocol.split(",")[0]?.trim()
-      : "http";
-  const origin =
-    host === undefined
-      ? options.fallbackOrigin ?? `${protocol ?? "http"}://localhost`
-      : `${protocol ?? "http"}://${host}`;
-  return new URL(request.url ?? "/", origin);
+/** Constant envelopes pre-encoded once; dynamic bodies encode per response. */
+const CONSTANT_PAYLOADS: ReadonlyMap<string, Buffer> = new Map(
+  RESPONSE_BODY_CONSTANTS.map((body) => [body, Buffer.from(body, "utf8")]),
+);
+
+const headerValue = (
+  headers: IncomingHttpHeaders,
+  name: string,
+): string | undefined => {
+  const value = headers[name.toLowerCase()];
+  if (value === undefined) return undefined;
+  return Array.isArray(value) ? value.join(", ") : value;
 };
 
-const webHeaders = (request: IncomingMessage): Headers => {
-  const headers = new Headers();
-  for (const [name, value] of Object.entries(request.headers)) {
-    if (Array.isArray(value)) {
-      value.forEach((item) => headers.append(name, item));
-    } else if (value !== undefined) {
-      headers.append(name, value);
-    }
-  }
-  return headers;
-};
-
-const readBody = async (
+const readRequestBody = async (
   request: IncomingMessage,
   maxBodyBytes: number,
-): Promise<ArrayBuffer | undefined> => {
-  if (request.method === "GET" || request.method === "HEAD") {
-    return undefined;
-  }
-  const chunks: Uint8Array[] = [];
-  let bodyBytes = 0;
-  for await (const chunk of request) {
-    const bytes = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
-    bodyBytes += bytes.byteLength;
-    if (bodyBytes > maxBodyBytes) {
-      throw new RequestBodyTooLargeError();
+): Promise<string | undefined> => {
+  if (request.method === "GET" || request.method === "HEAD") return undefined;
+  const declared = request.headers["content-length"];
+  if (declared !== undefined) {
+    const bytes = Number(declared);
+    if (Number.isFinite(bytes) && bytes > maxBodyBytes) {
+      throw new RequestBodyLimitError();
     }
-    chunks.push(bytes);
   }
-  if (chunks.length === 0) {
-    return undefined;
+  const chunks: Buffer[] = [];
+  let total = 0;
+  for await (const chunk of request) {
+    const buffer = typeof chunk === "string" ? Buffer.from(chunk) : (chunk as Buffer);
+    total += buffer.byteLength;
+    if (total > maxBodyBytes) throw new RequestBodyLimitError();
+    chunks.push(buffer);
   }
-  return Uint8Array.from(Buffer.concat(chunks)).buffer;
+  if (total === 0) return undefined;
+  const first = chunks[0];
+  return chunks.length === 1 && first !== undefined
+    ? first.toString("utf8")
+    : Buffer.concat(chunks, total).toString("utf8");
 };
 
-const writeResponse = async (
-  response: Response,
-  destination: ServerResponse,
+const writeOutcome = (response: ServerResponse, outcome: HandlerResponse): void => {
+  const payload = CONSTANT_PAYLOADS.get(outcome.body) ?? Buffer.from(outcome.body, "utf8");
+  const headers: Record<string, string | number> = {
+    "content-type": JSON_CONTENT_TYPE,
+    "content-length": payload.byteLength,
+  };
+  if (outcome.headers !== undefined) {
+    for (const name of Object.keys(outcome.headers)) {
+      const value = outcome.headers[name];
+      if (value !== undefined) headers[name] = value;
+    }
+  }
+  response.writeHead(outcome.status, headers);
+  response.end(payload);
+};
+
+const handleRaw = async (
+  handler: HttpHandler,
+  request: IncomingMessage,
+  response: ServerResponse,
+  maxBodyBytes: number,
 ): Promise<void> => {
-  destination.statusCode = response.status;
-  response.headers.forEach((value, name) => {
-    destination.setHeader(name, value);
-  });
-  if (response.body === null) {
-    destination.end();
+  let outcome: HandlerResponse;
+  try {
+    const target = request.url ?? "/";
+    const queryIndex = target.indexOf("?");
+    const raw: HandlerRequest = {
+      method: request.method ?? "GET",
+      path: queryIndex === -1 ? target : target.slice(0, queryIndex),
+      query: queryIndex === -1 ? "" : target.slice(queryIndex + 1),
+      headers: (name) => headerValue(request.headers, name),
+      readBody: () => readRequestBody(request, maxBodyBytes),
+    };
+    outcome = await handler.handle(raw);
+  } catch {
+    outcome = { status: 500, body: INTERNAL_ERROR_BODY };
+  }
+  if (response.headersSent) {
+    response.destroy();
     return;
   }
-  destination.end(Buffer.from(await response.arrayBuffer()));
+  writeOutcome(response, outcome);
 };
 
-/** Adapts Web Request/Response values to a Node HTTP listener without listening. */
-export const createNodeHttpListener = (
+const urlHost = (address: AddressInfo): string => {
+  if (address.address === "0.0.0.0") return "127.0.0.1";
+  if (address.address === "::" || address.address === "::1") return "[::1]";
+  return address.family === "IPv6" ? `[${address.address}]` : address.address;
+};
+
+/**
+ * RAW req/res Node host over handler.handle(): no undici Request/Response
+ * construction on the hot path, single-copy body reads, pre-encoded constant
+ * envelopes, per-response precomputed status + content-length headers.
+ */
+export const serveNode = (
   handler: HttpHandler,
-  options: NodeHttpListenerOptions = {},
-): ((request: IncomingMessage, response: ServerResponse) => void) => {
+  options: ServeNodeOptions,
+): Promise<NodeHttpServer> => {
   const maxBodyBytes = options.maxBodyBytes ?? 1_048_576;
   if (!Number.isSafeInteger(maxBodyBytes) || maxBodyBytes < 0) {
-    throw new TypeError("maxBodyBytes must be a non-negative safe integer.");
+    throw new TypeError("maxBodyBytes must be a non-negative safe integer");
   }
+  if (!Number.isSafeInteger(options.port) || options.port < 0 || options.port > 65_535) {
+    throw new TypeError("port must be an integer in 0..65535");
+  }
+  const host = options.host ?? "127.0.0.1";
 
-  return (request, response) => {
-    void (async () => {
-      try {
-        const body = await readBody(request, maxBodyBytes);
-        const webRequest = new Request(requestUrl(request, options), {
-          method: request.method ?? "GET",
-          headers: webHeaders(request),
-          ...(body === undefined ? {} : { body }),
-        });
-        await writeResponse(await handler(webRequest), response);
-      } catch (error: unknown) {
-        if (!response.headersSent) {
-          await writeResponse(
-            error instanceof RequestBodyTooLargeError
-              ? jsonResponse(
-                  {
-                    ok: false,
-                    error: {
-                      code: "REQUEST_BODY_TOO_LARGE",
-                      message: "The request body is too large.",
-                    },
-                  },
-                  413,
-                )
-              : jsonResponse(
-                  {
-                    ok: false,
-                    error: {
-                      code: "INTERNAL_ERROR",
-                      message: "The Node HTTP host failed unexpectedly.",
-                    },
-                  },
-                  500,
-                ),
-            response,
-          );
-        } else {
-          response.destroy();
-        }
-      }
-    })();
-  };
+  const server = createServer((request, response) => {
+    void handleRaw(handler, request, response, maxBodyBytes);
+  });
+
+  return new Promise<NodeHttpServer>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(options.port, host, () => {
+      server.off("error", reject);
+      const address = server.address() as AddressInfo;
+      resolve(
+        Object.freeze({
+          server,
+          url: `http://${urlHost(address)}:${address.port}`,
+          close: () =>
+            new Promise<void>((resolveClose, rejectClose) => {
+              server.close((error) =>
+                error === undefined ? resolveClose() : rejectClose(error),
+              );
+              server.closeIdleConnections();
+            }),
+        }),
+      );
+    });
+  });
 };

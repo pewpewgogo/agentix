@@ -1,5 +1,5 @@
-export const INDEX_SCHEMA_VERSION = "1" as const;
-export const COMPILER_VERSION = "0.1.0" as const;
+export const INDEX_SCHEMA_VERSION = "2" as const;
+export const COMPILER_VERSION = "0.2.0" as const;
 
 export type DeclarationKind =
   | "feature"
@@ -7,7 +7,6 @@ export type DeclarationKind =
   | "query"
   | "port"
   | "event"
-  | "invariant"
   | "test";
 
 export interface SourceLocation {
@@ -36,8 +35,14 @@ export interface SourceManifest {
   readonly files: readonly ManifestEntry[];
 }
 
-export interface IndexedReference {
-  readonly id: string;
+/**
+ * Bounded source excerpt for a schema reference: `text` is the collapsed
+ * reference/inline expression, `declaration` the resolved declaration text
+ * (each capped at 1 KiB), `source` the declaration's location.
+ */
+export interface SchemaExcerpt {
+  readonly text: string;
+  readonly declaration?: string;
   readonly source?: SourceLocation;
 }
 
@@ -45,15 +50,14 @@ export interface IndexedFeature {
   readonly id: string;
   readonly symbol: string;
   readonly source: SourceLocation;
-  readonly contract: {
-    readonly expression: string;
-    readonly source?: SourceLocation;
-    readonly exports: readonly string[];
-  };
+  /** Exported names of the feature file — its public contract. */
+  readonly exports: readonly string[];
+  /** Feature ids this feature imports (derived from feature-file imports). */
   readonly dependencies: readonly string[];
   readonly consumers: readonly string[];
   readonly operations: readonly string[];
-  readonly invariants: readonly string[];
+  /** Event ids declared in the feature definition's `events` list. */
+  readonly events: readonly string[];
   readonly tests: readonly string[];
 }
 
@@ -64,19 +68,43 @@ export interface IndexedEffect {
   readonly kind?: "read" | "write" | "time" | "random" | "external";
 }
 
+/** Unified error declaration: `{ CODE: { http?, details? } }` or bare schema. */
+export interface IndexedOperationError {
+  readonly code: string;
+  readonly http?: number;
+  /** Bounded source text of the details schema declaration (≤1 KiB). */
+  readonly details?: string;
+}
+
+export interface IndexedHttp {
+  readonly method: string;
+  readonly path: string;
+  readonly status?: number;
+  /** Derived from the unified error declarations' `http` numbers. */
+  readonly errorStatus: Readonly<Record<string, number>>;
+}
+
 export interface IndexedOperation {
   readonly id: string;
+  /** The operations-object key the id was derived from. */
+  readonly key: string;
+  /** Addressable expression, e.g. `notes.operations.create`. */
   readonly symbol: string;
   readonly kind: "command" | "query";
   readonly feature?: string;
   readonly source: SourceLocation;
-  readonly input?: string;
-  readonly output?: string;
-  readonly errors: readonly string[];
+  readonly input?: SchemaExcerpt;
+  readonly output?: SchemaExcerpt;
+  readonly errors: readonly IndexedOperationError[];
+  readonly http?: IndexedHttp;
   readonly permissions: readonly string[];
   readonly effects: readonly IndexedEffect[];
+  /** Event ids emitted via `emits`. */
   readonly events: readonly string[];
-  readonly invariants: readonly string[];
+  /** Names of post-completion invariants declared via `ensures`. */
+  readonly ensures: readonly string[];
+  /** Bounded `execute` signature text (≤1 KiB, body elided). */
+  readonly executeSignature?: string;
   readonly tests: readonly string[];
 }
 
@@ -85,11 +113,14 @@ export interface IndexedPortOperation {
   readonly id: string;
   readonly kind: "read" | "write" | "time" | "random" | "external";
   readonly source: SourceLocation;
+  /** Bounded declaration text of the port operation (≤1 KiB). */
+  readonly signature?: string;
 }
 
 export interface IndexedPort {
   readonly id: string;
   readonly symbol: string;
+  readonly feature?: string;
   readonly source: SourceLocation;
   readonly operations: readonly IndexedPortOperation[];
 }
@@ -98,17 +129,8 @@ export interface IndexedEvent {
   readonly id: string;
   readonly symbol: string;
   readonly version?: number;
-  readonly source: SourceLocation;
-}
-
-export interface IndexedInvariant {
-  readonly id: string;
-  readonly symbol: string;
   readonly feature?: string;
   readonly source: SourceLocation;
-  readonly dependencies: readonly string[];
-  readonly preservers: readonly string[];
-  readonly tests: readonly string[];
 }
 
 export interface IndexedTest {
@@ -124,11 +146,10 @@ export interface GraphEdge {
   readonly kind:
     | "feature-dependency"
     | "feature-operation"
+    | "port-operation"
     | "operation-effect"
     | "operation-event"
-    | "operation-invariant"
-    | "operation-test"
-    | "invariant-dependency";
+    | "operation-test";
   readonly reason: string;
 }
 
@@ -140,16 +161,8 @@ export interface AgentIndex {
   readonly operations: readonly IndexedOperation[];
   readonly ports: readonly IndexedPort[];
   readonly events: readonly IndexedEvent[];
-  readonly invariants: readonly IndexedInvariant[];
   readonly tests: readonly IndexedTest[];
   readonly edges: readonly GraphEdge[];
-  readonly likelyAffected: readonly {
-    readonly target: string;
-    readonly operations: readonly {
-      readonly id: string;
-      readonly reason: string;
-    }[];
-  }[];
   readonly diagnostics: readonly CompilerDiagnostic[];
   readonly unresolved: readonly string[];
 }
@@ -184,7 +197,7 @@ export interface AffectedItem {
 }
 
 export interface AffectedResult {
-  readonly schemaVersion: "1";
+  readonly schemaVersion: "2";
   readonly target: string;
   readonly widened: boolean;
   readonly items: readonly AffectedItem[];
@@ -192,7 +205,7 @@ export interface AffectedResult {
 }
 
 export interface VerificationPlan {
-  readonly schemaVersion: "1";
+  readonly schemaVersion: "2";
   readonly target: string;
   readonly scope: "project" | "workspace";
   readonly reason: string;
@@ -227,7 +240,7 @@ export interface OperationContextAffectedItem {
 }
 
 export interface OperationContextAffected {
-  readonly schemaVersion: "1";
+  readonly schemaVersion: "2";
   readonly target: string;
   readonly widened: boolean;
   readonly totalItems: number;
@@ -263,7 +276,7 @@ export interface OperationContextProjection {
 }
 
 export interface OperationContextVerification {
-  readonly schemaVersion: "1";
+  readonly schemaVersion: "2";
   readonly target: string;
   readonly scope: "project" | "workspace";
   readonly reason: string;
@@ -272,9 +285,24 @@ export interface OperationContextVerification {
   readonly testFiles: readonly string[];
 }
 
+/** Bounded source excerpts making the context a one-artifact change surface. */
+export interface OperationContextExcerpts {
+  readonly input?: string;
+  readonly output?: string;
+  readonly execute?: string;
+  readonly errors?: readonly {
+    readonly code: string;
+    readonly text: string;
+  }[];
+  readonly effects?: readonly {
+    readonly name: string;
+    readonly signature: string;
+  }[];
+}
+
 /** Explicit, unbounded per-operation detail used to expand a bounded context. */
 export interface OperationDetail extends IndexedOperation {
-  readonly schemaVersion: "1";
+  readonly schemaVersion: "2";
   readonly artifactKind: "operation-detail";
   readonly analysis: OperationContextAnalysis;
   readonly verification: VerificationPlan;
@@ -285,21 +313,25 @@ export interface OperationDetail extends IndexedOperation {
  * a disposable artifact; agents should consume this projection instead.
  */
 export interface OperationContext {
-  readonly schemaVersion: "1";
+  readonly schemaVersion: "2";
   readonly artifactKind: "operation-context";
   readonly id: string;
+  readonly key: string;
   readonly symbol: string;
   readonly kind: "command" | "query";
   readonly feature?: string;
   readonly source: SourceLocation;
-  readonly input?: string;
-  readonly output?: string;
-  readonly errors: readonly string[];
+  readonly http?: IndexedHttp;
+  readonly errors: readonly {
+    readonly code: string;
+    readonly http?: number;
+  }[];
   readonly permissions: readonly string[];
   readonly effects: readonly IndexedEffect[];
   readonly events: readonly string[];
-  readonly invariants: readonly string[];
+  readonly ensures: readonly string[];
   readonly tests: readonly string[];
+  readonly excerpts?: OperationContextExcerpts;
   readonly analysis: OperationContextAnalysis;
   readonly affected: OperationContextAffected;
   readonly verification: OperationContextVerification;
