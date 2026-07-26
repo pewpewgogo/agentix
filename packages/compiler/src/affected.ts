@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 
-import { featureSegmentOf, repositoryPath } from "./files.js";
+import { compareStrings as compare, featureSegmentOf, repositoryPath } from "./files.js";
 import type {
   AffectedItem,
   AffectedReason,
@@ -23,9 +23,7 @@ interface TraversalEdge {
   readonly reason: string;
 }
 
-const compare = (left: string, right: string): number => left.localeCompare(right);
-
-const nodesFor = (index: AgentIndex): NodeDescription[] => [
+const nodesFor =(index: AgentIndex): NodeDescription[] => [
   ...index.features.map((feature) => ({ id: feature.id, kind: "feature" as const, file: feature.source.file })),
   ...index.operations.map((operation) => ({ id: operation.id, kind: operation.kind, file: operation.source.file })),
   ...index.ports.map((port) => ({ id: port.id, kind: "port" as const, file: port.source.file })),
@@ -355,15 +353,20 @@ export const planVerification = (
   const configDirectory = nearestVitestConfigDirectory(rootDir);
   const configAbove =
     configDirectory !== undefined && configDirectory !== resolve(rootDir);
+  // A positional filter must never parse as a flag: a legal file such as
+  // `--shard.test.ts` would otherwise mutate Vitest options, so dash-leading
+  // filters are anchored with `./` (testFiles ids stay unchanged).
+  const guardTestFilter = (filter: string): string =>
+    filter.startsWith("-") ? `./${filter}` : filter;
   const testArguments = configAbove
     ? [
         "--root",
         repositoryPath(rootDir, configDirectory),
         ...selectedTests.map(
-          (test) => `${repositoryPath(configDirectory, resolve(rootDir))}/${test}`,
+          (test) => guardTestFilter(`${repositoryPath(configDirectory, resolve(rootDir))}/${test}`),
         ),
       ]
-    : selectedTests;
+    : selectedTests.map(guardTestFilter);
   return {
     schemaVersion: "2",
     target,

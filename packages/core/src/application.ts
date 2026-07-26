@@ -120,6 +120,7 @@ export type DispatchRejectionError =
   | InvalidInputError;
 
 export type DispatchFaultCode =
+  | "AUTHORIZE_FAILED"
   | "INPUT_VALIDATION_FAILED"
   | "INVALID_OUTPUT"
   | "INVALID_DOMAIN_ERROR"
@@ -229,6 +230,14 @@ export interface Application<Ops> {
   /** Operations keyed by derived id, e.g. "notes.create". */
   readonly operations: Ops;
   getOperation(id: string): AnyBoundOperation | undefined;
+  /**
+   * The EFFECTIVE permission gate: the custom `authorize` hook when one was
+   * provided to createApplication, else the exported default subset check.
+   * HTTP adapters call this for the pre-body 403 so custom hooks are honored
+   * on every entry. May throw if a custom hook throws; dispatch converts such
+   * throws into an AUTHORIZE_FAILED fault.
+   */
+  authorize(operation: AnyBoundOperation, principal?: Principal): boolean;
   dispatch<Id extends keyof Ops & string>(
     operationId: Id,
     options: DispatchOptions<OpInput<Ops[Id]>>,
@@ -335,6 +344,15 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
   const mode = definition.mode ?? detectMode();
   const devChecks = mode !== "production";
   const authorizeHook = definition.authorize;
+
+  /** Effective gate: custom hook when provided, else the default subset check. */
+  const effectiveAuthorize = (
+    operation: AnyBoundOperation,
+    principal?: Principal,
+  ): boolean =>
+    authorizeHook === undefined
+      ? authorize(operation, principal)
+      : authorizeHook(principal, operation);
 
   /* ---------------- startup validation ---------------- */
 
@@ -540,30 +558,32 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
         throw latchBoundaryFault(lifecycle, boundary);
       }
 
-      // Internal boundary: production skips ONLY this re-parse.
-      if (devChecks) {
-        try {
-          const parsedOutput = effect.output.safeParse(value);
-          if (!parsedOutput.success) {
-            const boundary = fault(
-              "INVALID_EFFECT_OUTPUT",
-              `Adapter for ${effect.id} returned invalid output`,
-              { effectId: effect.id, issues: parsedOutput.issues },
-            );
-            trace?.push(effectFaultEntry(operation.id, alias, effect.id, parsedInput, boundary));
-            throw latchBoundaryFault(lifecycle, boundary);
-          }
-          value = parsedOutput.data;
-        } catch (cause) {
-          if (cause instanceof BoundaryFault) throw cause;
+      // Effect outputs are re-parsed in EVERY mode, production included:
+      // execute always receives the DETACHED parse product, never the
+      // adapter's live object, so mutations cannot alias store state.
+      // (Orchestrator amendment overriding SPEC section 1's production-skip
+      // bullet: uniform data semantics beats the ~0.16us saving.)
+      try {
+        const parsedOutput = effect.output.safeParse(value);
+        if (!parsedOutput.success) {
           const boundary = fault(
             "INVALID_EFFECT_OUTPUT",
-            `Output schema for effect ${effect.id} threw during validation`,
-            { effectId: effect.id, cause },
+            `Adapter for ${effect.id} returned invalid output`,
+            { effectId: effect.id, issues: parsedOutput.issues },
           );
           trace?.push(effectFaultEntry(operation.id, alias, effect.id, parsedInput, boundary));
           throw latchBoundaryFault(lifecycle, boundary);
         }
+        value = parsedOutput.data;
+      } catch (cause) {
+        if (cause instanceof BoundaryFault) throw cause;
+        const boundary = fault(
+          "INVALID_EFFECT_OUTPUT",
+          `Output schema for effect ${effect.id} threw during validation`,
+          { effectId: effect.id, cause },
+        );
+        trace?.push(effectFaultEntry(operation.id, alias, effect.id, parsedInput, boundary));
+        throw latchBoundaryFault(lifecycle, boundary);
       }
 
       trace?.push({
@@ -638,8 +658,15 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
               { eventId: event.id, issues: parsed.issues },
             ));
           }
-          // Snapshot (structural detach) always; deep freeze only in dev/test.
-          eventPayload = snapshotStructuredValue(parsed.data, devChecks);
+          // Built-in schema parse products are already detached graphs, so in
+          // production the second copy-walk is skipped when the parse detached
+          // the payload (parsed.data !== payload). Pass-through custom schemas
+          // (parsed.data === payload) are still snapshotted in every mode, and
+          // dev/test always snapshots + deep-freezes.
+          eventPayload =
+            !devChecks && parsed.data !== payload
+              ? parsed.data
+              : snapshotStructuredValue(parsed.data, devChecks);
         } catch (cause) {
           const boundary = cause instanceof BoundaryFault
             ? cause.fault
@@ -704,9 +731,24 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
     }
 
     // Authorization deliberately precedes input parsing and context construction.
-    const allowed = authorizeHook === undefined
-      ? authorize(operation, options.principal)
-      : authorizeHook(options.principal, operation);
+    // A throwing custom hook is a fault, never a rejected dispatch promise.
+    let allowed: boolean;
+    try {
+      allowed = effectiveAuthorize(operation, options.principal);
+    } catch (cause) {
+      return finalize(
+        {
+          kind: "fault" as const,
+          operationId: operation.id,
+          error: fault(
+            "AUTHORIZE_FAILED",
+            `Authorization hook threw for operation ${operation.id}`,
+            { cause },
+          ),
+        },
+        trace,
+      );
+    }
     if (!allowed) {
       return finalize(
         {
@@ -970,6 +1012,7 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
     getOperation(id: string): AnyBoundOperation | undefined {
       return operationsById.get(id);
     },
+    authorize: effectiveAuthorize,
     dispatch,
     call,
   }) as unknown as Application<ApplicationOperations<Features>>;

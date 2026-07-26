@@ -33,7 +33,8 @@ Every public export, one line each. Artifact shapes: the repository's
 - `createSourceManifest(rootDir, sourceFiles): SourceManifest` — per-file sha256 digests + combined digest (includes config files).
 - `stableJson(value, {compact?}?): string` — stable-key JSON serialization.
 - `toPosixPath(path)`, `repositoryPath(rootDir, path)` — path normalization.
-- `featureSegmentOf(path): string | undefined` — maps `src/features/notes.ts`, `notes.test.ts`, and `notes/` to segment `"notes"`.
+- `featureSegmentOf(path): string | undefined` — single-file paths take the name up to the first dot, so `src/features/notes.ts`, `notes.helpers.ts`, `notes.test.ts`, `notes.integration.test.ts`, and `notes/` all map to segment `"notes"`.
+- `compareStrings(left, right): number` — deterministic code-unit comparator used for all index ordering (never locale-dependent).
 
 ## Types
 

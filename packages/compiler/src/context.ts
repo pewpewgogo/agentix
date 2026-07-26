@@ -1,5 +1,5 @@
 import { computeAffected, planVerification, workspaceVerificationPlan } from "./affected.js";
-import { stableJson } from "./files.js";
+import { compareStrings as compare, stableJson } from "./files.js";
 import {
   COMPILER_VERSION,
   type AffectedItem,
@@ -73,8 +73,6 @@ const projectionLevels: readonly ProjectionLimits[] = [
     forceWorkspaceVerification: true,
   },
 ];
-
-const compare = (left: string, right: string): number => left.localeCompare(right);
 
 const commandExpansion = (
   command: "affected" | "detail",

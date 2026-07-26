@@ -45,8 +45,13 @@ export type DeclaredError<Errors extends ErrorSpecMap> = {
   }>;
 }[keyof Errors & string];
 
-/** Marks failures produced by the injected `fail` so plain outputs stay unambiguous. */
-export const FAIL_RESULT: unique symbol = Symbol("agentix.fail");
+/**
+ * Marks failures produced by the injected `fail` so plain outputs stay
+ * unambiguous. Registered via Symbol.for so the brand survives duplicate
+ * module copies in one process (mismatched pins, non-deduped bundles):
+ * a fail(...) from one copy is still recognized by another copy's dispatch.
+ */
+export const FAIL_RESULT: unique symbol = Symbol.for("agentix.fail");
 
 export interface OperationFailure<E> {
   readonly [FAIL_RESULT]: true;
@@ -651,6 +656,27 @@ export const query = <
 
 const HTTP_METHODS: ReadonlySet<string> = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
+/** Statuses that forbid a response body (RFC 9110) — the fixed JSON envelope always has one. */
+const BODILESS_HTTP_STATUSES: ReadonlySet<number> = new Set([204, 205, 304]);
+
+/**
+ * Authored statuses must be carryable by the fixed JSON envelope: an integer
+ * in 200..599, excluding the bodiless 204/205/304 (1xx is informational and
+ * cannot carry a final response body either).
+ */
+const assertEnvelopeStatus = (status: number, label: string): void => {
+  if (!Number.isSafeInteger(status) || status < 200 || status > 599) {
+    throw new TypeError(
+      `${label} must be an integer in 200..599 (1xx responses cannot carry the JSON envelope)`,
+    );
+  }
+  if (BODILESS_HTTP_STATUSES.has(status)) {
+    throw new TypeError(
+      `${label} cannot be ${status}: 204, 205, and 304 forbid a response body, but every response carries the JSON envelope`,
+    );
+  }
+};
+
 const buildOperation = (
   kind: "command" | "query",
   definition: LooseOperationDefinition,
@@ -682,9 +708,7 @@ const buildOperation = (
     }
     const { http, details } = spec;
     if (http !== undefined) {
-      if (!Number.isSafeInteger(http) || http < 100 || http > 599) {
-        throw new TypeError(`Error ${code} http status must be an integer in 100..599`);
-      }
+      assertEnvelopeStatus(http, `Error ${code} http status`);
       errorStatus[code] = http;
     }
     if (details === undefined) {
@@ -706,6 +730,7 @@ const buildOperation = (
   const effects = Object.freeze({ ...(definition.effects ?? {}) });
   const effectIds = new Set<string>();
   for (const alias of Object.keys(effects)) {
+    assertNotReservedKey(alias, "Effect alias");
     const effect = effects[alias];
     if (!isBoundPortOperation(effect)) {
       throw new TypeError(
@@ -754,9 +779,7 @@ const buildOperation = (
     if (typeof path !== "string" || !path.startsWith("/")) {
       throw new TypeError('http.path must be a string starting with "/"');
     }
-    if (status !== undefined && (!Number.isSafeInteger(status) || status < 100 || status > 599)) {
-      throw new TypeError("http.status must be an integer in 100..599");
-    }
+    if (status !== undefined) assertEnvelopeStatus(status, "http.status");
     http = Object.freeze({
       method,
       path,
@@ -892,10 +915,31 @@ const validatePermissions = (permissions: readonly string[]): readonly string[] 
   return Object.freeze([...permissions]);
 };
 
+/**
+ * Names whose assignment on a plain object is silently swallowed
+ * (prototype-polluting) instead of creating an own property. Rejected for
+ * every feature/operation/port/error/effect identifier so a declared key can
+ * never vanish from a built record.
+ */
+const RESERVED_KEYS: ReadonlySet<string> = new Set([
+  "__proto__",
+  "prototype",
+  "constructor",
+]);
+
+const assertNotReservedKey = (key: string, label: string): void => {
+  if (RESERVED_KEYS.has(key)) {
+    throw new TypeError(
+      `${label} ${JSON.stringify(key)} is a reserved (prototype-polluting) name`,
+    );
+  }
+};
+
 const assertStableId = (id: string, label: string): void => {
   if (typeof id !== "string" || id.trim().length === 0 || /\s/u.test(id)) {
     throw new TypeError(`${label} id must be a non-empty string without whitespace`);
   }
+  assertNotReservedKey(id, `${label} id`);
 };
 
 const assertOperationKey = (key: string, owner: string): void => {
@@ -904,4 +948,5 @@ const assertOperationKey = (key: string, owner: string): void => {
       `${owner} operation key ${JSON.stringify(key)} must be non-empty without whitespace or dots`,
     );
   }
+  assertNotReservedKey(key, `${owner} operation key`);
 };

@@ -9,7 +9,8 @@ export type SchemaIssueCode =
   | "unexpected_key"
   | "invalid_union"
   | "refinement_failed"
-  | "invalid_id";
+  | "invalid_id"
+  | "too_many_issues";
 
 export interface SchemaIssue {
   readonly code: SchemaIssueCode;
@@ -120,20 +121,55 @@ const issue = (
 };
 
 /** Lazy path construction: only failing branches pay for path arrays. */
-const prefixIssues = (
+const prefixIssue = (
   segment: SchemaPathSegment,
-  issues: readonly SchemaIssue[],
-): SchemaIssue[] =>
-  issues.map((entry) =>
-    entry.causes === undefined
-      ? { code: entry.code, path: [segment, ...entry.path], message: entry.message }
-      : {
-          code: entry.code,
-          path: [segment, ...entry.path],
-          message: entry.message,
-          causes: entry.causes,
-        },
-  );
+  entry: SchemaIssue,
+): SchemaIssue =>
+  entry.causes === undefined
+    ? { code: entry.code, path: [segment, ...entry.path], message: entry.message }
+    : {
+        code: entry.code,
+        path: [segment, ...entry.path],
+        message: entry.message,
+        causes: entry.causes,
+      };
+
+/** Per-parse cap on accumulated issues; one truncation marker follows it. */
+const MAX_ISSUES = 100;
+
+/**
+ * Bounded append: pushes `entry` unless the list already holds MAX_ISSUES
+ * issues, in which case a single `too_many_issues` marker is appended
+ * instead. Returns false once the list is full so callers stop collecting.
+ * Never uses push(...spread): huge nested failure lists must not blow the
+ * argument stack.
+ */
+const pushIssueCapped = (issues: SchemaIssue[], entry: SchemaIssue): boolean => {
+  if (issues.length > MAX_ISSUES) return false;
+  if (issues.length === MAX_ISSUES) {
+    issues.push(
+      issue(
+        "too_many_issues",
+        `Too many issues; validation stopped after ${MAX_ISSUES}`,
+      ),
+    );
+    return false;
+  }
+  issues.push(entry);
+  return true;
+};
+
+/** Bounded, loop-based variant of the old prefixIssues spread-push. */
+const pushPrefixedIssuesCapped = (
+  issues: SchemaIssue[],
+  segment: SchemaPathSegment,
+  child: readonly SchemaIssue[],
+): boolean => {
+  for (const entry of child) {
+    if (!pushIssueCapped(issues, prefixIssue(segment, entry))) return false;
+  }
+  return true;
+};
 
 const createSchema = <T>(
   description: SchemaDescription,
@@ -302,7 +338,9 @@ export const array = <S extends Schema<unknown>>(
       for (let index = 0; index < value.length; index += 1) {
         const result = item.safeParse(value[index]);
         if (result.success) parsed.push(result.data as Infer<S>);
-        else (issues ??= []).push(...prefixIssues(index, result.issues));
+        else if (!pushPrefixedIssuesCapped((issues ??= []), index, result.issues)) {
+          break; // capped: the parse already failed, stop collecting
+        }
       }
       return issues === undefined ? success(parsed) : { success: false, issues };
     },
@@ -363,21 +401,34 @@ export const object = <const S extends SchemaShape>(shape: S): ObjectSchema<S> =
 
     for (const field of fields) {
       if (!Object.prototype.hasOwnProperty.call(source, field.key)) {
-        if (!field.optional) {
-          (issues ??= []).push(issue("required", "Required field is missing", field.key));
+        if (
+          !field.optional &&
+          !pushIssueCapped(
+            (issues ??= []),
+            issue("required", "Required field is missing", field.key),
+          )
+        ) {
+          break; // capped: the parse already failed, stop collecting
         }
         continue;
       }
       const result = field.schema.safeParse(source[field.key]);
       if (result.success) parsed[field.key] = result.data;
-      else (issues ??= []).push(...prefixIssues(field.key, result.issues));
+      else if (!pushPrefixedIssuesCapped((issues ??= []), field.key, result.issues)) {
+        break; // capped
+      }
     }
 
     for (const key in source) {
       if (Object.prototype.hasOwnProperty.call(source, key) && !known.has(key)) {
-        (issues ??= []).push(
-          issue("unexpected_key", `Unexpected key ${JSON.stringify(key)}`, key),
-        );
+        if (
+          !pushIssueCapped(
+            (issues ??= []),
+            issue("unexpected_key", `Unexpected key ${JSON.stringify(key)}`, key),
+          )
+        ) {
+          break; // capped
+        }
       }
     }
 
@@ -433,7 +484,12 @@ export const union = <const S extends readonly [Schema<unknown>, ...Schema<unkno
       for (const option of optionsSnapshot) {
         const result = option.safeParse(value);
         if (result.success) return result as ParseSuccess<Infer<S[number]>>;
-        (causes ??= []).push(...result.issues);
+        // Cap the causes but NEVER stop trying options: a later option can
+        // still succeed after an earlier one failed with a huge issue list.
+        causes ??= [];
+        for (const entry of result.issues) {
+          if (!pushIssueCapped(causes, entry)) break;
+        }
       }
       return failure(
         issue("invalid_union", "Value did not match any union option", undefined, causes),

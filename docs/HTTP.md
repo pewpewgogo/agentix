@@ -27,9 +27,11 @@ operation carrying `http` metadata (conflicts already failed at
 
 Options: `{ authenticate?, onError?, routes? }`.
 
-Request flow (both entries): route match → `authenticate` → core
-`authorize()` (403 BEFORE the body is read) → read body → JSON parse →
-input mapping → dispatch → envelope.
+Request flow (both entries): route match → `authenticate` →
+`app.authorize()` (the EFFECTIVE gate — a custom `createApplication({
+authorize })` hook is honored here; 403 BEFORE the body is read) → read body
+→ JSON parse → input mapping → dispatch → envelope. A throwing authorize
+hook answers 500 + `onError`.
 
 ## Envelope
 
@@ -48,9 +50,16 @@ Every response is `application/json; charset=utf-8`.
 | Body over cap (`serveNode`) | 413 | `{"ok":false,"error":{"code":"PAYLOAD_TOO_LARGE"}}` |
 | Fault (defect) | 500 | `{"ok":false,"error":{"code":"INTERNAL"}}` (opaque) + `onError` |
 
+Because the envelope always has a body, every authored status — `http.status`,
+per-error `http`, and `defineHttpRoute`'s `status`/`errorStatus` — must be an
+integer in 200..599 **excluding 204, 205, and 304** (RFC 9110 forbids bodies
+on those; 1xx responses are informational and rejected too). Statuses outside
+that contract throw a `TypeError` at authoring time.
+
 `onError?: (error, { method, path, operationId? }) => void` observes faults and
 unexpected authenticate throws; the default logs via `console.error` in
-development mode only.
+development mode only. `path` is always the request pathname (never the full
+URL), and `operationId` is present whenever a route matched.
 
 ## Input mapping
 
@@ -58,7 +67,10 @@ For object input schemas the default mapping merges, keyed by the schema's
 shape, with precedence body < query < path params. String params/query values
 are coerced to the schema's number/boolean/literal expectations (unions are
 not coerced). Strict schemas still reject unknown body keys. Non-object input
-schemas receive the parsed body verbatim.
+schemas receive the parsed body verbatim. A present non-object JSON body
+(array, string, number, boolean, `null`) on an object-schema route is never
+silently discarded: it is handed to the schema verbatim, so the request
+answers 400 `INVALID_INPUT` with an `invalid_type` issue.
 
 ## Authentication
 
@@ -137,7 +149,12 @@ export default { fetch: (request: Request) => handler.fetch(request) };
 
 Note: `maxBodyBytes` is a `serveNode` option. `handler.fetch` enforces no body
 cap of its own — edge runtimes cap requests upstream; custom hosts can throw
-`RequestBodyLimitError` from `readBody` to produce a 413.
+`RequestBodyLimitError` from `readBody` to produce a 413. When the cap trips
+mid-stream (chunked upload, or bytes streaming past a declared length), the
+413 answers with `connection: close` and the socket is destroyed once the
+response flushes, so leftover body bytes can never be misread as a pipelined
+request; a cap hit on the declared `content-length` alone keeps the
+connection reusable.
 
 ## Routing details
 

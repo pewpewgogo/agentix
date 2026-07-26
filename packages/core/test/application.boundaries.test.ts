@@ -89,7 +89,7 @@ describe("effect boundaries", () => {
     expect(calls).toBe(0);
   });
 
-  it("re-parses adapter outputs in dev/test but skips ONLY that re-parse in production", async () => {
+  it("re-parses adapter outputs in EVERY mode, production included", async () => {
     const makeApp = (mode: RuntimeMode) => {
       const flaky = feature("flaky", {
         operations: {
@@ -98,8 +98,7 @@ describe("effect boundaries", () => {
             output: s.literal(true),
             effects: { read: Reader.read },
             async execute({ effects }) {
-              const value = await effects.read({ key: "k" });
-              expect(value).toBe("not-a-number" as unknown as number);
+              await effects.read({ key: "k" });
               return true as const;
             },
           }),
@@ -112,7 +111,9 @@ describe("effect boundaries", () => {
       });
     };
 
-    for (const mode of ["development", "test"] as const) {
+    // Orchestrator amendment: production no longer skips the effect-output
+    // re-parse — an invalid adapter value faults identically in all modes.
+    for (const mode of ["development", "test", "production"] as const) {
       await expect(makeApp(mode).dispatch("flaky.run", { input: {}, trace: true }))
         .resolves.toMatchObject({
           kind: "fault",
@@ -120,11 +121,58 @@ describe("effect boundaries", () => {
           trace: [{ type: "effect", status: "fault" }],
         });
     }
+  });
 
-    // Effect INPUT parsing is kept in ALL modes; only the output re-parse is
-    // skipped in production, so the raw adapter value flows through.
-    await expect(makeApp("production").dispatch("flaky.run", { input: {} }))
-      .resolves.toMatchObject({ kind: "completed", outcome: { ok: true } });
+  it("hands execute a detached effect-output copy in every mode (no store aliasing)", async () => {
+    // Regression (#11 repro): mutating a loaded record inside execute must
+    // NOT write through to adapter/store state in ANY mode.
+    const AliasNote = s.object({ id: s.string({ min: 1 }), title: s.string() });
+    const AliasStore = port.store("aliasStore", AliasNote);
+    const aliasNotes = feature("alias-notes", {
+      operations: {
+        seed: command({
+          input: AliasNote,
+          output: AliasNote,
+          effects: { save: AliasStore.save },
+          async execute({ input, effects }) {
+            return effects.save(input);
+          },
+        }),
+        rename: command({
+          input: s.object({ id: s.string(), title: s.string() }),
+          output: AliasNote,
+          effects: { load: AliasStore.get },
+          async execute({ input, effects }) {
+            const found = await effects.load(input.id);
+            if (found === undefined) throw new Error("missing");
+            found.title = input.title; // local mutation, never saved
+            return { id: found.id, title: "unchanged-result" };
+          },
+        }),
+        read: query({
+          input: s.object({ id: s.string() }),
+          output: s.optional(AliasNote),
+          effects: { load: AliasStore.get },
+          async execute({ input, effects }) {
+            return effects.load(input.id);
+          },
+        }),
+      },
+    });
+
+    for (const mode of ["development", "test", "production"] as const) {
+      const app = createApplication({
+        features: [aliasNotes],
+        adapters: [AliasStore.memory()],
+        mode,
+      });
+      await app.call("alias-notes.seed", { id: "n1", title: "original" });
+      await app.call("alias-notes.rename", { id: "n1", title: "MUTATED" });
+      await expect(app.call("alias-notes.read", { id: "n1" })).resolves.toEqual({
+        ok: true,
+        value: { id: "n1", title: "original" },
+      });
+    }
   });
 
   it("keeps effect input validation in production", async () => {
@@ -778,6 +826,89 @@ describe("event snapshot semantics per mode", () => {
     expect(payload.shared).toBe(payload.duplicate);
     expect(payload.shared.value).toBe("original");
     expect(Object.isFrozen(payload)).toBe(false);
+  });
+
+  it("reuses an already-detached parse product in production instead of a second copy-walk", async () => {
+    // Identity gate (#14): when the payload schema returns a NEW graph
+    // (parsed.data !== payload) production emits the parse product itself.
+    let produced: { items: string[] } | undefined;
+    const detachingSchema: Schema<{ items: string[] }> = Object.freeze({
+      description: emptyObjectDescription,
+      parse(value: unknown): { items: string[] } {
+        return { items: [...(value as { items: string[] }).items] };
+      },
+      safeParse(value: unknown): ParseResult<{ items: string[] }> {
+        produced = { items: [...(value as { items: string[] }).items] };
+        return { success: true, data: produced };
+      },
+    });
+    const DetachedEvent = event("detached.published", 1, detachingSchema);
+    const publish = feature("detached", {
+      operations: {
+        publish: command({
+          input: s.object({}),
+          output: s.literal(true),
+          emits: { published: DetachedEvent },
+          execute({ emit }) {
+            emit.published({ items: ["a"] });
+            return true as const;
+          },
+        }),
+      },
+    });
+
+    const production = createApplication({ features: [publish], mode: "production" });
+    const productionResult = await production.dispatch("detached.publish", { input: {} });
+    if (productionResult.kind !== "completed") throw new Error("Expected completed dispatch");
+    expect(productionResult.events[0]?.payload).toBe(produced);
+    expect(Object.isFrozen(produced)).toBe(false);
+
+    // dev/test still snapshots AND deep-freezes a fresh graph.
+    produced = undefined;
+    const testMode = createApplication({ features: [publish], mode: "test" });
+    const testResult = await testMode.dispatch("detached.publish", { input: {} });
+    if (testResult.kind !== "completed") throw new Error("Expected completed dispatch");
+    const testPayload = testResult.events[0]?.payload as { items: string[] };
+    expect(testPayload).not.toBe(produced);
+    expect(testPayload).toEqual({ items: ["a"] });
+    expect(Object.isFrozen(testPayload)).toBe(true);
+    expect(Object.isFrozen(testPayload.items)).toBe(true);
+  });
+
+  it("still snapshots pass-through custom-schema payloads in production", async () => {
+    // A custom schema returning its INPUT (parsed.data === payload) must keep
+    // the production snapshot: the emitter's later mutations stay invisible.
+    interface Payload {
+      items: Array<{ value: string }>;
+    }
+    const PassthroughEvent = event(
+      "passthrough.published",
+      1,
+      passthroughSchema<Payload>(),
+    );
+    const source: Payload = { items: [{ value: "original" }] };
+    const publish = feature("passthrough", {
+      operations: {
+        publish: command({
+          input: s.object({}),
+          output: s.literal(true),
+          emits: { published: PassthroughEvent },
+          execute({ emit }) {
+            emit.published(source);
+            source.items[0]!.value = "changed-after-emit";
+            return true as const;
+          },
+        }),
+      },
+    });
+    const app = createApplication({ features: [publish], mode: "production" });
+
+    const result = await app.dispatch("passthrough.publish", { input: {} });
+    if (result.kind !== "completed") throw new Error("Expected completed dispatch");
+    const payload = result.events[0]?.payload as Payload;
+    expect(payload).not.toBe(source);
+    expect(payload.items).not.toBe(source.items);
+    expect(payload.items[0]).toEqual({ value: "original" });
   });
 });
 

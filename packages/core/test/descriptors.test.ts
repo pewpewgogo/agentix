@@ -318,13 +318,46 @@ describe("command and query descriptors", () => {
         ...base,
         errors: { NOPE: { http: 42 } },
       }),
-    ).toThrow(/http status must be an integer in 100\.\.599/);
+    ).toThrow(/http status must be an integer in 200\.\.599/);
     expect(() =>
       command({
         ...base,
         errors: { NOPE: { http: 200.5 } },
       }),
     ).toThrow(TypeError);
+  });
+
+  it("rejects statuses the fixed JSON envelope cannot carry (204/205/304, 1xx)", () => {
+    const base = {
+      input: s.object({}),
+      output: s.boolean(),
+      execute: async () => true,
+    };
+    // The canonical REST mistake: DELETE + 204. The envelope always has a
+    // body, so bodiless statuses must fail loudly at authoring time.
+    expect(() =>
+      command({ ...base, http: { method: "DELETE", path: "/x/:id", status: 204 } }),
+    ).toThrow(
+      /http\.status cannot be 204: 204, 205, and 304 forbid a response body/,
+    );
+    for (const status of [205, 304]) {
+      expect(() =>
+        command({ ...base, http: { method: "GET", path: "/x", status } }),
+      ).toThrow(new RegExp(`http\\.status cannot be ${status}`));
+    }
+    // 1xx is informational and cannot carry a final JSON body either.
+    for (const status of [100, 101, 199]) {
+      expect(() =>
+        command({ ...base, http: { method: "GET", path: "/x", status } }),
+      ).toThrow(/http\.status must be an integer in 200\.\.599/);
+    }
+    // Per-error statuses share the same contract.
+    expect(() =>
+      command({ ...base, errors: { GONE: { http: 304 } } }),
+    ).toThrow(/Error GONE http status cannot be 304/);
+    expect(() =>
+      command({ ...base, errors: { EARLY: { http: 102 } } }),
+    ).toThrow(/Error EARLY http status must be an integer in 200\.\.599/);
   });
 
   it("rejects malformed inputs, outputs, errors, and permissions", () => {
@@ -542,5 +575,77 @@ describe("feature descriptors", () => {
     expect(() =>
       feature("f", { operations: { run: noop }, events: ["nope" as never] }),
     ).toThrow(/must be created with event\(\)/);
+  });
+});
+
+describe("reserved (prototype-polluting) identifiers", () => {
+  const RESERVED = ["__proto__", "prototype", "constructor"] as const;
+  const makeOp = () =>
+    command({
+      input: s.object({}),
+      output: s.literal(true),
+      async execute() {
+        return true as const;
+      },
+    });
+
+  it("rejects reserved operation keys instead of silently swallowing them", () => {
+    for (const key of RESERVED) {
+      // Computed key: creates an OWN property so the key reaches feature().
+      const operations = { [key]: makeOp() };
+      expect(() => feature("weird", { operations: operations as never })).toThrow(
+        /reserved/,
+      );
+    }
+  });
+
+  it("rejects reserved feature and port ids", () => {
+    for (const id of RESERVED) {
+      expect(() => feature(id, { operations: { run: makeOp() } })).toThrow(/reserved/);
+      expect(() =>
+        port(id, { get: port.read({ input: s.string(), output: s.string() }) }),
+      ).toThrow(/reserved/);
+    }
+  });
+
+  it("rejects reserved error codes", () => {
+    for (const code of RESERVED) {
+      expect(() =>
+        command({
+          input: s.object({}),
+          output: s.literal(true),
+          errors: { [code]: { http: 400 } } as never,
+          async execute() {
+            return true as const;
+          },
+        }),
+      ).toThrow(/reserved/);
+    }
+  });
+
+  it("rejects reserved port operation keys and effect aliases", () => {
+    for (const key of RESERVED) {
+      expect(() =>
+        port("cachePort", {
+          [key]: port.read({ input: s.string(), output: s.string() }),
+        } as never),
+      ).toThrow(/reserved/);
+    }
+
+    const Cache = port("reservedAliasCache", {
+      get: port.read({ input: s.string(), output: s.string() }),
+    });
+    for (const alias of RESERVED) {
+      expect(() =>
+        command({
+          input: s.object({}),
+          output: s.literal(true),
+          effects: { [alias]: Cache.get } as never,
+          async execute() {
+            return true as const;
+          },
+        }),
+      ).toThrow(/reserved/);
+    }
   });
 });

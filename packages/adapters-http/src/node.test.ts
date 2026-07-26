@@ -1,4 +1,6 @@
 import { Agent, request as httpRequest } from "node:http";
+import { createConnection } from "node:net";
+import type { Socket } from "node:net";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { command, createApplication, feature, port, query, s } from "@agentix/core";
@@ -53,6 +55,18 @@ const writerHeaders = {
 
 let handle: NodeHttpServer;
 let connections = 0;
+
+const openRawSocket = async (): Promise<Socket> => {
+  const url = new URL(handle.url);
+  const socket = createConnection({ host: url.hostname, port: Number(url.port) });
+  socket.setNoDelay(true);
+  await new Promise<void>((resolve, reject) => {
+    socket.once("connect", () => resolve());
+    socket.once("error", reject);
+  });
+  socket.on("error", () => {}); // teardown races (ECONNRESET/EPIPE) are expected
+  return socket;
+};
 
 beforeAll(async () => {
   const app = createApplication({
@@ -162,6 +176,88 @@ describe("serveNode", () => {
       ok: false,
       error: { code: "PAYLOAD_TOO_LARGE" },
     });
+  });
+
+  it("closes the connection after a mid-stream over-cap 413 so stale bytes are never reused", async () => {
+    const socket = await openRawSocket();
+    const piece = "x".repeat(3000);
+    const chunk = `${(3000).toString(16)}\r\n${piece}\r\n`;
+    // Chunked body streams past maxBodyBytes (2 x 3000 > 4096) mid-request.
+    socket.write(
+      "POST /notes HTTP/1.1\r\n" +
+        `host: ${new URL(handle.url).host}\r\n` +
+        "content-type: application/json\r\n" +
+        "x-principal-id: writer\r\n" +
+        "x-principal-permissions: notes:write\r\n" +
+        "transfer-encoding: chunked\r\n" +
+        "\r\n" +
+        chunk +
+        chunk,
+    );
+    // Pipeline a second request behind the (unterminated) over-cap body: if
+    // the connection survived, these bytes could be misread as a request.
+    socket.write(`GET /notes/n1 HTTP/1.1\r\nhost: ${new URL(handle.url).host}\r\n\r\n`);
+
+    let data = "";
+    socket.on("data", (buffer) => {
+      data += buffer.toString("utf8");
+    });
+    const outcome = await Promise.race([
+      new Promise<string>((resolve) => socket.once("close", () => resolve("closed"))),
+      new Promise<string>((resolve) => {
+        const timer = setTimeout(() => resolve("still-open"), 2000);
+        socket.once("close", () => clearTimeout(timer));
+      }),
+    ]);
+
+    // The server must tear the socket down promptly (no keep-alive limbo
+    // that stalls close() for the whole keepAliveTimeout).
+    expect(outcome).toBe("closed");
+    expect(data).toContain(" 413 ");
+    expect(data.toLowerCase()).toContain("connection: close");
+    // The pipelined request is never answered from stale bytes.
+    expect(data.match(/HTTP\/1\.1 /g)).toHaveLength(1);
+    socket.destroy();
+  });
+
+  it("keeps the connection reusable after a declared content-length 413", async () => {
+    const socket = await openRawSocket();
+    const host = new URL(handle.url).host;
+    const oversized = JSON.stringify({ id: "big", title: "x".repeat(5000) });
+    // The cap trips on the declared content-length BEFORE the body is read:
+    // the parser stays in sync, so pipelining keeps working.
+    socket.write(
+      "POST /notes HTTP/1.1\r\n" +
+        `host: ${host}\r\n` +
+        "content-type: application/json\r\n" +
+        "x-principal-id: writer\r\n" +
+        "x-principal-permissions: notes:write\r\n" +
+        `content-length: ${Buffer.byteLength(oversized)}\r\n` +
+        "\r\n" +
+        oversized,
+    );
+    socket.write(`GET /notes/n1 HTTP/1.1\r\nhost: ${host}\r\n\r\n`);
+
+    let data = "";
+    const twoResponses = new Promise<string>((resolve) => {
+      socket.on("data", (buffer) => {
+        data += buffer.toString("utf8");
+        if ((data.match(/HTTP\/1\.1 /g) ?? []).length >= 2) resolve("two-responses");
+      });
+    });
+    const outcome = await Promise.race([
+      twoResponses,
+      new Promise<string>((resolve) => {
+        const timer = setTimeout(() => resolve("timeout"), 2000);
+        socket.once("close", () => clearTimeout(timer));
+      }),
+    ]);
+
+    expect(outcome).toBe("two-responses");
+    const statuses = [...data.matchAll(/HTTP\/1\.1 (\d{3})/g)].map((match) => match[1]);
+    expect(statuses[0]).toBe("413");
+    expect(statuses[1]).toBe("200");
+    socket.destroy();
   });
 
   it("reuses keep-alive connections across sequential requests", async () => {

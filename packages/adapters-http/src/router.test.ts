@@ -125,4 +125,27 @@ describe("matchRoute", () => {
     expect(result).toEqual({ kind: "method_not_allowed", allow: "GET" });
     expect(matchRoute(table, "POST", "/nowhere").kind).toBe("not_found");
   });
+
+  it("gives the Allow computation the same decoded second chance as matching", () => {
+    // Encoded ASCII variant of an existing static path.
+    expect(matchRoute(table, "POST", "/notes/lates%74")).toEqual({
+      kind: "method_not_allowed",
+      allow: "GET",
+    });
+
+    // Non-ASCII static paths ALWAYS arrive percent-encoded over real HTTP;
+    // wrong-method requests must still answer 405 + Allow, not 404.
+    const cafe = feature("cafe", { operations: { menu: echoQuery("/café") } });
+    const cafeApp = createApplication({ features: [cafe], adapters: [], mode: "test" });
+    const cafeTable = compileRouteTable(
+      Object.values(cafeApp.operations as Readonly<Record<string, AnyBoundOperation>>),
+    );
+    expect(matchRoute(cafeTable, "GET", "/caf%C3%A9").kind).toBe("matched");
+    expect(matchRoute(cafeTable, "POST", "/caf%C3%A9")).toEqual({
+      kind: "method_not_allowed",
+      allow: "GET",
+    });
+    // Malformed encoding still yields 404, never a crash.
+    expect(matchRoute(cafeTable, "POST", "/caf%zz").kind).toBe("not_found");
+  });
 });

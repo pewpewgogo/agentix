@@ -65,7 +65,8 @@ ships this reference offline as `API.md`.
 - `app.dispatch(idOrDescriptor, {input, principal?, trace?}): Promise<DispatchResult>` — three-way `completed | rejected | fault`.
 - `app.call(id, input, {principal?}?): Promise<Outcome>` — returns the outcome; throws `DispatchError` on rejected/fault.
 - `app.getOperation(id): AnyBoundOperation | undefined`; `app.operations`, `app.features`, `app.mode`.
-- `authorize(operation, principal?): boolean` — the single permission gate (subset check; no permissions ⇒ anonymous OK).
+- `app.authorize(operation, principal?): boolean` — the EFFECTIVE gate: the custom `authorize` hook when provided, else the default subset check; HTTP adapters call it before reading a request body. A throwing hook faults dispatch with `AUTHORIZE_FAILED` (HTTP 500 + `onError`).
+- `authorize(operation, principal?): boolean` — the default permission gate (subset check; no permissions ⇒ anonymous OK).
 - `principal(id, permissions): Principal`
 - `DispatchError` — thrown by `call`; `{kind, code, operationId, detail}`.
 - `ApplicationDefinitionError` — thrown by `createApplication`; carries `issues`.

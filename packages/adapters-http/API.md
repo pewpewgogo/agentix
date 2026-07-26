@@ -42,4 +42,6 @@ error ⇒ per-error `http` ?? 422 with `{"ok":false,"error":{code,details}}`;
 `INVALID_INPUT` 400 (with `issues`); `INVALID_JSON` 400; 401 via
 `AuthenticationError`; `PERMISSION_DENIED` 403 (opaque, pre-body);
 `NOT_FOUND` 404; `METHOD_NOT_ALLOWED` 405 + `Allow`; `PAYLOAD_TOO_LARGE` 413
-(`serveNode`); faults 500 opaque `INTERNAL` + `onError`.
+(`serveNode`); faults 500 opaque `INTERNAL` + `onError`. Authored statuses
+(`http.status`, per-error `http`, route `status`/`errorStatus`) must be
+integers in 200..599 excluding 204/205/304 — the envelope always has a body.

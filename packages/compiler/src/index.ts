@@ -13,6 +13,7 @@ export {
 export { computeAffected, planVerification, workspaceVerificationPlan } from "./affected.js";
 export { checkIndexStaleness, readIndex } from "./manifest.js";
 export {
+  compareStrings,
   createSourceManifest,
   discoverSourceFiles,
   featureSegmentOf,

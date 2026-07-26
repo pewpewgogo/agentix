@@ -574,11 +574,15 @@ became a two-file budget.
 v1 validated every boundary in every mode. v2 keeps ALL external boundaries
 validated in every mode (operation input, permission check, operation output,
 declared-error details, event payloads, effect inputs) and, in production
-mode only, skips interior double-checks: effect-output re-validation,
-`ensures` postconditions, and defensive deep-freezing. Rationale: the interior
-checks guard against adapter defects that dev/test runs surface, and their
+mode only, skips interior double-checks: `ensures` postconditions and
+defensive deep-freezing. Effect-output re-validation was briefly
+production-skipped as well; a review amendment restored it in every mode
+because the skip silently changed data semantics (execute received the
+adapter's live object instead of a detached parse product) — uniform
+semantics beat the ~0.16 µs saving. Rationale for the remaining skips: the
+interior checks guard against defects that dev/test runs surface, and their
 cost was measurable on the dispatch fast path while the external-boundary
-cost was not (~0.16 µs).
+cost was not.
 
 ### Other superseded points in this record
 

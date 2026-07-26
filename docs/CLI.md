@@ -103,13 +103,21 @@ severity:
 
 - `architecture.private-cross-feature-import` — cross-feature imports must
   target the other feature's feature file (the file IS the public contract);
+- `architecture.one-feature-per-file` — each file declares exactly one
+  `feature()`; a second declaration in the same file is an error (imports of
+  the file would be ambiguous);
 - `architecture.ambient-fetch|time|randomness|environment|filesystem|database`
   — ambient capabilities inside `src/features/` (all non-test files);
 - `architecture.unresolved-dynamic-import`;
 - `operation.query-write-effect`, `operation.query-emits-event`;
 - `metadata.*` — descriptors must be statically analyzable (literal ids,
   inline or same-file `command()`/`query()` calls, `Port.opName` effect
-  references).
+  references). Spread or computed members in an `operations` literal (feature
+  or port) emit `metadata.static-operation-required` errors; spreads inside
+  `effects`/`emits` emit warning-severity `metadata.static-effect-required` /
+  `metadata.static-emit-required`. All of these also record an unresolved
+  entry so `affected`/`verify` widen the owning feature's subgraph
+  conservatively instead of silently omitting the hidden declarations.
 
 ## Index shape (schema version 2)
 
@@ -117,9 +125,11 @@ severity:
 features, operations, ports, events, tests, edges, diagnostics, unresolved}`.
 Operations carry derived ids (`feature.key`), schema excerpts, unified errors
 (`[{code, http?, details?}]`), `http` with derived `errorStatus`, effects,
-events, ensures names, and `executeSignature`. Single-file features map
-`src/features/notes.ts`, `notes.test.ts`, and `notes/` to the same feature
-segment.
+events, ensures names, and `executeSignature`. Single-file features claim the
+name up to the first dot: `src/features/notes.ts`, dotted siblings such as
+`notes.helpers.ts`, colocated tests (`notes.test.ts`,
+`notes.integration.test.ts`), and the directory form `notes/` all map to the
+same feature segment `notes`.
 
 Prefer the CLI to reading the index; the `@agentix/compiler` package exposes
 the same data programmatically (`generateIndex`, `computeAffected`,

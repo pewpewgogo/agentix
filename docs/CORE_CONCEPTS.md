@@ -166,21 +166,28 @@ else is `development`).
 
 Always on, in every mode: input parsing, permission checks, operation output
 validation, declared-error details validation, event payload validation, and
-effect input validation. Production skips only interior double-checks:
+effect input AND output validation. Because effect outputs are re-parsed in
+every mode, `execute` always receives a detached parse product — mutating a
+loaded record never writes through to adapter/store state, in production too.
+Production skips only interior double-checks that cannot change data
+semantics:
 
 | Check | dev/test | production |
 | --- | --- | --- |
 | External boundaries (input, output, errors, events, effect inputs) | on | on |
-| Effect output re-validation | on | off |
+| Effect output re-validation (detached parse product) | on | on |
 | `ensures` postconditions | on | off |
-| Deep-freeze of results/contexts/event payloads | on | off (events still snapshotted) |
+| Deep-freeze of results/contexts/event payloads | on | off (payloads stay detached) |
 
 ## Authorization
 
 `permissions: [...]` on an operation requires a `principal` whose permissions
 are a superset; operations without permissions accept anonymous dispatches.
-The single gate is the exported `authorize(operation, principal?)` — dispatch
-uses it, and the HTTP adapter calls it before reading a request body:
+The default gate is the exported `authorize(operation, principal?)` subset
+check. The EFFECTIVE gate — the custom hook when one was provided, else the
+default — is exposed as `app.authorize(operation, principal?)`; dispatch uses
+it, and the HTTP adapter calls `app.authorize` before reading a request body,
+so a custom hook is honored on every entry:
 
 ```ts
 import { authorize, principal } from "@agentix/core";
@@ -201,6 +208,9 @@ createApplication({
 
 Denials by a custom hook report `missingPermissions` from the default subset
 diff, which is `[]` when the hook denies despite satisfied permissions.
+
+A hook that throws never rejects the dispatch promise: dispatch resolves with
+an `AUTHORIZE_FAILED` fault (HTTP adapters answer 500 and call `onError`).
 
 ## Application assembly
 

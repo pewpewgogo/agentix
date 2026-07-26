@@ -378,7 +378,7 @@ describe("v2 core smoke", () => {
     }
   });
 
-  it("skips ONLY the effect-output re-parse in production", async () => {
+  it("re-parses effect outputs in every mode, production included", async () => {
     const Flaky = port("flakyPort", {
       read: port.read({ input: s.object({}), output: s.string({ min: 5 }) }),
     });
@@ -401,18 +401,15 @@ describe("v2 core smoke", () => {
         mode,
       });
 
-    const testResult = await makeFlaky("test").dispatch("flaky.read", { input: {} });
-    expect(testResult.kind).toBe("fault");
-    if (testResult.kind === "fault") {
-      expect(testResult.error.code).toBe("INVALID_EFFECT_OUTPUT");
-    }
-
-    const productionResult = await makeFlaky("production").dispatch("flaky.read", {
-      input: {},
-    });
-    expect(productionResult.kind).toBe("completed");
-    if (productionResult.kind === "completed") {
-      expect(productionResult.outcome).toEqual({ ok: true, value: "ab" });
+    // Orchestrator amendment overriding SPEC section 1: production behaves
+    // exactly like dev/test for effect outputs (detached parse product, fault
+    // on invalid).
+    for (const mode of ["development", "test", "production"] as const) {
+      const result = await makeFlaky(mode).dispatch("flaky.read", { input: {} });
+      expect(result.kind).toBe("fault");
+      if (result.kind === "fault") {
+        expect(result.error.code).toBe("INVALID_EFFECT_OUTPUT");
+      }
     }
   });
 

@@ -107,6 +107,16 @@ const handleRaw = async (
     response.destroy();
     return;
   }
+  // A body read that aborted mid-stream (over-cap chunked upload, client
+  // abort) leaves unread bytes on the wire that cannot be attributed to
+  // request boundaries. Answer, then tear the connection down so keep-alive
+  // reuse can never read stale body bytes as a new pipelined request.
+  const truncated =
+    !request.complete && (request.destroyed || request.errored !== null);
+  if (truncated) {
+    response.setHeader("connection", "close");
+    response.once("finish", () => response.destroy());
+  }
   writeOutcome(response, outcome);
 };
 

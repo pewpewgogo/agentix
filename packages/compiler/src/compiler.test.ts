@@ -9,9 +9,11 @@ import {
   analyzeProject,
   checkArchitecture,
   checkIndexStaleness,
+  compareStrings,
   computeAffected,
   createOperationContext,
   createOperationDetail,
+  featureSegmentOf,
   generateIndex,
   OPERATION_CONTEXT_BYTE_LIMIT,
   planVerification,
@@ -47,11 +49,12 @@ describe("agent index compiler", () => {
     expect(index.features[0]?.consumers).toEqual(["orders"]);
     expect(index.features[1]?.dependencies).toEqual(["customers"]);
     // The feature file is the public contract; export {} declarations count.
+    // Codepoint order (locale-independent): uppercase before lowercase.
     expect(index.features[0]?.exports).toEqual([
       "Customer",
+      "CustomerStore",
       "customers",
       "customersContractVersion",
-      "CustomerStore",
     ]);
     expect(index.operations.map(({ id }) => id)).toEqual([
       "customers.create",
@@ -404,10 +407,11 @@ describe("agent index compiler", () => {
     );
 
     expect(affected.widened).toBe(false);
+    // Codepoint order (locale-independent): "customerS" < "customers".
     expect(affected.items.map(({ id }) => id)).toEqual([
+      "customerStore.get",
       "customers.create",
       "customers.get",
-      "customerStore.get",
       "orders.create",
       "src/features/customers.test.ts",
       "src/features/orders/orders.test.ts",
@@ -651,6 +655,311 @@ describe("agent index compiler", () => {
         stale: true,
         reason: "The generated index uses an incompatible schema or compiler version.",
       });
+  });
+
+  it("diagnoses spread and computed operation members instead of dropping them", () => {
+    const temporary = temporaryFixture("valid");
+    writeFileSync(
+      join(temporary, "src/features/alpha.ts"),
+      `import { command, feature, port, query, s } from "@agentix/core";\n\n` +
+      `export const Note = s.object({ id: s.string({ min: 1 }) });\n` +
+      `export const NoteStorage = port.store("noteStorage2", Note);\n\n` +
+      `const extraOps = {\n` +
+      `  archive: command({ input: s.object({}), output: s.boolean(), async execute() { return true; } }),\n` +
+      `};\n\n` +
+      `export const alpha = feature("alpha", {\n` +
+      `  operations: {\n` +
+      `    ...extraOps,\n` +
+      `    create: command({ input: s.object({}), output: s.boolean(), async execute() { return true; } }),\n` +
+      `    ["publish"]: command({ input: s.object({}), output: s.boolean(), async execute() { return true; } }),\n` +
+      `    get: query({ input: s.object({}), output: s.boolean(), async execute() { return true; } }),\n` +
+      `  },\n` +
+      `});\n`,
+      "utf8",
+    );
+
+    const index = analyzeProject({ rootDir: temporary });
+
+    // One diagnostic for the spread, one for the computed key — never silence.
+    const violations = index.diagnostics.filter(
+      ({ code, source }) =>
+        code === "metadata.static-operation-required" && source.file === "src/features/alpha.ts",
+    );
+    expect(violations).toHaveLength(2);
+    expect(violations.every(({ severity }) => severity === "error")).toBe(true);
+    const unresolved = index.unresolved.filter((entry) =>
+      entry.includes("non-static operation member in feature 'alpha'"),
+    );
+    expect(unresolved).toHaveLength(2);
+    const operationIds = index.operations.map(({ id }) => id);
+    expect(operationIds).toContain("alpha.create");
+    expect(operationIds).toContain("alpha.get");
+    expect(operationIds).not.toContain("alpha.archive");
+    expect(operationIds).not.toContain("alpha.publish");
+    // The unresolved entries widen alpha's subgraph conservatively.
+    const affected = computeAffected(index, "alpha.get", temporary);
+    expect(affected.items.map(({ id }) => id)).toContain("alpha");
+    expect(affected.items.map(({ id }) => id)).toContain("alpha.create");
+  });
+
+  it("diagnoses spread port operations instead of dropping them", () => {
+    const temporary = temporaryFixture("valid");
+    writeFileSync(
+      join(temporary, "src/features/gadgets.ts"),
+      `import { feature, port, s } from "@agentix/core";\n\n` +
+      `const extra = {\n` +
+      `  ping: port.external({ input: s.object({}), output: s.object({}) }),\n` +
+      `};\n\n` +
+      `export const Gadgets = port("gadgetStore", {\n` +
+      `  ...extra,\n` +
+      `  poke: port.write({ input: s.object({}), output: s.object({}) }),\n` +
+      `});\n\n` +
+      `export const gadgets = feature("gadgets", { operations: {} });\n`,
+      "utf8",
+    );
+
+    const index = analyzeProject({ rootDir: temporary });
+
+    expect(index.diagnostics).toContainEqual(expect.objectContaining({
+      code: "metadata.static-operation-required",
+      severity: "error",
+      source: expect.objectContaining({ file: "src/features/gadgets.ts" }),
+    }));
+    expect(
+      index.unresolved.some((entry) => entry.includes("non-static port operation in 'gadgetStore'")),
+    ).toBe(true);
+    const gadgetOps = index.ports.find(({ id }) => id === "gadgetStore")?.operations;
+    expect(gadgetOps?.map(({ id }) => id)).toEqual(["gadgetStore.poke"]);
+  });
+
+  it("widens the owning feature's subgraph when effects or emits hide behind a spread", () => {
+    const temporary = temporaryFixture("valid");
+    writeFileSync(
+      join(temporary, "src/features/alpha.ts"),
+      `import { command, event, feature, port, s } from "@agentix/core";\n\n` +
+      `export const Note = s.object({ id: s.string({ min: 1 }) });\n` +
+      `export const NoteStorage = port.store("noteStorage", Note);\n` +
+      `export const NoteCreated = event("alpha.note-created", 1, Note);\n\n` +
+      `const loadSave = { load: NoteStorage.get, save: NoteStorage.save };\n` +
+      `const announcements = { created: NoteCreated };\n\n` +
+      `export const alpha = feature("alpha", {\n` +
+      `  events: [NoteCreated],\n` +
+      `  operations: {\n` +
+      `    create: command({\n` +
+      `      input: Note,\n` +
+      `      output: Note,\n` +
+      `      effects: { ...loadSave },\n` +
+      `      emits: { ...announcements },\n` +
+      `      async execute({ input, effects }) { return effects.save(input); },\n` +
+      `    }),\n` +
+      `  },\n` +
+      `});\n`,
+      "utf8",
+    );
+
+    const index = analyzeProject({ rootDir: temporary });
+
+    expect(index.diagnostics).toContainEqual(expect.objectContaining({
+      code: "metadata.static-effect-required",
+      severity: "warning",
+    }));
+    expect(index.diagnostics).toContainEqual(expect.objectContaining({
+      code: "metadata.static-emit-required",
+      severity: "warning",
+    }));
+    expect(index.unresolved.some((entry) =>
+      entry.includes("unresolved effects spread in operation 'alpha.create'"),
+    )).toBe(true);
+    expect(index.unresolved.some((entry) =>
+      entry.includes("unresolved emits spread in operation 'alpha.create'"),
+    )).toBe(true);
+
+    // The spread hides the operation-effect edge, so the port operation alone
+    // no longer proves a narrow closure: alpha's whole subgraph is included.
+    const affected = computeAffected(index, "noteStorage.save", temporary);
+    const items = affected.items.map(({ id }) => id);
+    expect(items).toContain("noteStorage.save");
+    expect(items).toContain("alpha");
+    expect(items).toContain("alpha.create");
+    const alphaItem = affected.items.find(({ id }) => id === "alpha");
+    expect(alphaItem?.reasons.some(({ edge }) => edge === "conservative-widening")).toBe(true);
+  });
+
+  it("errors when a file declares more than one feature", () => {
+    const temporary = temporaryFixture("valid");
+    writeFileSync(
+      join(temporary, "src/features/pair.ts"),
+      `import { command, feature, s } from "@agentix/core";\n\n` +
+      `export const first = feature("first", {\n` +
+      `  operations: {\n` +
+      `    create: command({ input: s.object({}), output: s.boolean(), async execute() { return true; } }),\n` +
+      `  },\n` +
+      `});\n\n` +
+      `export const second = feature("second", {\n` +
+      `  operations: {\n` +
+      `    create: command({ input: s.object({}), output: s.boolean(), async execute() { return true; } }),\n` +
+      `  },\n` +
+      `});\n`,
+      "utf8",
+    );
+
+    const index = analyzeProject({ rootDir: temporary });
+
+    // Both features stay indexed, but the file carries a verify-failing error.
+    expect(index.features.map(({ id }) => id)).toEqual(
+      expect.arrayContaining(["first", "second"]),
+    );
+    expect(index.operations.map(({ id }) => id)).toEqual(
+      expect.arrayContaining(["first.create", "second.create"]),
+    );
+    const violation = index.diagnostics.find(
+      ({ code }) => code === "architecture.one-feature-per-file",
+    );
+    expect(violation).toMatchObject({
+      severity: "error",
+      source: expect.objectContaining({ file: "src/features/pair.ts" }),
+    });
+    expect(violation?.message).toContain("'second'");
+    expect(violation?.message).toContain("'first'");
+    expect(checkArchitecture({ rootDir: temporary }).map(({ code }) => code))
+      .toContain("architecture.one-feature-per-file");
+  });
+
+  it("maps dotted single-file siblings to the first-dot feature segment", () => {
+    expect(featureSegmentOf("src/features/notes.ts")).toBe("notes");
+    expect(featureSegmentOf("src/features/notes.test.ts")).toBe("notes");
+    expect(featureSegmentOf("src/features/notes.integration.test.ts")).toBe("notes");
+    expect(featureSegmentOf("src/features/notes.helpers.ts")).toBe("notes");
+    expect(featureSegmentOf("src/features/notes/anything.ts")).toBe("notes");
+    expect(featureSegmentOf("src/other/notes.ts")).toBeUndefined();
+  });
+
+  it("associates dotted colocated tests and allows same-feature helper imports", () => {
+    const temporary = temporaryFixture("valid");
+    writeFileSync(
+      join(temporary, "tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: {
+          module: "NodeNext",
+          moduleResolution: "NodeNext",
+          target: "ES2022",
+        },
+        include: ["src/**/*.ts"],
+        exclude: ["src/**/*.test.ts"],
+      }),
+      "utf8",
+    );
+    writeFileSync(
+      join(temporary, "src/features/notes.helpers.ts"),
+      `export const normalizeTitle = (title: string): string => title.trim();\n`,
+      "utf8",
+    );
+    writeFileSync(
+      join(temporary, "src/features/notes.ts"),
+      `import { command, feature, s } from "@agentix/core";\n` +
+      `import { normalizeTitle } from "./notes.helpers.js";\n\n` +
+      `export const notes = feature("notes", {\n` +
+      `  operations: {\n` +
+      `    create: command({ input: s.object({ title: s.string() }), output: s.string(), async execute({ input }) { return normalizeTitle(input.title); } }),\n` +
+      `  },\n` +
+      `});\n`,
+      "utf8",
+    );
+    writeFileSync(
+      join(temporary, "src/features/notes.test.ts"),
+      `import { notes } from "./notes.js";\n\nexport const covered = notes.operations.create;\n`,
+      "utf8",
+    );
+    writeFileSync(
+      join(temporary, "src/features/notes.integration.test.ts"),
+      `import { notes } from "./notes.js";\n\nexport const integration = notes.operations.create;\n`,
+      "utf8",
+    );
+
+    const index = analyzeProject({ rootDir: temporary });
+
+    // (b) importing your own dotted helper is NOT a cross-feature import.
+    expect(index.diagnostics.filter(
+      ({ code }) => code === "architecture.private-cross-feature-import",
+    )).toEqual([]);
+    expect(index.unresolved).toEqual([]);
+
+    // (a) the dotted test file binds to feature "notes", not a phantom
+    // "notes.integration" feature with zero operations.
+    const integration = index.tests.find(
+      ({ id }) => id === "src/features/notes.integration.test.ts",
+    );
+    expect(integration?.features).toEqual(["notes"]);
+    expect(integration?.operations).toEqual(["notes.create"]);
+
+    const affected = computeAffected(index, "notes.create", temporary);
+    expect(affected.widened).toBe(false);
+    expect(affected.items.map(({ id }) => id)).toEqual(expect.arrayContaining([
+      "src/features/notes.integration.test.ts",
+      "src/features/notes.test.ts",
+    ]));
+
+    const plan = planVerification(index, "notes.create", temporary);
+    expect(plan.scope).toBe("project");
+    expect(plan.testFiles).toEqual([
+      "src/features/notes.integration.test.ts",
+      "src/features/notes.test.ts",
+    ]);
+  });
+
+  it("orders strings by code unit, independent of the process locale", () => {
+    // localeCompare would give a < B and é < z; codepoint order must not.
+    expect(compareStrings("a", "B")).toBeGreaterThan(0);
+    expect(compareStrings("B", "a")).toBeLessThan(0);
+    expect(compareStrings("é", "z")).toBeGreaterThan(0);
+    expect(compareStrings("z", "é")).toBeLessThan(0);
+    expect(compareStrings("same", "same")).toBe(0);
+    expect(["é", "z", "a", "B"].sort(compareStrings)).toEqual(["B", "a", "z", "é"]);
+    expect(stableJson({ "é": 1, a: 2, B: 3 }, { compact: true }))
+      .toBe('{"B":3,"a":2,"é":1}\n');
+  });
+
+  it("anchors dash-leading test filters so vitest cannot parse them as flags", () => {
+    const temporary = temporaryFixture("valid");
+    writeFileSync(
+      join(temporary, "tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: {
+          module: "NodeNext",
+          moduleResolution: "NodeNext",
+          target: "ES2022",
+        },
+        include: ["src/**/*.ts"],
+        exclude: ["src/**/*.test.ts"],
+      }),
+      "utf8",
+    );
+    writeFileSync(
+      join(temporary, "--shard.test.ts"),
+      `import { associateOperationTest } from "@agentix/testing";\n` +
+      `import { orders } from "./src/features/orders/feature.js";\n\n` +
+      `export const sharded = associateOperationTest(orders.operations.create, "orders.sharded");\n`,
+      "utf8",
+    );
+
+    const index = analyzeProject({ rootDir: temporary });
+    const plan = planVerification(index, "orders.create", temporary);
+
+    expect(plan.scope).toBe("project");
+    // testFiles ids stay unchanged; only the vitest argv gets the ./ anchor.
+    expect(plan.testFiles).toEqual([
+      "--shard.test.ts",
+      "src/features/orders/orders.test.ts",
+    ]);
+    expect(plan.tests).toEqual([
+      "npm",
+      "exec",
+      "--",
+      "vitest",
+      "run",
+      "./--shard.test.ts",
+      "src/features/orders/orders.test.ts",
+    ]);
   });
 
   it("uses declared package verification scripts for a workspace scope", () => {

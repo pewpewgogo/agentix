@@ -11,9 +11,19 @@ const ROUTE_METHODS: ReadonlySet<string> = new Set([
   "DELETE",
 ]);
 
+/** Statuses that forbid a response body (RFC 9110) — the fixed JSON envelope always has one. */
+const BODILESS_HTTP_STATUSES: ReadonlySet<number> = new Set([204, 205, 304]);
+
 const assertStatus = (status: number, label: string): void => {
-  if (!Number.isSafeInteger(status) || status < 100 || status > 599) {
-    throw new TypeError(`${label} must be an integer in 100..599`);
+  if (!Number.isSafeInteger(status) || status < 200 || status > 599) {
+    throw new TypeError(
+      `${label} must be an integer in 200..599 (1xx responses cannot carry the JSON envelope)`,
+    );
+  }
+  if (BODILESS_HTTP_STATUSES.has(status)) {
+    throw new TypeError(
+      `${label} cannot be ${status}: 204, 205, and 304 forbid a response body, but every response carries the JSON envelope`,
+    );
   }
 };
 

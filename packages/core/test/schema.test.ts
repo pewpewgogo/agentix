@@ -309,3 +309,63 @@ describe("schema primitives", () => {
     }
   });
 });
+
+describe("issue accumulation cap", () => {
+  it("bounds a huge nested failure to 100 issues plus one truncation marker", () => {
+    // Regression (#13 repro): 130k invalid array items used to throw
+    // RangeError out of safeParse via push(...spread).
+    const schema = s.object({ items: s.array(s.string({ min: 1 })) });
+    const result = schema.safeParse({ items: new Array(130_000).fill(1) });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.issues.length).toBeLessThanOrEqual(101);
+    expect(result.issues[0]).toMatchObject({
+      code: "invalid_type",
+      path: ["items", 0],
+    });
+    expect(result.issues.at(-1)).toMatchObject({ code: "too_many_issues" });
+  });
+
+  it("caps floods of missing-required and unexpected keys", () => {
+    const requiredShape: Record<string, ReturnType<typeof s.string>> = {};
+    for (let index = 0; index < 500; index += 1) {
+      requiredShape[`field${index}`] = s.string();
+    }
+    const missing = s.object(requiredShape).safeParse({});
+    expect(missing.success).toBe(false);
+    if (!missing.success) {
+      expect(missing.issues.length).toBe(101);
+      expect(missing.issues.at(-1)).toMatchObject({ code: "too_many_issues" });
+    }
+
+    const extraneous: Record<string, number> = {};
+    for (let index = 0; index < 500; index += 1) {
+      extraneous[`extra${index}`] = index;
+    }
+    const unexpected = s.object({}).safeParse(extraneous);
+    expect(unexpected.success).toBe(false);
+    if (!unexpected.success) {
+      expect(unexpected.issues.length).toBe(101);
+      expect(unexpected.issues.at(-1)).toMatchObject({ code: "too_many_issues" });
+    }
+  });
+
+  it("keeps trying later union options after an earlier option hit the cap", () => {
+    const numbers = s.object({ items: s.array(s.number()) });
+    const strings = s.object({ items: s.array(s.string()) });
+    const either = s.union([numbers, strings]);
+
+    const value = { items: new Array(300).fill("text") };
+    // Option 1 fails with 300 issues (capped); option 2 must still succeed.
+    const result = either.safeParse(value);
+    expect(result.success).toBe(true);
+
+    const failing = either.safeParse({ items: new Array(300).fill(true) });
+    expect(failing.success).toBe(false);
+    if (!failing.success) {
+      expect(failing.issues).toHaveLength(1);
+      expect(failing.issues[0]?.code).toBe("invalid_union");
+      expect(failing.issues[0]?.causes?.length).toBeLessThanOrEqual(101);
+    }
+  });
+});

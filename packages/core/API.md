@@ -58,7 +58,8 @@ Every public export, one line each. Full model: the repository's
 - `app.dispatch(idOrDescriptor, {input, principal?, trace?})` — `completed | rejected | fault`.
 - `app.call(id, input, {principal?}?)` — returns `Outcome`; throws `DispatchError` otherwise.
 - `app.getOperation(id)`; `app.operations`; `app.features`; `app.mode`.
-- `authorize(operation, principal?)` — the single permission-subset gate.
+- `app.authorize(operation, principal?)` — the EFFECTIVE gate (custom hook when provided, else the default); used by HTTP adapters pre-body. A throwing hook faults dispatch with `AUTHORIZE_FAILED`.
+- `authorize(operation, principal?)` — the default permission-subset gate.
 - `principal(id, permissions)` — frozen `Principal`.
 - `DispatchError` — `{kind: "rejected"|"fault", code, operationId, detail}`.
 - `ApplicationDefinitionError` — carries every startup `issue`.

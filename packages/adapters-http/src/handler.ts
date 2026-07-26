@@ -1,4 +1,3 @@
-import { authorize } from "@agentix/core";
 import type {
   AnyBoundOperation,
   Application,
@@ -171,8 +170,10 @@ const developmentOnError: HttpErrorObserver = (error, info) => {
 /**
  * Builds an HTTP handler whose routes are AUTO-derived from the app's
  * operations' `http` metadata. Request flow (both entries): route match ->
- * authenticate -> core authorize() 403 BEFORE body read -> body read ->
- * JSON.parse -> input mapping -> dispatch -> JSON envelope.
+ * authenticate -> app.authorize() 403 BEFORE body read -> body read ->
+ * JSON.parse -> input mapping -> dispatch -> JSON envelope. app.authorize is
+ * the EFFECTIVE gate: a custom createApplication({authorize}) hook is honored
+ * here, not just inside dispatch.
  */
 export const createHttpHandler = <Ops>(
   app: Application<Ops>,
@@ -227,7 +228,9 @@ export const createHttpHandler = <Ops>(
       }
 
       // Single permission gate, BEFORE the body is read (spec requirement).
-      if (!authorize(route.operation, principal)) return PERMISSION_DENIED_RESPONSE;
+      // app.authorize applies the custom hook when one was provided; a
+      // throwing hook falls through to the outer catch (500 + onError).
+      if (!app.authorize(route.operation, principal)) return PERMISSION_DENIED_RESPONSE;
 
       let text: string | undefined;
       try {
@@ -281,8 +284,10 @@ export const createHttpHandler = <Ops>(
   };
 
   const fetchEntry = async (request: Request): Promise<Response> => {
+    let path = request.url; // fallback until the URL parses
     try {
       const url = new URL(request.url);
+      path = url.pathname;
       const outcome = await handle({
         method: request.method,
         path: url.pathname,
@@ -298,7 +303,12 @@ export const createHttpHandler = <Ops>(
       });
       return toResponse(outcome);
     } catch (error) {
-      onError(error, { method: request.method, path: request.url });
+      const match = matchRoute(table, request.method, path);
+      onError(error, {
+        method: request.method,
+        path,
+        ...(match.kind === "matched" ? { operationId: match.route.operationId } : {}),
+      });
       return toResponse(INTERNAL_RESPONSE);
     }
   };

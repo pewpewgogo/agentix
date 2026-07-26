@@ -23,32 +23,40 @@ const declarationExtension = /\.d\.[cm]?ts$/u;
 
 export const toPosixPath = (path: string): string => path.split(sep).join("/");
 
+/**
+ * Deterministic code-unit comparator. Generated artifacts must be
+ * byte-identical across machines, so ordering never uses localeCompare
+ * (whose result depends on the process locale and ICU data).
+ */
+export const compareStrings = (left: string, right: string): number =>
+  left < right ? -1 : left > right ? 1 : 0;
+
 export const repositoryPath = (rootDir: string, path: string): string => {
   const absolute = isAbsolute(path) ? path : resolve(rootDir, path);
   return toPosixPath(relative(resolve(rootDir), absolute));
 };
 
 /**
- * Feature segment for a repository path. Single-file features
- * (`src/features/notes.ts`, plus `notes.test.ts` beside it) and directory
- * features (`src/features/notes/...`) both map to segment `notes`.
+ * Feature segment for a repository path. Single-file features claim the
+ * name up to the FIRST dot, so the feature file, dotted helpers, and every
+ * colocated test suffix map to one segment: `src/features/notes.ts`,
+ * `notes.helpers.ts`, `notes.test.ts`, and `notes.integration.test.ts` all
+ * belong to segment `notes`, as does the directory form
+ * (`src/features/notes/...`).
  */
 export const featureSegmentOf = (path: string): string | undefined => {
   const match = /(?:^|\/)src\/features\/([^/]+)(\/|$)/u.exec(path);
   if (match === null) return undefined;
   const part = match[1] as string;
   if (match[2] === "/") return part;
-  const withoutTestSuffix = part.replace(
-    /\.(?:agent-test|test|spec)\.[cm]?tsx?$/u,
-    "",
-  );
-  if (withoutTestSuffix !== part) return withoutTestSuffix;
-  return part.replace(/\.[cm]?tsx?$/u, "");
+  const dot = part.indexOf(".");
+  const segment = dot === -1 ? part : part.slice(0, dot);
+  return segment === "" ? undefined : segment;
 };
 
 const walk = (directory: string, output: string[]): void => {
   const entries = readdirSync(directory, { withFileTypes: true }).sort((a, b) =>
-    a.name.localeCompare(b.name),
+    compareStrings(a.name, b.name),
   );
   for (const entry of entries) {
     if (entry.isDirectory()) {
@@ -80,14 +88,14 @@ export const discoverSourceFiles = (
   if (explicitFiles !== undefined) {
     return [...new Set(explicitFiles.map((file) => resolve(root, file)))]
       .filter((file) => existsSync(file) && statSync(file).isFile())
-      .sort((a, b) => repositoryPath(root, a).localeCompare(repositoryPath(root, b)));
+      .sort((a, b) => compareStrings(repositoryPath(root, a), repositoryPath(root, b)));
   }
 
   const files: string[] = [];
   walk(root, files);
   return files
     .filter((file) => !isTestFixture(root, file))
-    .sort((a, b) => repositoryPath(root, a).localeCompare(repositoryPath(root, b)));
+    .sort((a, b) => compareStrings(repositoryPath(root, a), repositoryPath(root, b)));
 };
 
 const manifestCandidates = (rootDir: string, sourceFiles: readonly string[]): string[] => {
@@ -102,7 +110,7 @@ const manifestCandidates = (rootDir: string, sourceFiles: readonly string[]): st
     .map((file) => resolve(root, file))
     .filter((file) => existsSync(file) && statSync(file).isFile());
   return [...new Set([...sourceFiles.map((file) => resolve(file)), ...configFiles])].sort(
-    (a, b) => repositoryPath(root, a).localeCompare(repositoryPath(root, b)),
+    (a, b) => compareStrings(repositoryPath(root, a), repositoryPath(root, b)),
   );
 };
 
@@ -135,7 +143,7 @@ export const stableJson = (
     if (item !== null && typeof item === "object") {
       return Object.fromEntries(
         Object.entries(item)
-          .sort(([left], [right]) => left.localeCompare(right))
+          .sort(([left], [right]) => compareStrings(left, right))
           .map(([key, nested]) => [key, order(nested)]),
       );
     }

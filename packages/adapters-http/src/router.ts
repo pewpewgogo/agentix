@@ -170,6 +170,10 @@ const buildDefaultMapper = (input: Schema<unknown>): BuildInput => {
     };
   });
   return (params, query, body) => {
+    // A present non-object JSON body ([1,2], "str", 42, true, null) must not
+    // be silently discarded: hand it to the object schema verbatim so the
+    // request rejects with a proper invalid-type INVALID_INPUT (400).
+    if (body !== undefined && !isPlainObjectBody(body)) return body;
     const merged = Object.create(null) as Record<string, unknown>;
     if (isPlainObjectBody(body)) {
       for (const key of Object.keys(body)) merged[key] = body[key];
@@ -402,6 +406,12 @@ const bucketMatches = (
   segments: readonly string[],
 ): boolean => {
   if (bucket.staticRoutes.has(path)) return true;
+  // Mirror the primary matcher: percent-encoded static paths get a
+  // decoded-segment second chance so wrong-method requests still get 405.
+  if (path.indexOf("%") !== -1 && bucket.staticRoutes.size > 0) {
+    const decodedKey = decodedStaticKey(segments);
+    if (decodedKey !== null && bucket.staticRoutes.has(decodedKey)) return true;
+  }
   for (const route of bucket.paramRoutes) {
     if (matchParamRoute(route, segments) !== null) return true;
   }

@@ -4,6 +4,7 @@ import { API, SymbolFlags, type Checker, type Symbol as TypeScriptSymbol } from 
 import * as ts from "typescript/unstable/ast";
 
 import {
+  compareStrings as compare,
   createSourceManifest,
   discoverSourceFiles,
   featureSegmentOf,
@@ -62,7 +63,6 @@ interface UnboundOperationDraft {
   readonly call: ts.CallExpression;
 }
 
-const compare = (left: string, right: string): number => left.localeCompare(right);
 const uniqueSorted = (values: Iterable<string>): string[] => [...new Set(values)].sort(compare);
 
 const unwrap = (expression: ts.Expression): ts.Expression => {
@@ -593,9 +593,21 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
   const featureDrafts = drafts.filter((draft) => draft.kind === "feature" && ids.has(draft));
   const featureIdsBySegment = new Map<string, string>();
   const featureFileBases = new Set<string>();
+  const featureIdByFile = new Map<string, string>();
   for (const draft of featureDrafts) {
     const segment = segmentOf(draft.sourceFile);
     const id = ids.get(draft);
+    if (id !== undefined) {
+      // The feature file IS the public contract, so a file declares exactly
+      // one feature(); a second declaration makes imports of the file
+      // ambiguous and is an architecture error.
+      const previous = featureIdByFile.get(draft.sourceFile.fileName);
+      if (previous === undefined) {
+        featureIdByFile.set(draft.sourceFile.fileName, id);
+      } else {
+        diagnostic(draft.sourceFile, draft.declaration.name, "architecture.one-feature-per-file", `Feature '${id}' is declared in a file that already declares feature '${previous}'. Each file must declare exactly one feature().`);
+      }
+    }
     if (segment !== undefined && id !== undefined) featureIdsBySegment.set(segment, id);
     featureFileBases.add(
       repositoryPath(rootDir, draft.sourceFile.fileName).replace(/\.[cm]?tsx?$/u, ""),
@@ -639,8 +651,18 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
       unresolved.push(`${draft.source.file}:${draft.source.line}: non-static port operations`);
     } else {
       for (const property of object.properties) {
-        if (!ts.isPropertyAssignment(property) && !ts.isShorthandPropertyAssignment(property)) continue;
-        const name = propertyName(property.name);
+        const name = "name" in property ? propertyName(property.name) : undefined;
+        if (
+          (!ts.isPropertyAssignment(property) && !ts.isShorthandPropertyAssignment(property)) ||
+          name === undefined
+        ) {
+          // Spread or computed members hide operations from static analysis;
+          // diagnose and widen conservatively instead of dropping them.
+          const location = sourceLocation(rootDir, draft.sourceFile, property);
+          diagnostic(draft.sourceFile, property, "metadata.static-operation-required", `port '${draft.symbolName}' declares an operation through a spread or computed member; every port operation needs a static literal key.`);
+          unresolved.push(`${location.file}:${location.line}: non-static port operation in '${portId}'`);
+          continue;
+        }
         const initializer = initializerForProperty(property);
         const callee =
           initializer !== undefined && ts.isCallExpression(initializer)
@@ -650,8 +672,8 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
           callee?.namespace === "port" && (PORT_OP_KINDS as readonly string[]).includes(callee.name)
             ? (callee.name as PortOpKind)
             : undefined;
-        if (name === undefined || kind === undefined) {
-          diagnostic(draft.sourceFile, property, "metadata.invalid-port-operation", `Port operation '${draft.symbolName}.${name ?? "?"}' must be created with port.read/write/time/random/external.`);
+        if (kind === undefined) {
+          diagnostic(draft.sourceFile, property, "metadata.invalid-port-operation", `Port operation '${draft.symbolName}.${name}' must be created with port.read/write/time/random/external.`);
           continue;
         }
         const checker = checkerFor(property.name);
@@ -856,9 +878,18 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
     operationKeysByFeatureDraft.set(draft, keyMap);
 
     for (const property of operationsExpression.properties) {
-      if (!ts.isPropertyAssignment(property) && !ts.isShorthandPropertyAssignment(property)) continue;
-      const key = propertyName(property.name);
-      if (key === undefined) continue;
+      const key = "name" in property ? propertyName(property.name) : undefined;
+      if (
+        (!ts.isPropertyAssignment(property) && !ts.isShorthandPropertyAssignment(property)) ||
+        key === undefined
+      ) {
+        // Spread or computed members serve operations at runtime that the
+        // index cannot see; diagnose and widen instead of omitting silently.
+        const location = sourceLocation(rootDir, draft.sourceFile, property);
+        diagnostic(draft.sourceFile, property, "metadata.static-operation-required", `feature '${featureId}' declares an operation through a spread or computed member; every operation needs a static literal key with a command() or query() value.`);
+        unresolved.push(`${location.file}:${location.line}: non-static operation member in feature '${featureId}'`);
+        continue;
+      }
       const operationId = `${featureId}.${key}`;
       const propertySource = sourceLocation(rootDir, draft.sourceFile, property.name);
 
@@ -913,10 +944,20 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
       const effects: IndexedEffect[] = [];
       if (effectsObject !== undefined) {
         for (const effectProperty of effectsObject.properties) {
-          if (!ts.isPropertyAssignment(effectProperty) && !ts.isShorthandPropertyAssignment(effectProperty)) continue;
+          if (!ts.isPropertyAssignment(effectProperty) && !ts.isShorthandPropertyAssignment(effectProperty)) {
+            // A spread hides operation-effect edges; record it as unresolved
+            // so the owning feature's subgraph widens conservatively.
+            diagnostic(draft.sourceFile, effectProperty, "metadata.static-effect-required", `Operation '${operationId}' declares effects through a spread or non-static member; the hidden effects widen verification to the owning feature.`, "warning");
+            unresolved.push(`${propertySource.file}:${propertySource.line}: unresolved effects spread in operation '${operationId}'`);
+            continue;
+          }
           const effectName = propertyName(effectProperty.name);
           const expression = initializerForProperty(effectProperty);
-          if (effectName === undefined || expression === undefined) continue;
+          if (effectName === undefined || expression === undefined) {
+            diagnostic(draft.sourceFile, effectProperty, "metadata.static-effect-required", `Operation '${operationId}' declares an effect with a computed key; every effect needs a static literal key.`, "warning");
+            unresolved.push(`${propertySource.file}:${propertySource.line}: non-static effect in operation '${operationId}'`);
+            continue;
+          }
           const portOperation = resolvePortOperation(expression);
           effects.push({
             name: effectName,
@@ -936,7 +977,11 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
       const emits = objectExpression(object, "emits");
       if (emits !== undefined) {
         for (const emitProperty of emits.properties) {
-          if (!ts.isPropertyAssignment(emitProperty) && !ts.isShorthandPropertyAssignment(emitProperty)) continue;
+          if (!ts.isPropertyAssignment(emitProperty) && !ts.isShorthandPropertyAssignment(emitProperty)) {
+            diagnostic(draft.sourceFile, emitProperty, "metadata.static-emit-required", `Operation '${operationId}' declares emits through a spread or non-static member; the hidden events widen verification to the owning feature.`, "warning");
+            unresolved.push(`${propertySource.file}:${propertySource.line}: unresolved emits spread in operation '${operationId}'`);
+            continue;
+          }
           const expression = initializerForProperty(emitProperty);
           if (expression === undefined) continue;
           const resolved = resolveDraft(expression);

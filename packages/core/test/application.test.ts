@@ -299,6 +299,74 @@ describe("application dispatch", () => {
     expect(authorize({})).toBe(true);
   });
 
+  it("exposes the EFFECTIVE gate as app.authorize (default and custom hook)", () => {
+    const getOp = entities.operations.get;
+    const plain = createApplication({
+      features: [entities],
+      adapters: [makeRecords().adapter],
+      mode: "test",
+    });
+    // Default: the exported subset check.
+    expect(plain.authorize(getOp)).toBe(false);
+    expect(plain.authorize(getOp, principal("u", ["entities:read"]))).toBe(true);
+
+    // Custom hook: replaces the decision — grants where the subset check
+    // denies and denies where it grants.
+    const custom = createApplication({
+      features: [entities],
+      adapters: [makeRecords().adapter],
+      mode: "test",
+      authorize: (who) => who?.id === "root",
+    });
+    expect(custom.authorize(getOp, principal("root", []))).toBe(true);
+    expect(custom.authorize(getOp, allowed)).toBe(false);
+  });
+
+  it("faults with AUTHORIZE_FAILED when a custom authorize hook throws", async () => {
+    const app = createApplication({
+      features: [entities],
+      adapters: [makeRecords().adapter],
+      mode: "production",
+      authorize: () => {
+        throw new Error("policy service unreachable");
+      },
+    });
+    // The promise must RESOLVE with a fault, never reject (#20).
+    await expect(
+      app.dispatch("entities.get", { input: { id: "x" }, principal: allowed }),
+    ).resolves.toMatchObject({
+      kind: "fault",
+      operationId: "entities.get",
+      error: { code: "AUTHORIZE_FAILED", cause: expect.any(Error) },
+    });
+  });
+
+  it("rejects (not faults) a huge invalid input with a bounded issue list", async () => {
+    // Regression (#13 repro): a 244KB-scale nested failure must stay a
+    // 400-class INVALID_INPUT rejection with at most 100 issues + 1 marker.
+    const bulk = feature("bulk", {
+      operations: {
+        add: command({
+          input: s.object({ items: s.array(s.string({ min: 1 })) }),
+          output: s.object({ count: s.number() }),
+          async execute({ input }) {
+            return { count: input.items.length };
+          },
+        }),
+      },
+    });
+    const app = createApplication({ features: [bulk], mode: "production" });
+    const result = await app.dispatch("bulk.add", {
+      input: { items: new Array(125_000).fill(1) },
+    });
+    expect(result.kind).toBe("rejected");
+    if (result.kind !== "rejected") return;
+    expect(result.error.code).toBe("INVALID_INPUT");
+    if (result.error.code !== "INVALID_INPUT") return;
+    expect(result.error.issues.length).toBeLessThanOrEqual(101);
+    expect(result.error.issues.at(-1)).toMatchObject({ code: "too_many_issues" });
+  });
+
   it("rejects invalid input without invoking effects", async () => {
     const records = makeRecords();
     const app = createApplication({

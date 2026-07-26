@@ -113,6 +113,22 @@ const files = feature("files", {
   },
 });
 
+const prefs = feature("prefs", {
+  operations: {
+    update: command({
+      input: s.object({
+        title: s.optional(s.string({ min: 1 })),
+        count: s.optional(s.number()),
+      }),
+      output: s.object({ received: s.string() }),
+      http: { method: "PATCH", path: "/prefs" },
+      async execute({ input }) {
+        return { received: JSON.stringify(input) };
+      },
+    }),
+  },
+});
+
 const chaos = feature("chaos", {
   operations: {
     boom: query({
@@ -138,7 +154,7 @@ const chaos = feature("chaos", {
 
 const makeApp = (mode: RuntimeMode = "test") =>
   createApplication({
-    features: [notes, search, files, chaos],
+    features: [notes, search, files, prefs, chaos],
     adapters: [
       NoteStore.memory(),
       Flaky.adapter({
@@ -399,6 +415,117 @@ describe("authentication", () => {
 });
 
 /* ------------------------------------------------------------------ */
+/* Custom authorize hook (app.authorize is the effective gate)        */
+/* ------------------------------------------------------------------ */
+
+describe("custom authorize hook over HTTP", () => {
+  const makeHookedHandler = (
+    authorizeHook: Parameters<typeof createApplication>[0]["authorize"],
+    options: Parameters<typeof createHttpHandler>[1] = {},
+  ) =>
+    createHttpHandler(
+      createApplication({
+        features: [notes],
+        adapters: [NoteStore.memory()],
+        mode: "test",
+        authorize: authorizeHook,
+      }),
+      { authenticate, ...options },
+    );
+
+  it("honors a PERMISSIVE hook: 201 although the subset check denies (both entries)", async () => {
+    // "reader" has no notes:write permission — the default gate answers 403
+    // (see "403 before body parse"); the hook grants everyone.
+    const handler = makeHookedHandler(() => true);
+
+    const viaFetch = await handler.fetch(
+      jsonRequest("/notes", { method: "POST", token: "reader", body: { id: "hp1", title: "T" } }),
+    );
+    expect(viaFetch.status).toBe(201);
+    await expect(viaFetch.json()).resolves.toEqual({
+      ok: true,
+      value: { id: "hp1", title: "T" },
+    });
+
+    const viaHandle = await handler.handle({
+      method: "POST",
+      path: "/notes",
+      query: "",
+      headers: (name) => (name === "authorization" ? "Bearer reader" : undefined),
+      readBody: async () => JSON.stringify({ id: "hp2", title: "T" }),
+    });
+    expect(viaHandle.status).toBe(201);
+    expect(JSON.parse(viaHandle.body)).toEqual({
+      ok: true,
+      value: { id: "hp2", title: "T" },
+    });
+  });
+
+  it("honors a RESTRICTIVE hook: 403 BEFORE the body is read (both entries)", async () => {
+    const handler = makeHookedHandler(() => false);
+
+    // handle entry: the deferred body reader must never run.
+    let bodyReads = 0;
+    const viaHandle = await handler.handle({
+      method: "POST",
+      path: "/notes",
+      query: "",
+      headers: (name) => (name === "authorization" ? "Bearer writer" : undefined),
+      readBody: async () => {
+        bodyReads += 1;
+        return JSON.stringify({ id: "x", title: "T" });
+      },
+    });
+    expect(viaHandle.status).toBe(403);
+    expect(JSON.parse(viaHandle.body)).toEqual({
+      ok: false,
+      error: { code: "PERMISSION_DENIED" },
+    });
+    expect(bodyReads).toBe(0);
+
+    // fetch entry: malformed JSON answers 403 (not 400) — the body was never
+    // parsed, although "writer" satisfies the default subset check.
+    const viaFetch = await handler.fetch(
+      jsonRequest("/notes", { method: "POST", token: "writer", rawBody: "{" }),
+    );
+    expect(viaFetch.status).toBe(403);
+    await expect(viaFetch.json()).resolves.toEqual({
+      ok: false,
+      error: { code: "PERMISSION_DENIED" },
+    });
+  });
+
+  it("answers 500 + onError when the authorize hook throws (#20)", async () => {
+    const boom = new Error("policy service unreachable");
+    const onError = vi.fn();
+    const handler = makeHookedHandler(
+      () => {
+        throw boom;
+      },
+      { onError },
+    );
+
+    const response = await handler.fetch(
+      jsonRequest("/notes", { method: "POST", token: "writer", body: { id: "x", title: "T" } }),
+    );
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: { code: "INTERNAL" },
+    });
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      boom,
+      expect.objectContaining({
+        method: "POST",
+        path: "/notes",
+        operationId: "notes.create",
+      }),
+    );
+  });
+});
+
+/* ------------------------------------------------------------------ */
 /* Routing behavior through the Web entry                             */
 /* ------------------------------------------------------------------ */
 
@@ -413,6 +540,21 @@ describe("routing", () => {
     const handler = makeHandler();
     const response = await handler.fetch(jsonRequest("/notes/lates%74"));
     await expect(response.json()).resolves.toEqual({ ok: true, value: { latest: true } });
+  });
+
+  it("answers 405 with Allow for wrong-method requests on percent-encoded static paths", async () => {
+    const handler = makeHandler();
+    const response = await handler.fetch(
+      jsonRequest("/notes/lates%74", { method: "POST" }),
+    );
+    expect(response.status).toBe(405);
+    // GET comes from the decoded static route /notes/latest; DELETE from the
+    // /notes/:id param route which also matches the decoded segment.
+    expect(response.headers.get("allow")).toBe("DELETE, GET");
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: { code: "METHOD_NOT_ALLOWED" },
+    });
   });
 
   it("orders param routes static-segments-first", async () => {
@@ -506,6 +648,66 @@ describe("default request mapping", () => {
     });
   });
 
+  it("rejects non-object JSON bodies on object-schema routes with a 400 type issue", async () => {
+    const handler = makeHandler();
+
+    // All-optional schema (typical PATCH partial update): a discarded body
+    // would silently succeed with {} — it must 400 instead. Both entries.
+    const viaFetch = await handler.fetch(
+      jsonRequest("/prefs", { method: "PATCH", rawBody: "[1,2]" }),
+    );
+    expect(viaFetch.status).toBe(400);
+    const fetchPayload = (await viaFetch.json()) as {
+      error: { code: string; issues: readonly { code: string; message: string }[] };
+    };
+    expect(fetchPayload.error.code).toBe("INVALID_INPUT");
+    expect(fetchPayload.error.issues[0]).toMatchObject({
+      code: "invalid_type",
+      message: expect.stringContaining("Expected object"),
+    });
+
+    const viaHandle = await handler.handle({
+      method: "PATCH",
+      path: "/prefs",
+      query: "",
+      headers: () => undefined,
+      readBody: async () => "[1,2]",
+    });
+    expect(viaHandle.status).toBe(400);
+    const handlePayload = JSON.parse(viaHandle.body) as {
+      error: { code: string; issues: readonly { code: string }[] };
+    };
+    expect(handlePayload.error.code).toBe("INVALID_INPUT");
+    expect(handlePayload.error.issues[0]?.code).toBe("invalid_type");
+
+    // Other JSON scalars are equally rejected, not silently dropped.
+    for (const rawBody of ['"a string"', "42", "true", "null"]) {
+      const response = await handler.fetch(
+        jsonRequest("/prefs", { method: "PATCH", rawBody }),
+      );
+      expect(response.status).toBe(400);
+    }
+  });
+
+  it("keeps object and absent bodies working on object-schema routes", async () => {
+    const handler = makeHandler();
+
+    const withBody = await handler.fetch(
+      jsonRequest("/prefs", { method: "PATCH", body: { title: "hello", count: 2 } }),
+    );
+    expect(withBody.status).toBe(200);
+    const payload = (await withBody.json()) as { ok: boolean; value: { received: string } };
+    expect(payload.ok).toBe(true);
+    expect(JSON.parse(payload.value.received)).toEqual({ title: "hello", count: 2 });
+
+    const withoutBody = await handler.fetch(jsonRequest("/prefs", { method: "PATCH" }));
+    expect(withoutBody.status).toBe(200);
+    await expect(withoutBody.json()).resolves.toEqual({
+      ok: true,
+      value: { received: "{}" },
+    });
+  });
+
   it("lets path params override query and body values", async () => {
     const handler = makeHandler({ authenticate });
     await handler.fetch(
@@ -555,6 +757,51 @@ describe("faults", () => {
       error: { code: "INTERNAL" },
     });
     expect(onError.mock.calls[0]?.[0]).toMatchObject({ code: "INVARIANT_VIOLATION" });
+  });
+
+  it("reports fetch-entry failures with the pathname and matched operationId", async () => {
+    const onError = vi.fn();
+    const handler = makeHandler({ onError });
+
+    // Force a failure in the fetch entry itself (Response construction),
+    // outside handle()'s own catch.
+    const RealResponse = globalThis.Response;
+    let constructions = 0;
+    const ThrowingResponse = function (body: unknown, init: unknown) {
+      constructions += 1;
+      if (constructions === 1) throw new TypeError("simulated Response failure");
+      return new RealResponse(body as BodyInit | null, init as ResponseInit);
+    } as unknown as typeof Response;
+    vi.stubGlobal("Response", ThrowingResponse);
+    try {
+      const response = await handler.fetch(jsonRequest("/notes/latest"));
+      expect(response.status).toBe(500);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    // Pathname (never the full URL) + the matched operation id.
+    expect(onError.mock.calls[0]?.[1]).toEqual({
+      method: "GET",
+      path: "/notes/latest",
+      operationId: "notes.latest",
+    });
+  });
+
+  it("reports invalid request URLs to onError without crashing the fetch entry", async () => {
+    const onError = vi.fn();
+    const handler = makeHandler({ onError });
+    const response = await handler.fetch({
+      method: "GET",
+      url: "not-a-url",
+      headers: { get: () => null },
+      body: null,
+    } as unknown as Request);
+
+    expect(response.status).toBe(500);
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0]?.[1]).toEqual({ method: "GET", path: "not-a-url" });
   });
 
   it("defaults onError to console.error in development mode only", async () => {
@@ -664,6 +911,34 @@ describe("route overrides", () => {
         ],
       }),
     ).toThrow(/unknown operation/);
+  });
+
+  it("rejects statuses the JSON envelope cannot carry (204/205/304, 1xx)", () => {
+    const app = makeApp();
+    expect(() =>
+      defineHttpRoute({
+        method: "delete",
+        path: "/legacy/notes/:noteId",
+        operation: app.operations["notes.remove"],
+        status: 204,
+      }),
+    ).toThrow(/Route status cannot be 204: 204, 205, and 304 forbid a response body/);
+    expect(() =>
+      defineHttpRoute({
+        method: "get",
+        path: "/legacy/notes/:noteId",
+        operation: app.operations["notes.get"],
+        status: 101,
+      }),
+    ).toThrow(/Route status must be an integer in 200\.\.599/);
+    expect(() =>
+      defineHttpRoute({
+        method: "get",
+        path: "/legacy/notes/:noteId",
+        operation: app.operations["notes.get"],
+        errorStatus: { NOTE_NOT_FOUND: 304 },
+      }),
+    ).toThrow(/Route errorStatus\[NOTE_NOT_FOUND\] cannot be 304/);
   });
 
   it("rejects invalid paths and duplicate route shapes", () => {
