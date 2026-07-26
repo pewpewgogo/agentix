@@ -994,3 +994,29 @@ JavaScript/declaration source maps. Runtime JavaScript and TypeScript
 declarations remain, together with the package manifest, short package README,
 and MIT license. CI enforces both forbidden-file rules and per-package file-count
 budgets so the install cannot silently grow back into a repository snapshot.
+
+## D-036: Agent-first v2 — single-file capsules, derived registration, raw HTTP host
+
+- Date: 2026-07-26
+- Status: accepted; revises the explicit-registration principle recorded in
+  the architecture document (see its dated v2 revision section); D-031's
+  every-mode effect validation is reaffirmed and remains binding.
+
+One feature is one file: `feature(id, { operations })` derives operation ids
+(`featureId.key`), required ports, and HTTP routes from the operation
+descriptors themselves, deleting `defineFeatureContract`, feature re-listing,
+and per-route registration as edit sites. Effects hand adapters' plain return
+values to `execute`; expected domain failures are declared once
+(`errors: { CODE: { http, details } }`) and raised with the injected typed
+`fail`. Production mode keeps every external and internal validation boundary
+(per D-031) and differs from dev/test only in freezing, deep-freeze of event
+snapshots, and `ensures` execution. The Node host serves compiled routes on raw
+`req`/`res`; the Web `fetch` entry remains the edge-portable surface. The v1
+HTTP comparison records stay frozen; the v2 methodology (isolated processes,
+equal-work validated condition, param + batch workloads) is recorded in new
+append-only result files and the benchmark report addendum.
+
+Rejected alternative: keeping the contract/operations/feature file split with
+compat aliases — the measured baseline showed it inverting the framework's own
+context-cost goal (4-6 files and 1.9x the source of the Express arm for a
+typical change), and pre-1.0 is the only cheap moment to remove it.
