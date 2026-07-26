@@ -523,6 +523,79 @@ describe("agent index compiler", () => {
     ]);
   });
 
+  it("re-anchors narrow test filters when the vitest config sits above the app", () => {
+    const monorepo = mkdtempSync(join(tmpdir(), "agentix-compiler-"));
+    temporaryDirectories.push(monorepo);
+    const application = join(monorepo, "apps", "shop");
+    cpSync(fixture("valid"), application, { recursive: true });
+    writeFileSync(join(monorepo, "vitest.config.ts"), "export default {};\n", "utf8");
+    writeFileSync(
+      join(application, "tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: {
+          module: "NodeNext",
+          moduleResolution: "NodeNext",
+          target: "ES2022",
+        },
+        include: ["src/**/*.ts"],
+        exclude: ["src/**/*.test.ts"],
+      }),
+      "utf8",
+    );
+
+    const index = analyzeProject({ rootDir: application });
+    const plan = planVerification(index, "orders.create", application);
+
+    expect(plan.scope).toBe("project");
+    expect(plan.testFiles).toEqual(["src/features/orders/orders.test.ts"]);
+    expect(plan.tests).toEqual([
+      "npm",
+      "exec",
+      "--",
+      "vitest",
+      "run",
+      "--root",
+      "../..",
+      "apps/shop/src/features/orders/orders.test.ts",
+    ]);
+  });
+
+  it("keeps app-relative test filters when the vitest config sits at the app root", () => {
+    const monorepo = mkdtempSync(join(tmpdir(), "agentix-compiler-"));
+    temporaryDirectories.push(monorepo);
+    const application = join(monorepo, "apps", "shop");
+    cpSync(fixture("valid"), application, { recursive: true });
+    // A workspace-root config exists, but the nearer app-local config wins.
+    writeFileSync(join(monorepo, "vitest.config.ts"), "export default {};\n", "utf8");
+    writeFileSync(join(application, "vitest.config.ts"), "export default {};\n", "utf8");
+    writeFileSync(
+      join(application, "tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: {
+          module: "NodeNext",
+          moduleResolution: "NodeNext",
+          target: "ES2022",
+        },
+        include: ["src/**/*.ts"],
+        exclude: ["src/**/*.test.ts"],
+      }),
+      "utf8",
+    );
+
+    const index = analyzeProject({ rootDir: application });
+    const plan = planVerification(index, "orders.create", application);
+
+    expect(plan.scope).toBe("project");
+    expect(plan.tests).toEqual([
+      "npm",
+      "exec",
+      "--",
+      "vitest",
+      "run",
+      "src/features/orders/orders.test.ts",
+    ]);
+  });
+
   it("indexes explicit operation tests outside a feature directory", () => {
     const temporary = temporaryFixture("valid");
     writeFileSync(

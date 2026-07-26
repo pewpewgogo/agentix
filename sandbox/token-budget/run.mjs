@@ -7,23 +7,93 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const resultsRoot = resolve(repositoryRoot, "sandbox/token-budget/results");
 const cli = resolve(repositoryRoot, "packages/cli/dist/bin.js");
 
+const estimator = {
+  version: "chars-div-4/v2",
+  method: "ceil(UTF-16 characters / 4)",
+  caveat:
+    "Heuristic calibration only, not provider telemetry; live comparisons must use provider-reported token counters.",
+};
+
+const operation = "notes.create";
+const changeTaskDescription = "add a notes.delete endpoint";
+
+// Declarative per-arm model. The script MEASURES everything from this model —
+// no scenario number is hardcoded.
+//
+// - comparableTest: the ONE test counted in the like-for-like full-src number.
+//   Agentix uses its call-level dispatch test because that exercises the same
+//   layer as the Express/NestJS supertest suites (service behavior + envelope);
+//   its extra HTTP end-to-end test is reported separately as informational.
+// - changeTask.readStrategies: per-strategy context an agent must load to
+//   perform the scripted change task. Every arm's baseline strategy is
+//   "direct": exactly the files that arm's conventions require opening
+//   (Agentix auto-wiring means the app assembly is never read or written;
+//   Express routes live in app.ts so it must be read). Agentix additionally
+//   reports "inspect-assisted": the direct reads plus the compact inspect
+//   output — the discovery tool that substitutes for reading wiring in larger
+//   apps, charged here at its full fixed cost.
+//   cliReads are Agentix CLI invocations whose stdout is charged.
+// - changeTask.write: the files the agent modifies for the task; the script
+//   derives the write count and current-size proxy from this list.
 const arms = {
   agentix: {
     root: "sandbox/notes-app",
-    recommendedFiles: ["AGENTS.md", "src/features/notes.ts"],
+    comparableTest: "src/notes.dispatch.test.ts",
+    informationalExtraTests: ["src/notes.test.ts"],
+    changeTask: {
+      readStrategies: [
+        {
+          name: "direct",
+          cliReads: [],
+          files: ["src/features/notes.ts", "src/notes.dispatch.test.ts"],
+        },
+        {
+          name: "inspect-assisted",
+          cliReads: [
+            ["inspect", operation, "--root", "sandbox/notes-app", "--json", "--compact"],
+          ],
+          files: ["src/features/notes.ts", "src/notes.dispatch.test.ts"],
+        },
+      ],
+      write: ["src/features/notes.ts", "src/notes.dispatch.test.ts"],
+    },
   },
   express: {
     root: "sandbox/plain-notes-app",
-    recommendedFiles: ["AGENTS.md", "src/note.ts", "src/notes-service.ts", "src/app.ts", "src/notes.test.ts"],
+    comparableTest: "src/notes.test.ts",
+    informationalExtraTests: [],
+    changeTask: {
+      readStrategies: [
+        {
+          name: "direct",
+          cliReads: [],
+          files: ["src/note.ts", "src/notes-service.ts", "src/app.ts", "src/notes.test.ts"],
+        },
+      ],
+      write: ["src/notes-service.ts", "src/app.ts", "src/notes.test.ts"],
+    },
   },
   nestjs: {
     root: "sandbox/nestjs-notes-app",
-    recommendedFiles: ["AGENTS.md", "src/note.ts", "src/notes.service.ts", "src/notes.controller.ts", "src/notes.test.ts"],
+    comparableTest: "src/notes.test.ts",
+    informationalExtraTests: [],
+    changeTask: {
+      readStrategies: [
+        {
+          name: "direct",
+          cliReads: [],
+          files: ["src/note.ts", "src/notes.service.ts", "src/notes.controller.ts", "src/notes.test.ts"],
+        },
+      ],
+      write: ["src/notes.service.ts", "src/notes.controller.ts", "src/notes.test.ts"],
+    },
   },
 };
 
 const read = (path) => readFileSync(resolve(repositoryRoot, path), "utf8");
 
+// Walks committed project files only; generated/gitignored outputs
+// (.agentix cache, dist, node_modules) never enter any measurement.
 const walkFiles = (directory) => {
   const result = [];
   for (const entry of readdirSync(resolve(repositoryRoot, directory), { withFileTypes: true })) {
@@ -39,8 +109,8 @@ const walkFiles = (directory) => {
   return result.sort();
 };
 
-const sourceFiles = (arm) => walkFiles(`${arm.root}/src`)
-  .filter((path) => path.endsWith(".ts"));
+const sourceFiles = (arm) => walkFiles(`${arm.root}/src`).filter((path) => path.endsWith(".ts"));
+const isTestFile = (path) => path.endsWith(".test.ts");
 
 const sumCharacters = (parts) => parts.reduce((total, part) => total + part.length, 0);
 const measure = (parts) => {
@@ -48,106 +118,149 @@ const measure = (parts) => {
   return { characters, estimatedTokens: Math.ceil(characters / 4) };
 };
 
-const runAgentix = (args) => execFileSync(
-  process.execPath,
-  [cli, ...args],
-  { cwd: repositoryRoot, encoding: "utf8" },
-);
+const runAgentix = (args) =>
+  execFileSync(process.execPath, [cli, ...args], { cwd: repositoryRoot, encoding: "utf8" });
 
-const inspect = runAgentix([
-  "inspect",
-  "notes.create",
-  "--root",
-  "sandbox/notes-app",
-  "--json",
-  "--compact",
-]);
-const affected = runAgentix([
-  "affected",
-  "notes.create",
-  "--root",
-  "sandbox/notes-app",
-]);
-
-const discovery = (arm) => {
-  const files = sourceFiles(arm);
-  const declarations = files.flatMap((path) => read(path)
-    .split("\n")
-    .map((line, index) => ({ line, index: index + 1 }))
-    .filter(({ line }) => /\b(?:create|get)\b|class Notes|@(?:Post|Get)\b/u.test(line))
-    .map(({ line, index }) => `${relative(arm.root, path)}:${index}:${line.trim()}\n`));
-  return [`${files.map((path) => `${relative(arm.root, path)}\n`).join("")}`, ...declarations];
+// Scenario: full-src (like-for-like). All non-test src files + the ONE
+// comparable test declared by the arm model.
+const fullSrcScenario = (arm) => {
+  const files = [
+    ...sourceFiles(arm).filter((path) => !isTestFile(path)),
+    `${arm.root}/${arm.comparableTest}`,
+  ];
+  const extras = arm.informationalExtraTests.map((path) => {
+    const absolute = `${arm.root}/${path}`;
+    return { file: path, ...measure([read(absolute)]) };
+  });
+  return {
+    ...measure(files.map(read)),
+    files: files.map((path) => relative(arm.root, path)),
+    informationalExtraTests: extras,
+  };
 };
 
+// Scenario: affected. Agentix answers with `agentix affected <operation>`.
+// Conventional arms are modeled as the realistic agent strategy: list the src
+// file inventory, grep it for the operation's local symbol, then open every
+// matched file (grep hits alone do not establish relevance).
+const affectedScenario = (arm, name) => {
+  if (name === "agentix") {
+    const output = runAgentix(["affected", operation, "--root", arm.root]);
+    return { ...measure([output]), source: `agentix affected ${operation}` };
+  }
+  const symbol = operation.split(".").at(-1);
+  const pattern = new RegExp(`\\b${symbol}\\b`, "u");
+  const files = sourceFiles(arm);
+  const inventory = `${files.map((path) => `${relative(arm.root, path)}\n`).join("")}`;
+  const matched = files.filter((path) => pattern.test(read(path)));
+  return {
+    ...measure([inventory, ...matched.map(read)]),
+    source: `src inventory + grep /\\b${symbol}\\b/ + matched file contents`,
+    matchedFiles: matched.map((path) => relative(arm.root, path)),
+  };
+};
+
+// Scenario: change-cost for the scripted task. READ = CLI outputs + files the
+// model says the agent must open; WRITE = files the model says the task
+// modifies (count derived, current sizes reported as a proxy).
+const changeCostScenario = (arm) => {
+  const read_ = {};
+  for (const strategy of arm.changeTask.readStrategies) {
+    const cliOutputs = strategy.cliReads.map((args) => runAgentix(args));
+    const readFiles = strategy.files.map((path) => read(`${arm.root}/${path}`));
+    read_[strategy.name] = {
+      ...measure([...cliOutputs, ...readFiles]),
+      cliReads: strategy.cliReads.map((args) => `agentix ${args.join(" ")}`),
+      files: strategy.files,
+    };
+  }
+  return {
+    task: changeTaskDescription,
+    read: read_,
+    write: {
+      fileCount: arm.changeTask.write.length,
+      files: arm.changeTask.write,
+      currentSize: measure(arm.changeTask.write.map((path) => read(`${arm.root}/${path}`))),
+    },
+  };
+};
+
+const gitCommit = execFileSync("git", ["rev-parse", "HEAD"], {
+  cwd: repositoryRoot,
+  encoding: "utf8",
+}).trim();
+
 const result = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   generatedAt: new Date().toISOString(),
-  estimator: "ceil(UTF-16 characters / 4); calibration only, not provider telemetry",
-  operation: "notes.create",
+  gitCommit,
+  nodeVersion: process.version,
+  estimator,
+  operation,
+  changeTask: changeTaskDescription,
   scenarios: {},
   composition: {
-    "recommended-agent-path": "arm AGENTS.md plus the arm's declared bounded source pack; Agentix also includes compact inspect output",
-    discovery: "Agentix compact inspect output; conventional arms use deterministic source inventory and matching declarations",
-    affected: "Agentix affected output; conventional arms conservatively include their complete TypeScript source tree",
-    "full-src": "all TypeScript files under the arm's src directory",
-    "naive-worst": "all non-generated project files; Agentix additionally includes the generated index to expose the cost of the discouraged path",
+    "full-src":
+      "like-for-like: every non-test TypeScript file under src plus ONE comparable test per arm (Agentix: call-level notes.dispatch.test.ts, same layer as the conventional arms' suites; its HTTP end-to-end test is reported as an informational extra, outside the headline number)",
+    affected:
+      "Agentix: `agentix affected notes.create` output; conventional arms: src file inventory + grep for the operation symbol + full content of every matched file (the realistic grep strategy — a grep hit still requires opening the file)",
+    "change-cost":
+      "scripted task 'add a notes.delete endpoint'; READ (direct) = the files each arm's conventions require opening (Agentix: feature file + test, app assembly untouched by design; Express: schema/service/app routes/test; NestJS: schema/service/controller/test); READ (inspect-assisted, Agentix only) = direct reads plus compact inspect output, the discovery tool whose fixed cost substitutes for reading wiring in larger apps; WRITE = files modified. All derived from the declarative per-arm task model in run.mjs",
   },
 };
 
 for (const [name, arm] of Object.entries(arms)) {
-  const sources = sourceFiles(arm).map(read);
-  const project = walkFiles(arm.root).map(read);
-  const recommended = arm.recommendedFiles.map((path) => read(`${arm.root}/${path}`));
   result.scenarios[name] = {
-    "recommended-agent-path": measure(name === "agentix" ? [...recommended, inspect] : recommended),
-    discovery: measure(name === "agentix" ? [inspect] : discovery(arm)),
-    affected: measure(name === "agentix" ? [affected] : sources),
-    "full-src": measure(sources),
-    "naive-worst": measure(
-      name === "agentix"
-        ? [...project, read(`${arm.root}/.agentix/index.json`)]
-        : project,
-    ),
+    "full-src": fullSrcScenario(arm),
+    affected: affectedScenario(arm, name),
+    "change-cost": changeCostScenario(arm),
   };
 }
 
-const scenarioOrder = [
-  "recommended-agent-path",
-  "discovery",
-  "affected",
-  "full-src",
-  "naive-worst",
-];
+const armOrder = ["agentix", "express", "nestjs"];
+const row = (label, pick) =>
+  `| ${label} | ${armOrder.map((name) => pick(result.scenarios[name])).join(" | ")} |`;
+
+const agentixExtras = result.scenarios.agentix["full-src"].informationalExtraTests;
 const markdown = [
   "# Three-arm token-budget calibration",
   "",
   `Generated: ${result.generatedAt}`,
+  `Commit: ${gitCommit}`,
+  `Node: ${result.nodeVersion}`,
+  `Estimator: ${estimator.version} — ${estimator.method}`,
   "",
-  "Heuristic only: `ceil(characters / 4)`. Live runs must use provider-reported token counters.",
+  `${estimator.caveat}`,
+  "",
+  `Change task: ${changeTaskDescription}. Affected operation: ${operation}.`,
   "",
   "| Scenario | Agentix | Express | NestJS |",
   "| --- | ---: | ---: | ---: |",
-  ...scenarioOrder.map((scenario) =>
-    `| ${scenario} | ${result.scenarios.agentix[scenario].estimatedTokens} | ${result.scenarios.express[scenario].estimatedTokens} | ${result.scenarios.nestjs[scenario].estimatedTokens} |`
+  row("full-src est. tokens (like-for-like)", (s) => s["full-src"].estimatedTokens),
+  row("affected est. tokens", (s) => s.affected.estimatedTokens),
+  row("change-cost READ est. tokens (direct)", (s) => s["change-cost"].read.direct.estimatedTokens),
+  row(
+    "change-cost READ est. tokens (inspect-assisted)",
+    (s) => s["change-cost"].read["inspect-assisted"]?.estimatedTokens ?? "—",
+  ),
+  row("change-cost WRITE (files modified)", (s) => s["change-cost"].write.fileCount),
+  "",
+  ...agentixExtras.map(
+    (extra) =>
+      `Informational (outside headline): Agentix HTTP end-to-end test \`${extra.file}\` adds ${extra.estimatedTokens} est. tokens (${extra.characters} chars).`,
   ),
   "",
   "## Composition",
   "",
-  ...Object.entries(result.composition).map(([scenario, description]) =>
-    `- **${scenario}:** ${description}.`
+  ...Object.entries(result.composition).map(
+    ([scenario, description]) => `- **${scenario}:** ${description}.`,
   ),
   "",
 ].join("\n");
 
 mkdirSync(resultsRoot, { recursive: true });
-writeFileSync(
-  resolve(resultsRoot, "token-budget-latest.json"),
-  `${JSON.stringify(result, null, 2)}\n`,
-  { encoding: "utf8" },
-);
-writeFileSync(
-  resolve(resultsRoot, "token-budget-latest.md"),
-  markdown,
-  { encoding: "utf8" },
-);
+writeFileSync(resolve(resultsRoot, "token-budget-latest.json"), `${JSON.stringify(result, null, 2)}\n`, {
+  encoding: "utf8",
+});
+writeFileSync(resolve(resultsRoot, "token-budget-latest.md"), markdown, { encoding: "utf8" });
 process.stdout.write(markdown);

@@ -1,7 +1,13 @@
 {
-  "compilerVersion": "0.1.0",
+  "compilerVersion": "0.2.0",
   "diagnostics": [],
   "edges": [
+    {
+      "from": "customerClock",
+      "kind": "port-operation",
+      "reason": "customerClock declares operation customerClock.now",
+      "to": "customerClock.now"
+    },
     {
       "from": "customers",
       "kind": "feature-operation",
@@ -17,49 +23,91 @@
     {
       "from": "customers.create",
       "kind": "operation-effect",
-      "reason": "customers.create declares effect customer-clock.now",
-      "to": "customer-clock.now"
+      "reason": "customers.create declares effect customerClock.now",
+      "to": "customerClock.now"
     },
     {
       "from": "customers.create",
       "kind": "operation-effect",
-      "reason": "customers.create declares effect customer-storage.claim",
-      "to": "customer-storage.claim"
+      "reason": "customers.create declares effect customerStorage.claim",
+      "to": "customerStorage.claim"
     },
     {
       "from": "customers.create",
       "kind": "operation-effect",
-      "reason": "customers.create declares effect customer-storage.release-claim",
-      "to": "customer-storage.release-claim"
+      "reason": "customers.create declares effect customerStorage.releaseClaim",
+      "to": "customerStorage.releaseClaim"
     },
     {
       "from": "customers.create",
       "kind": "operation-effect",
-      "reason": "customers.create declares effect customer-storage.save",
-      "to": "customer-storage.save"
+      "reason": "customers.create declares effect customerStorage.save",
+      "to": "customerStorage.save"
     },
     {
       "from": "customers.create",
       "kind": "operation-test",
-      "reason": "customers.create is associated with test src/features/customers/customers.test.ts",
-      "to": "src/features/customers/customers.test.ts"
+      "reason": "customers.create is associated with test src/features/customers.test.ts",
+      "to": "src/features/customers.test.ts"
     },
     {
       "from": "customers.get",
       "kind": "operation-effect",
-      "reason": "customers.get declares effect customer-storage.get",
-      "to": "customer-storage.get"
+      "reason": "customers.get declares effect customerStorage.get",
+      "to": "customerStorage.get"
     },
     {
-      "from": "customers.get",
-      "kind": "operation-test",
-      "reason": "customers.get is associated with test src/features/customers/customers.test.ts",
-      "to": "src/features/customers/customers.test.ts"
+      "from": "customerStorage",
+      "kind": "port-operation",
+      "reason": "customerStorage declares operation customerStorage.claim",
+      "to": "customerStorage.claim"
+    },
+    {
+      "from": "customerStorage",
+      "kind": "port-operation",
+      "reason": "customerStorage declares operation customerStorage.get",
+      "to": "customerStorage.get"
+    },
+    {
+      "from": "customerStorage",
+      "kind": "port-operation",
+      "reason": "customerStorage declares operation customerStorage.releaseClaim",
+      "to": "customerStorage.releaseClaim"
+    },
+    {
+      "from": "customerStorage",
+      "kind": "port-operation",
+      "reason": "customerStorage declares operation customerStorage.save",
+      "to": "customerStorage.save"
+    },
+    {
+      "from": "orderClock",
+      "kind": "port-operation",
+      "reason": "orderClock declares operation orderClock.now",
+      "to": "orderClock.now"
+    },
+    {
+      "from": "orderEvents",
+      "kind": "port-operation",
+      "reason": "orderEvents declares operation orderEvents.commitPaid",
+      "to": "orderEvents.commitPaid"
+    },
+    {
+      "from": "orderEvents",
+      "kind": "port-operation",
+      "reason": "orderEvents declares operation orderEvents.list",
+      "to": "orderEvents.list"
+    },
+    {
+      "from": "orderIds",
+      "kind": "port-operation",
+      "reason": "orderIds declares operation orderIds.next",
+      "to": "orderIds.next"
     },
     {
       "from": "orders",
       "kind": "feature-dependency",
-      "reason": "orders depends on public contract customers",
+      "reason": "orders imports the feature file of customers",
       "to": "customers"
     },
     {
@@ -77,134 +125,134 @@
     {
       "from": "orders",
       "kind": "feature-operation",
-      "reason": "orders owns operation orders.list-events",
-      "to": "orders.list-events"
+      "reason": "orders owns operation orders.listEvents",
+      "to": "orders.listEvents"
     },
     {
       "from": "orders",
       "kind": "feature-dependency",
-      "reason": "orders depends on public contract payments",
+      "reason": "orders imports the feature file of payments",
       "to": "payments"
     },
     {
       "from": "orders",
       "kind": "feature-dependency",
-      "reason": "orders depends on public contract products",
+      "reason": "orders imports the feature file of products",
       "to": "products"
     },
     {
       "from": "orders.create",
       "kind": "operation-effect",
-      "reason": "orders.create declares effect customer-storage.get",
-      "to": "customer-storage.get"
+      "reason": "orders.create declares effect customerStorage.get",
+      "to": "customerStorage.get"
     },
     {
       "from": "orders.create",
       "kind": "operation-effect",
-      "reason": "orders.create declares effect order-clock.now",
-      "to": "order-clock.now"
+      "reason": "orders.create declares effect orderClock.now",
+      "to": "orderClock.now"
     },
     {
       "from": "orders.create",
       "kind": "operation-effect",
-      "reason": "orders.create declares effect order-events.commit-paid",
-      "to": "order-events.commit-paid"
+      "reason": "orders.create declares effect orderEvents.commitPaid",
+      "to": "orderEvents.commitPaid"
     },
     {
       "from": "orders.create",
       "kind": "operation-effect",
-      "reason": "orders.create declares effect order-ids.next",
-      "to": "order-ids.next"
+      "reason": "orders.create declares effect orderIds.next",
+      "to": "orderIds.next"
     },
     {
       "from": "orders.create",
       "kind": "operation-event",
-      "reason": "orders.create declares event orders.created",
+      "reason": "orders.create emits event orders.created",
       "to": "orders.created"
     },
     {
       "from": "orders.create",
-      "kind": "operation-invariant",
-      "reason": "orders.create preserves invariant orders.paid-order-has-payment",
-      "to": "orders.paid-order-has-payment"
+      "kind": "operation-effect",
+      "reason": "orders.create declares effect paymentGateway.charge",
+      "to": "paymentGateway.charge"
     },
     {
       "from": "orders.create",
       "kind": "operation-effect",
-      "reason": "orders.create declares effect payment-gateway.charge",
-      "to": "payment-gateway.charge"
+      "reason": "orders.create declares effect productStorage.release",
+      "to": "productStorage.release"
     },
     {
       "from": "orders.create",
       "kind": "operation-effect",
-      "reason": "orders.create declares effect product-storage.release",
-      "to": "product-storage.release"
-    },
-    {
-      "from": "orders.create",
-      "kind": "operation-effect",
-      "reason": "orders.create declares effect product-storage.reserve",
-      "to": "product-storage.reserve"
+      "reason": "orders.create declares effect productStorage.reserve",
+      "to": "productStorage.reserve"
     },
     {
       "from": "orders.create",
       "kind": "operation-test",
-      "reason": "orders.create is associated with test src/features/orders/invariants.property.test.ts",
-      "to": "src/features/orders/invariants.property.test.ts"
+      "reason": "orders.create is associated with test src/acceptance.test.ts",
+      "to": "src/acceptance.test.ts"
     },
     {
       "from": "orders.create",
       "kind": "operation-test",
-      "reason": "orders.create is associated with test src/features/orders/orders.agent.test.ts",
-      "to": "src/features/orders/orders.agent.test.ts"
+      "reason": "orders.create is associated with test src/architecture.test.ts",
+      "to": "src/architecture.test.ts"
+    },
+    {
+      "from": "orders.create",
+      "kind": "operation-test",
+      "reason": "orders.create is associated with test src/concurrency.test.ts",
+      "to": "src/concurrency.test.ts"
+    },
+    {
+      "from": "orders.create",
+      "kind": "operation-test",
+      "reason": "orders.create is associated with test src/features/orders.test.ts",
+      "to": "src/features/orders.test.ts"
     },
     {
       "from": "orders.get",
       "kind": "operation-effect",
-      "reason": "orders.get declares effect order-storage.get",
-      "to": "order-storage.get"
+      "reason": "orders.get declares effect orderStorage.get",
+      "to": "orderStorage.get"
     },
     {
       "from": "orders.get",
       "kind": "operation-test",
-      "reason": "orders.get is associated with test src/features/orders/invariants.property.test.ts",
-      "to": "src/features/orders/invariants.property.test.ts"
+      "reason": "orders.get is associated with test src/features/orders.test.ts",
+      "to": "src/features/orders.test.ts"
     },
     {
-      "from": "orders.get",
-      "kind": "operation-test",
-      "reason": "orders.get is associated with test src/features/orders/orders.agent.test.ts",
-      "to": "src/features/orders/orders.agent.test.ts"
-    },
-    {
-      "from": "orders.list-events",
+      "from": "orders.listEvents",
       "kind": "operation-effect",
-      "reason": "orders.list-events declares effect order-events.list",
-      "to": "order-events.list"
+      "reason": "orders.listEvents declares effect orderEvents.list",
+      "to": "orderEvents.list"
     },
     {
-      "from": "orders.list-events",
+      "from": "orders.listEvents",
       "kind": "operation-test",
-      "reason": "orders.list-events is associated with test src/features/orders/invariants.property.test.ts",
-      "to": "src/features/orders/invariants.property.test.ts"
+      "reason": "orders.listEvents is associated with test src/features/orders.test.ts",
+      "to": "src/features/orders.test.ts"
     },
     {
-      "from": "orders.list-events",
-      "kind": "operation-test",
-      "reason": "orders.list-events is associated with test src/features/orders/orders.agent.test.ts",
-      "to": "src/features/orders/orders.agent.test.ts"
+      "from": "orderStorage",
+      "kind": "port-operation",
+      "reason": "orderStorage declares operation orderStorage.get",
+      "to": "orderStorage.get"
     },
     {
-      "from": "orders.paid-order-has-payment",
-      "kind": "invariant-dependency",
-      "reason": "orders.paid-order-has-payment depends on public contract orders",
-      "to": "orders"
+      "from": "paymentGateway",
+      "kind": "port-operation",
+      "reason": "paymentGateway declares operation paymentGateway.charge",
+      "to": "paymentGateway.charge"
     },
     {
-      "from": "orders.paid-order-has-payment",
-      "kind": "invariant-dependency",
-      "reason": "orders.paid-order-has-payment depends on public contract payments",
-      "to": "payments"
+      "from": "productClock",
+      "kind": "port-operation",
+      "reason": "productClock declares operation productClock.now",
+      "to": "productClock.now"
     },
     {
       "from": "products",
@@ -221,41 +269,78 @@
     {
       "from": "products.create",
       "kind": "operation-effect",
-      "reason": "products.create declares effect product-clock.now",
-      "to": "product-clock.now"
+      "reason": "products.create declares effect productClock.now",
+      "to": "productClock.now"
     },
     {
       "from": "products.create",
       "kind": "operation-effect",
-      "reason": "products.create declares effect product-storage.claim",
-      "to": "product-storage.claim"
+      "reason": "products.create declares effect productStorage.claim",
+      "to": "productStorage.claim"
     },
     {
       "from": "products.create",
       "kind": "operation-effect",
-      "reason": "products.create declares effect product-storage.release-claim",
-      "to": "product-storage.release-claim"
+      "reason": "products.create declares effect productStorage.releaseClaim",
+      "to": "productStorage.releaseClaim"
     },
     {
       "from": "products.create",
       "kind": "operation-effect",
-      "reason": "products.create declares effect product-storage.save",
-      "to": "product-storage.save"
+      "reason": "products.create declares effect productStorage.save",
+      "to": "productStorage.save"
     },
     {
       "from": "products.get",
       "kind": "operation-effect",
-      "reason": "products.get declares effect product-storage.get",
-      "to": "product-storage.get"
+      "reason": "products.get declares effect productStorage.get",
+      "to": "productStorage.get"
+    },
+    {
+      "from": "productStorage",
+      "kind": "port-operation",
+      "reason": "productStorage declares operation productStorage.claim",
+      "to": "productStorage.claim"
+    },
+    {
+      "from": "productStorage",
+      "kind": "port-operation",
+      "reason": "productStorage declares operation productStorage.get",
+      "to": "productStorage.get"
+    },
+    {
+      "from": "productStorage",
+      "kind": "port-operation",
+      "reason": "productStorage declares operation productStorage.release",
+      "to": "productStorage.release"
+    },
+    {
+      "from": "productStorage",
+      "kind": "port-operation",
+      "reason": "productStorage declares operation productStorage.releaseClaim",
+      "to": "productStorage.releaseClaim"
+    },
+    {
+      "from": "productStorage",
+      "kind": "port-operation",
+      "reason": "productStorage declares operation productStorage.reserve",
+      "to": "productStorage.reserve"
+    },
+    {
+      "from": "productStorage",
+      "kind": "port-operation",
+      "reason": "productStorage declares operation productStorage.save",
+      "to": "productStorage.save"
     }
   ],
   "events": [
     {
+      "feature": "orders",
       "id": "orders.created",
       "source": {
         "column": 14,
-        "file": "src/features/orders/contract.ts",
-        "line": 114
+        "file": "src/features/orders.ts",
+        "line": 63
       },
       "symbol": "OrderCreated",
       "version": 1
@@ -266,109 +351,85 @@
       "consumers": [
         "orders"
       ],
-      "contract": {
-        "exports": [
-          "Customer",
-          "CustomerClock",
-          "CustomerId",
-          "customersContract",
-          "CustomerStorage"
-        ],
-        "expression": "customersContract",
-        "source": {
-          "column": 14,
-          "file": "src/features/customers/contract.ts",
-          "line": 73
-        }
-      },
       "dependencies": [],
+      "events": [],
+      "exports": [
+        "Customer",
+        "CustomerClock",
+        "customers",
+        "CustomerStatus",
+        "CustomerStorage"
+      ],
       "id": "customers",
-      "invariants": [],
       "operations": [
         "customers.create",
         "customers.get"
       ],
       "source": {
         "column": 14,
-        "file": "src/features/customers/feature.ts",
-        "line": 10
+        "file": "src/features/customers.ts",
+        "line": 28
       },
       "symbol": "customers",
       "tests": [
-        "src/features/customers/customers.test.ts"
+        "src/features/customers.test.ts"
       ]
     },
     {
       "consumers": [],
-      "contract": {
-        "exports": [
-          "Order",
-          "OrderClock",
-          "OrderCreated",
-          "OrderCreatedEvent",
-          "OrderEvents",
-          "OrderId",
-          "OrderIds",
-          "ordersContract",
-          "OrderStorage",
-          "Payment"
-        ],
-        "expression": "ordersContract",
-        "source": {
-          "column": 14,
-          "file": "src/features/orders/contract.ts",
-          "line": 120
-        }
-      },
       "dependencies": [
         "customers",
         "payments",
         "products"
       ],
-      "id": "orders",
-      "invariants": [
-        "orders.paid-order-has-payment"
+      "events": [
+        "orders.created"
       ],
+      "exports": [
+        "Order",
+        "OrderClock",
+        "OrderCreated",
+        "OrderCreatedEvent",
+        "OrderEvents",
+        "OrderIds",
+        "orders",
+        "OrderStorage",
+        "paidOrderHasPayment",
+        "Payment"
+      ],
+      "id": "orders",
       "operations": [
         "orders.create",
         "orders.get",
-        "orders.list-events"
+        "orders.listEvents"
       ],
       "source": {
         "column": 14,
-        "file": "src/features/orders/feature.ts",
-        "line": 17
+        "file": "src/features/orders.ts",
+        "line": 73
       },
       "symbol": "orders",
       "tests": [
-        "src/features/orders/invariants.property.test.ts",
-        "src/features/orders/orders.agent.test.ts"
+        "src/features/orders.test.ts"
       ]
     },
     {
       "consumers": [
         "orders"
       ],
-      "contract": {
-        "exports": [
-          "Payments",
-          "paymentsContract"
-        ],
-        "expression": "paymentsContract",
-        "source": {
-          "column": 14,
-          "file": "src/features/payments/contract.ts",
-          "line": 28
-        }
-      },
       "dependencies": [],
+      "events": [],
+      "exports": [
+        "ChargeResult",
+        "payments",
+        "Payments"
+      ],
       "id": "payments",
-      "invariants": [],
       "operations": [],
       "source": {
         "column": 14,
-        "file": "src/features/payments/feature.ts",
-        "line": 5
+        "file": "src/features/payments.ts",
+        "line": 22
       },
       "symbol": "payments",
       "tests": []
@@ -377,393 +438,29 @@
       "consumers": [
         "orders"
       ],
-      "contract": {
-        "exports": [
-          "NonNegativeSafeInteger",
-          "PositiveSafeInteger",
-          "Product",
-          "ProductClock",
-          "ProductId",
-          "productsContract",
-          "ProductStorage"
-        ],
-        "expression": "productsContract",
-        "source": {
-          "column": 14,
-          "file": "src/features/products/contract.ts",
-          "line": 120
-        }
-      },
       "dependencies": [],
+      "events": [],
+      "exports": [
+        "NonNegativeSafeInteger",
+        "PositiveSafeInteger",
+        "Product",
+        "ProductClock",
+        "ProductReservation",
+        "products",
+        "ProductStorage"
+      ],
       "id": "products",
-      "invariants": [],
       "operations": [
         "products.create",
         "products.get"
       ],
       "source": {
         "column": 14,
-        "file": "src/features/products/feature.ts",
-        "line": 10
+        "file": "src/features/products.ts",
+        "line": 62
       },
       "symbol": "products",
       "tests": []
-    }
-  ],
-  "invariants": [
-    {
-      "dependencies": [
-        "orders",
-        "payments"
-      ],
-      "feature": "orders",
-      "id": "orders.paid-order-has-payment",
-      "preservers": [
-        "orders.create"
-      ],
-      "source": {
-        "column": 14,
-        "file": "src/features/orders/invariants.ts",
-        "line": 6
-      },
-      "symbol": "paidOrderHasPayment",
-      "tests": [
-        "src/features/orders/invariants.property.test.ts",
-        "src/features/orders/orders.agent.test.ts"
-      ]
-    }
-  ],
-  "likelyAffected": [
-    {
-      "operations": [
-        {
-          "id": "customers.create",
-          "reason": "declares effect 'customer-clock.now'"
-        }
-      ],
-      "target": "customer-clock.now"
-    },
-    {
-      "operations": [
-        {
-          "id": "customers.create",
-          "reason": "declares effect 'customer-storage.claim'"
-        }
-      ],
-      "target": "customer-storage.claim"
-    },
-    {
-      "operations": [
-        {
-          "id": "customers.get",
-          "reason": "declares effect 'customer-storage.get'"
-        },
-        {
-          "id": "orders.create",
-          "reason": "declares effect 'customer-storage.get'"
-        }
-      ],
-      "target": "customer-storage.get"
-    },
-    {
-      "operations": [
-        {
-          "id": "customers.create",
-          "reason": "declares effect 'customer-storage.release-claim'"
-        }
-      ],
-      "target": "customer-storage.release-claim"
-    },
-    {
-      "operations": [
-        {
-          "id": "customers.create",
-          "reason": "declares effect 'customer-storage.save'"
-        }
-      ],
-      "target": "customer-storage.save"
-    },
-    {
-      "operations": [
-        {
-          "id": "customers.create",
-          "reason": "owned by selected feature"
-        },
-        {
-          "id": "customers.get",
-          "reason": "owned by selected feature"
-        },
-        {
-          "id": "orders.create",
-          "reason": "owned by transitive consumer 'orders'"
-        },
-        {
-          "id": "orders.get",
-          "reason": "owned by transitive consumer 'orders'"
-        },
-        {
-          "id": "orders.list-events",
-          "reason": "owned by transitive consumer 'orders'"
-        }
-      ],
-      "target": "customers"
-    },
-    {
-      "operations": [
-        {
-          "id": "customers.create",
-          "reason": "selected operation"
-        }
-      ],
-      "target": "customers.create"
-    },
-    {
-      "operations": [
-        {
-          "id": "customers.get",
-          "reason": "selected operation"
-        }
-      ],
-      "target": "customers.get"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.create",
-          "reason": "declares effect 'order-clock.now'"
-        }
-      ],
-      "target": "order-clock.now"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.create",
-          "reason": "declares effect 'order-events.commit-paid'"
-        }
-      ],
-      "target": "order-events.commit-paid"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.list-events",
-          "reason": "declares effect 'order-events.list'"
-        }
-      ],
-      "target": "order-events.list"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.create",
-          "reason": "declares effect 'order-ids.next'"
-        }
-      ],
-      "target": "order-ids.next"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.get",
-          "reason": "declares effect 'order-storage.get'"
-        }
-      ],
-      "target": "order-storage.get"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.create",
-          "reason": "owned by selected feature"
-        },
-        {
-          "id": "orders.get",
-          "reason": "owned by selected feature"
-        },
-        {
-          "id": "orders.list-events",
-          "reason": "owned by selected feature"
-        }
-      ],
-      "target": "orders"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.create",
-          "reason": "selected operation"
-        }
-      ],
-      "target": "orders.create"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.create",
-          "reason": "declares event 'orders.created'"
-        }
-      ],
-      "target": "orders.created"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.get",
-          "reason": "selected operation"
-        }
-      ],
-      "target": "orders.get"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.list-events",
-          "reason": "selected operation"
-        }
-      ],
-      "target": "orders.list-events"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.create",
-          "reason": "preserves invariant 'orders.paid-order-has-payment'"
-        }
-      ],
-      "target": "orders.paid-order-has-payment"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.create",
-          "reason": "declares effect 'payment-gateway.charge'"
-        }
-      ],
-      "target": "payment-gateway.charge"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.create",
-          "reason": "owned by transitive consumer 'orders'"
-        },
-        {
-          "id": "orders.get",
-          "reason": "owned by transitive consumer 'orders'"
-        },
-        {
-          "id": "orders.list-events",
-          "reason": "owned by transitive consumer 'orders'"
-        }
-      ],
-      "target": "payments"
-    },
-    {
-      "operations": [
-        {
-          "id": "products.create",
-          "reason": "declares effect 'product-clock.now'"
-        }
-      ],
-      "target": "product-clock.now"
-    },
-    {
-      "operations": [
-        {
-          "id": "products.create",
-          "reason": "declares effect 'product-storage.claim'"
-        }
-      ],
-      "target": "product-storage.claim"
-    },
-    {
-      "operations": [
-        {
-          "id": "products.get",
-          "reason": "declares effect 'product-storage.get'"
-        }
-      ],
-      "target": "product-storage.get"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.create",
-          "reason": "declares effect 'product-storage.release'"
-        }
-      ],
-      "target": "product-storage.release"
-    },
-    {
-      "operations": [
-        {
-          "id": "products.create",
-          "reason": "declares effect 'product-storage.release-claim'"
-        }
-      ],
-      "target": "product-storage.release-claim"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.create",
-          "reason": "declares effect 'product-storage.reserve'"
-        }
-      ],
-      "target": "product-storage.reserve"
-    },
-    {
-      "operations": [
-        {
-          "id": "products.create",
-          "reason": "declares effect 'product-storage.save'"
-        }
-      ],
-      "target": "product-storage.save"
-    },
-    {
-      "operations": [
-        {
-          "id": "orders.create",
-          "reason": "owned by transitive consumer 'orders'"
-        },
-        {
-          "id": "orders.get",
-          "reason": "owned by transitive consumer 'orders'"
-        },
-        {
-          "id": "orders.list-events",
-          "reason": "owned by transitive consumer 'orders'"
-        },
-        {
-          "id": "products.create",
-          "reason": "owned by selected feature"
-        },
-        {
-          "id": "products.get",
-          "reason": "owned by selected feature"
-        }
-      ],
-      "target": "products"
-    },
-    {
-      "operations": [
-        {
-          "id": "products.create",
-          "reason": "selected operation"
-        }
-      ],
-      "target": "products.create"
-    },
-    {
-      "operations": [
-        {
-          "id": "products.get",
-          "reason": "selected operation"
-        }
-      ],
-      "target": "products.get"
     }
   ],
   "operations": [
@@ -772,49 +469,73 @@
         {
           "kind": "write",
           "name": "claim",
-          "operationId": "customer-storage.claim",
-          "reference": "CustomerStorage.operations.claim"
+          "operationId": "customerStorage.claim",
+          "reference": "CustomerStorage.claim"
         },
         {
           "kind": "time",
           "name": "now",
-          "operationId": "customer-clock.now",
-          "reference": "CustomerClock.operations.now"
+          "operationId": "customerClock.now",
+          "reference": "CustomerClock.now"
         },
         {
           "kind": "write",
           "name": "releaseClaim",
-          "operationId": "customer-storage.release-claim",
-          "reference": "CustomerStorage.operations.releaseClaim"
+          "operationId": "customerStorage.releaseClaim",
+          "reference": "CustomerStorage.releaseClaim"
         },
         {
           "kind": "write",
           "name": "save",
-          "operationId": "customer-storage.save",
-          "reference": "CustomerStorage.operations.save"
+          "operationId": "customerStorage.save",
+          "reference": "CustomerStorage.save"
         }
       ],
+      "ensures": [],
       "errors": [
-        "CUSTOMER_ALREADY_EXISTS"
+        {
+          "code": "CUSTOMER_ALREADY_EXISTS",
+          "details": "{ id: s.string() }",
+          "http": 409
+        }
       ],
       "events": [],
+      "executeSignature": "async execute({ input, effects, fail })",
       "feature": "customers",
+      "http": {
+        "errorStatus": {
+          "CUSTOMER_ALREADY_EXISTS": 409
+        },
+        "method": "POST",
+        "path": "/customers",
+        "status": 201
+      },
       "id": "customers.create",
-      "input": "schema.object({ id: schema.refine(CustomerId, (value) => value.trim().length > 0, { id: \"customer-input-id\", message: \"Customer ID must not be blank\", }), name: schema.refine(schema.string(), (value) => value.trim().length > 0, { id: \"customer-input-name\", message: \"Customer name must not be blank\", }), status: schema.optional(CustomerStatus), })",
-      "invariants": [],
+      "input": {
+        "text": "s.object({ id: s.string({ min: 1, trim: true }), name: s.string({ min: 1, trim: true }), status: s.optional(CustomerStatus), })"
+      },
+      "key": "create",
       "kind": "command",
-      "output": "Customer",
+      "output": {
+        "declaration": "Customer = s.object({ id: s.string({ min: 1 }), name: s.string({ min: 1 }), status: CustomerStatus, createdAt: s.string({ min: 1 }), })",
+        "source": {
+          "column": 14,
+          "file": "src/features/customers.ts",
+          "line": 8
+        },
+        "text": "Customer"
+      },
       "permissions": [
         "customers:create"
       ],
       "source": {
-        "column": 14,
-        "file": "src/features/customers/operations.ts",
-        "line": 22
+        "column": 5,
+        "file": "src/features/customers.ts",
+        "line": 30
       },
-      "symbol": "createCustomer",
+      "symbol": "customers.operations.create",
       "tests": [
-        "src/features/customers/customers.test.ts"
+        "src/features/customers.test.ts"
       ]
     },
     {
@@ -822,109 +543,174 @@
         {
           "kind": "read",
           "name": "load",
-          "operationId": "customer-storage.get",
-          "reference": "CustomerStorage.operations.get"
+          "operationId": "customerStorage.get",
+          "reference": "CustomerStorage.get"
         }
       ],
+      "ensures": [],
       "errors": [
-        "CUSTOMER_NOT_FOUND"
+        {
+          "code": "CUSTOMER_NOT_FOUND",
+          "details": "{ id: s.string() }",
+          "http": 404
+        }
       ],
       "events": [],
+      "executeSignature": "async execute({ input, effects, fail })",
       "feature": "customers",
+      "http": {
+        "errorStatus": {
+          "CUSTOMER_NOT_FOUND": 404
+        },
+        "method": "GET",
+        "path": "/customers/:id"
+      },
       "id": "customers.get",
-      "input": "schema.object({ id: CustomerId })",
-      "invariants": [],
+      "input": {
+        "text": "s.object({ id: s.string({ min: 1, trim: true }) })"
+      },
+      "key": "get",
       "kind": "query",
-      "output": "Customer",
+      "output": {
+        "declaration": "Customer = s.object({ id: s.string({ min: 1 }), name: s.string({ min: 1 }), status: CustomerStatus, createdAt: s.string({ min: 1 }), })",
+        "source": {
+          "column": 14,
+          "file": "src/features/customers.ts",
+          "line": 8
+        },
+        "text": "Customer"
+      },
       "permissions": [
         "customers:read"
       ],
       "source": {
-        "column": 14,
-        "file": "src/features/customers/operations.ts",
-        "line": 78
+        "column": 5,
+        "file": "src/features/customers.ts",
+        "line": 66
       },
-      "symbol": "getCustomer",
-      "tests": [
-        "src/features/customers/customers.test.ts"
-      ]
+      "symbol": "customers.operations.get",
+      "tests": []
     },
     {
       "effects": [
         {
           "kind": "external",
           "name": "chargePayment",
-          "operationId": "payment-gateway.charge",
-          "reference": "Payments.operations.charge"
+          "operationId": "paymentGateway.charge",
+          "reference": "Payments.charge"
         },
         {
           "kind": "write",
           "name": "commitPaid",
-          "operationId": "order-events.commit-paid",
-          "reference": "OrderEvents.operations.commitPaid"
+          "operationId": "orderEvents.commitPaid",
+          "reference": "OrderEvents.commitPaid"
         },
         {
           "kind": "read",
           "name": "loadCustomer",
-          "operationId": "customer-storage.get",
-          "reference": "CustomerStorage.operations.get"
+          "operationId": "customerStorage.get",
+          "reference": "CustomerStorage.get"
         },
         {
           "kind": "random",
           "name": "nextId",
-          "operationId": "order-ids.next",
-          "reference": "OrderIds.operations.next"
+          "operationId": "orderIds.next",
+          "reference": "OrderIds.next"
         },
         {
           "kind": "time",
           "name": "now",
-          "operationId": "order-clock.now",
-          "reference": "OrderClock.operations.now"
+          "operationId": "orderClock.now",
+          "reference": "OrderClock.now"
         },
         {
           "kind": "write",
           "name": "releaseProduct",
-          "operationId": "product-storage.release",
-          "reference": "ProductStorage.operations.release"
+          "operationId": "productStorage.release",
+          "reference": "ProductStorage.release"
         },
         {
           "kind": "write",
           "name": "reserveProduct",
-          "operationId": "product-storage.reserve",
-          "reference": "ProductStorage.operations.reserve"
+          "operationId": "productStorage.reserve",
+          "reference": "ProductStorage.reserve"
         }
       ],
+      "ensures": [
+        "paidOrderMatchesRequest"
+      ],
       "errors": [
-        "CUSTOMER_NOT_FOUND",
-        "CUSTOMER_SUSPENDED",
-        "DUPLICATE_ORDER",
-        "OUT_OF_STOCK",
-        "PAYMENT_DECLINED",
-        "PRODUCT_NOT_FOUND"
+        {
+          "code": "CUSTOMER_NOT_FOUND",
+          "details": "{ id: s.string() }",
+          "http": 404
+        },
+        {
+          "code": "CUSTOMER_SUSPENDED",
+          "details": "{ id: s.string() }",
+          "http": 409
+        },
+        {
+          "code": "OUT_OF_STOCK",
+          "details": "{ productId: s.string(), requested: s.number(), available: s.number(), }",
+          "http": 409
+        },
+        {
+          "code": "PAYMENT_DECLINED",
+          "http": 402
+        },
+        {
+          "code": "PRODUCT_NOT_FOUND",
+          "details": "{ id: s.string() }",
+          "http": 404
+        }
       ],
       "events": [
         "orders.created"
       ],
+      "executeSignature": "async execute({ input, effects, emit, fail })",
       "feature": "orders",
+      "http": {
+        "errorStatus": {
+          "CUSTOMER_NOT_FOUND": 404,
+          "CUSTOMER_SUSPENDED": 409,
+          "OUT_OF_STOCK": 409,
+          "PAYMENT_DECLINED": 402,
+          "PRODUCT_NOT_FOUND": 404
+        },
+        "method": "POST",
+        "path": "/orders",
+        "status": 201
+      },
       "id": "orders.create",
-      "input": "schema.object({ customerId: schema.refine(schema.id(\"customer\"), (id) => id.trim().length > 0, { id: \"order-customer-id\", message: \"Customer ID must not be blank\", }), productId: schema.refine(schema.id(\"product\"), (id) => id.trim().length > 0, { id: \"order-product-id\", message: \"Product ID must not be blank\", }), quantity: PositiveSafeInteger, })",
-      "invariants": [
-        "orders.paid-order-has-payment"
-      ],
+      "input": {
+        "text": "s.object({ customerId: s.string({ min: 1, trim: true }), productId: s.string({ min: 1, trim: true }), quantity: PositiveSafeInteger, })"
+      },
+      "key": "create",
       "kind": "command",
-      "output": "Order",
+      "output": {
+        "declaration": "Order = s.object({ id: s.string({ min: 1 }), customerId: s.string({ min: 1 }), productId: s.string({ min: 1 }), quantity: PositiveSafeInteger, totalCents: PositiveSafeInteger, status: s.literal(\"paid\"), createdAt: s.string({ min: 1 }), })",
+        "source": {
+          "column": 14,
+          "file": "src/features/orders.ts",
+          "line": 7
+        },
+        "text": "Order"
+      },
       "permissions": [
         "orders:create"
       ],
       "source": {
-        "column": 14,
-        "file": "src/features/orders/operations.ts",
-        "line": 33
+        "column": 5,
+        "file": "src/features/orders.ts",
+        "line": 76
       },
-      "symbol": "createOrder",
+      "symbol": "orders.operations.create",
       "tests": [
-        "src/features/orders/invariants.property.test.ts",
-        "src/features/orders/orders.agent.test.ts"
+        "src/acceptance.test.ts",
+        "src/architecture.test.ts",
+        "src/concurrency.test.ts",
+        "src/features/orders.test.ts"
       ]
     },
     {
@@ -932,32 +718,54 @@
         {
           "kind": "read",
           "name": "load",
-          "operationId": "order-storage.get",
-          "reference": "OrderStorage.operations.get"
+          "operationId": "orderStorage.get",
+          "reference": "OrderStorage.get"
         }
       ],
+      "ensures": [],
       "errors": [
-        "ORDER_NOT_FOUND"
+        {
+          "code": "ORDER_NOT_FOUND",
+          "details": "{ id: s.string() }",
+          "http": 404
+        }
       ],
       "events": [],
+      "executeSignature": "async execute({ input, effects, fail })",
       "feature": "orders",
+      "http": {
+        "errorStatus": {
+          "ORDER_NOT_FOUND": 404
+        },
+        "method": "GET",
+        "path": "/orders/:id"
+      },
       "id": "orders.get",
-      "input": "schema.object({ id: OrderId })",
-      "invariants": [],
+      "input": {
+        "text": "s.object({ id: s.string({ min: 1, trim: true }) })"
+      },
+      "key": "get",
       "kind": "query",
-      "output": "Order",
+      "output": {
+        "declaration": "Order = s.object({ id: s.string({ min: 1 }), customerId: s.string({ min: 1 }), productId: s.string({ min: 1 }), quantity: PositiveSafeInteger, totalCents: PositiveSafeInteger, status: s.literal(\"paid\"), createdAt: s.string({ min: 1 }), })",
+        "source": {
+          "column": 14,
+          "file": "src/features/orders.ts",
+          "line": 7
+        },
+        "text": "Order"
+      },
       "permissions": [
         "orders:read"
       ],
       "source": {
-        "column": 14,
-        "file": "src/features/orders/operations.ts",
-        "line": 199
+        "column": 5,
+        "file": "src/features/orders.ts",
+        "line": 201
       },
-      "symbol": "getOrder",
+      "symbol": "orders.operations.get",
       "tests": [
-        "src/features/orders/invariants.property.test.ts",
-        "src/features/orders/orders.agent.test.ts"
+        "src/features/orders.test.ts"
       ]
     },
     {
@@ -965,30 +773,40 @@
         {
           "kind": "read",
           "name": "list",
-          "operationId": "order-events.list",
-          "reference": "OrderEvents.operations.list"
+          "operationId": "orderEvents.list",
+          "reference": "OrderEvents.list"
         }
       ],
+      "ensures": [],
       "errors": [],
       "events": [],
+      "executeSignature": "async execute({ effects })",
       "feature": "orders",
-      "id": "orders.list-events",
-      "input": "schema.object({})",
-      "invariants": [],
+      "http": {
+        "errorStatus": {},
+        "method": "GET",
+        "path": "/events"
+      },
+      "id": "orders.listEvents",
+      "input": {
+        "text": "s.object({})"
+      },
+      "key": "listEvents",
       "kind": "query",
-      "output": "schema.array(OrderCreatedEvent)",
+      "output": {
+        "text": "s.array(OrderCreatedEvent)"
+      },
       "permissions": [
         "events:read"
       ],
       "source": {
-        "column": 14,
-        "file": "src/features/orders/operations.ts",
-        "line": 215
+        "column": 5,
+        "file": "src/features/orders.ts",
+        "line": 217
       },
-      "symbol": "listEvents",
+      "symbol": "orders.operations.listEvents",
       "tests": [
-        "src/features/orders/invariants.property.test.ts",
-        "src/features/orders/orders.agent.test.ts"
+        "src/features/orders.test.ts"
       ]
     },
     {
@@ -996,47 +814,71 @@
         {
           "kind": "write",
           "name": "claim",
-          "operationId": "product-storage.claim",
-          "reference": "ProductStorage.operations.claim"
+          "operationId": "productStorage.claim",
+          "reference": "ProductStorage.claim"
         },
         {
           "kind": "time",
           "name": "now",
-          "operationId": "product-clock.now",
-          "reference": "ProductClock.operations.now"
+          "operationId": "productClock.now",
+          "reference": "ProductClock.now"
         },
         {
           "kind": "write",
           "name": "releaseClaim",
-          "operationId": "product-storage.release-claim",
-          "reference": "ProductStorage.operations.releaseClaim"
+          "operationId": "productStorage.releaseClaim",
+          "reference": "ProductStorage.releaseClaim"
         },
         {
           "kind": "write",
           "name": "save",
-          "operationId": "product-storage.save",
-          "reference": "ProductStorage.operations.save"
+          "operationId": "productStorage.save",
+          "reference": "ProductStorage.save"
         }
       ],
+      "ensures": [],
       "errors": [
-        "PRODUCT_ALREADY_EXISTS"
+        {
+          "code": "PRODUCT_ALREADY_EXISTS",
+          "details": "{ id: s.string() }",
+          "http": 409
+        }
       ],
       "events": [],
+      "executeSignature": "async execute({ input, effects, fail })",
       "feature": "products",
+      "http": {
+        "errorStatus": {
+          "PRODUCT_ALREADY_EXISTS": 409
+        },
+        "method": "POST",
+        "path": "/products",
+        "status": 201
+      },
       "id": "products.create",
-      "input": "schema.object({ id: schema.refine(ProductId, (value) => value.trim().length > 0, { id: \"product-input-id\", message: \"Product ID must not be blank\", }), name: schema.refine(schema.string(), (value) => value.trim().length > 0, { id: \"product-input-name\", message: \"Product name must not be blank\", }), unitPriceCents: PositiveSafeInteger, stock: NonNegativeSafeInteger, })",
-      "invariants": [],
+      "input": {
+        "text": "s.object({ id: s.string({ min: 1, trim: true }), name: s.string({ min: 1, trim: true }), unitPriceCents: PositiveSafeInteger, stock: NonNegativeSafeInteger, })"
+      },
+      "key": "create",
       "kind": "command",
-      "output": "Product",
+      "output": {
+        "declaration": "Product = s.object({ id: s.string({ min: 1 }), name: s.string({ min: 1 }), unitPriceCents: PositiveSafeInteger, stock: NonNegativeSafeInteger, createdAt: s.string({ min: 1 }), })",
+        "source": {
+          "column": 14,
+          "file": "src/features/products.ts",
+          "line": 15
+        },
+        "text": "Product"
+      },
       "permissions": [
         "products:create"
       ],
       "source": {
-        "column": 14,
-        "file": "src/features/products/operations.ts",
-        "line": 19
+        "column": 5,
+        "file": "src/features/products.ts",
+        "line": 64
       },
-      "symbol": "createProduct",
+      "symbol": "products.operations.create",
       "tests": []
     },
     {
@@ -1044,401 +886,419 @@
         {
           "kind": "read",
           "name": "load",
-          "operationId": "product-storage.get",
-          "reference": "ProductStorage.operations.get"
+          "operationId": "productStorage.get",
+          "reference": "ProductStorage.get"
         }
       ],
+      "ensures": [],
       "errors": [
-        "PRODUCT_NOT_FOUND"
+        {
+          "code": "PRODUCT_NOT_FOUND",
+          "details": "{ id: s.string() }",
+          "http": 404
+        }
       ],
       "events": [],
+      "executeSignature": "async execute({ input, effects, fail })",
       "feature": "products",
+      "http": {
+        "errorStatus": {
+          "PRODUCT_NOT_FOUND": 404
+        },
+        "method": "GET",
+        "path": "/products/:id"
+      },
       "id": "products.get",
-      "input": "schema.object({ id: ProductId })",
-      "invariants": [],
+      "input": {
+        "text": "s.object({ id: s.string({ min: 1, trim: true }) })"
+      },
+      "key": "get",
       "kind": "query",
-      "output": "Product",
+      "output": {
+        "declaration": "Product = s.object({ id: s.string({ min: 1 }), name: s.string({ min: 1 }), unitPriceCents: PositiveSafeInteger, stock: NonNegativeSafeInteger, createdAt: s.string({ min: 1 }), })",
+        "source": {
+          "column": 14,
+          "file": "src/features/products.ts",
+          "line": 15
+        },
+        "text": "Product"
+      },
       "permissions": [
         "products:read"
       ],
       "source": {
-        "column": 14,
-        "file": "src/features/products/operations.ts",
-        "line": 77
+        "column": 5,
+        "file": "src/features/products.ts",
+        "line": 102
       },
-      "symbol": "getProduct",
+      "symbol": "products.operations.get",
       "tests": []
     }
   ],
   "ports": [
     {
-      "id": "customer-clock",
+      "feature": "customers",
+      "id": "customerClock",
       "operations": [
         {
-          "id": "customer-clock.now",
+          "id": "customerClock.now",
           "kind": "time",
           "name": "now",
+          "signature": "now: port.time({ input: s.object({}), output: s.string({ min: 1 }) })",
           "source": {
-            "column": 5,
-            "file": "src/features/customers/contract.ts",
-            "line": 63
+            "column": 3,
+            "file": "src/features/customers.ts",
+            "line": 25
           }
         }
       ],
       "source": {
         "column": 14,
-        "file": "src/features/customers/contract.ts",
-        "line": 60
+        "file": "src/features/customers.ts",
+        "line": 24
       },
       "symbol": "CustomerClock"
     },
     {
-      "id": "customer-storage",
+      "feature": "customers",
+      "id": "customerStorage",
       "operations": [
         {
-          "id": "customer-storage.claim",
+          "id": "customerStorage.claim",
           "kind": "write",
           "name": "claim",
+          "signature": "claim: port.write({ input: s.string({ min: 1 }), output: s.boolean() })",
           "source": {
-            "column": 5,
-            "file": "src/features/customers/contract.ts",
-            "line": 25
+            "column": 3,
+            "file": "src/features/customers.ts",
+            "line": 18
           }
         },
         {
-          "id": "customer-storage.get",
+          "id": "customerStorage.get",
           "kind": "read",
           "name": "get",
+          "signature": "get: port.read({ input: s.string({ min: 1 }), output: s.optional(Customer) })",
           "source": {
-            "column": 5,
-            "file": "src/features/customers/contract.ts",
-            "line": 41
+            "column": 3,
+            "file": "src/features/customers.ts",
+            "line": 20
           }
         },
         {
-          "id": "customer-storage.release-claim",
+          "id": "customerStorage.releaseClaim",
           "kind": "write",
           "name": "releaseClaim",
+          "signature": "releaseClaim: port.write({ input: s.string({ min: 1 }), output: s.literal(true) })",
           "source": {
-            "column": 5,
-            "file": "src/features/customers/contract.ts",
-            "line": 34
+            "column": 3,
+            "file": "src/features/customers.ts",
+            "line": 19
           }
         },
         {
-          "id": "customer-storage.save",
+          "id": "customerStorage.save",
           "kind": "write",
           "name": "save",
+          "signature": "save: port.write({ input: Customer, output: Customer })",
           "source": {
-            "column": 5,
-            "file": "src/features/customers/contract.ts",
-            "line": 48
+            "column": 3,
+            "file": "src/features/customers.ts",
+            "line": 21
           }
         }
       ],
       "source": {
         "column": 14,
-        "file": "src/features/customers/contract.ts",
-        "line": 22
+        "file": "src/features/customers.ts",
+        "line": 16
       },
       "symbol": "CustomerStorage"
     },
     {
-      "id": "order-clock",
+      "feature": "orders",
+      "id": "orderClock",
       "operations": [
         {
-          "id": "order-clock.now",
+          "id": "orderClock.now",
           "kind": "time",
           "name": "now",
+          "signature": "now: port.time({ input: s.object({}), output: s.string({ min: 1 }) })",
           "source": {
-            "column": 5,
-            "file": "src/features/orders/contract.ts",
-            "line": 65
+            "column": 3,
+            "file": "src/features/orders.ts",
+            "line": 46
           }
         }
       ],
       "source": {
         "column": 14,
-        "file": "src/features/orders/contract.ts",
-        "line": 62
+        "file": "src/features/orders.ts",
+        "line": 45
       },
       "symbol": "OrderClock"
     },
     {
-      "id": "order-events",
+      "feature": "orders",
+      "id": "orderEvents",
       "operations": [
         {
-          "id": "order-events.commit-paid",
+          "id": "orderEvents.commitPaid",
           "kind": "write",
           "name": "commitPaid",
+          "signature": "commitPaid: port.write({ input: s.object({ order: Order, payment: Payment, event: OrderCreatedEvent }), output: Order, })",
           "source": {
-            "column": 5,
-            "file": "src/features/orders/contract.ts",
-            "line": 91
+            "column": 3,
+            "file": "src/features/orders.ts",
+            "line": 56
           }
         },
         {
-          "id": "order-events.list",
+          "id": "orderEvents.list",
           "kind": "read",
           "name": "list",
+          "signature": "list: port.read({ input: s.object({}), output: s.array(OrderCreatedEvent) })",
           "source": {
-            "column": 5,
-            "file": "src/features/orders/contract.ts",
-            "line": 104
+            "column": 3,
+            "file": "src/features/orders.ts",
+            "line": 60
           }
         }
       ],
       "source": {
         "column": 14,
-        "file": "src/features/orders/contract.ts",
-        "line": 88
+        "file": "src/features/orders.ts",
+        "line": 54
       },
       "symbol": "OrderEvents"
     },
     {
-      "id": "order-ids",
+      "feature": "orders",
+      "id": "orderIds",
       "operations": [
         {
-          "id": "order-ids.next",
+          "id": "orderIds.next",
           "kind": "random",
           "name": "next",
+          "signature": "next: port.random({ input: s.object({}), output: s.string() })",
           "source": {
-            "column": 5,
-            "file": "src/features/orders/contract.ts",
-            "line": 78
+            "column": 3,
+            "file": "src/features/orders.ts",
+            "line": 51
           }
         }
       ],
       "source": {
         "column": 14,
-        "file": "src/features/orders/contract.ts",
-        "line": 75
+        "file": "src/features/orders.ts",
+        "line": 49
       },
       "symbol": "OrderIds"
     },
     {
-      "id": "order-storage",
+      "feature": "orders",
+      "id": "orderStorage",
       "operations": [
         {
-          "id": "order-storage.get",
+          "id": "orderStorage.get",
           "kind": "read",
           "name": "get",
+          "signature": "get: port.read({ input: s.string({ min: 1 }), output: s.optional(Order) })",
           "source": {
-            "column": 5,
-            "file": "src/features/orders/contract.ts",
-            "line": 52
+            "column": 3,
+            "file": "src/features/orders.ts",
+            "line": 42
           }
         }
       ],
       "source": {
         "column": 14,
-        "file": "src/features/orders/contract.ts",
-        "line": 49
+        "file": "src/features/orders.ts",
+        "line": 41
       },
       "symbol": "OrderStorage"
     },
     {
-      "id": "payment-gateway",
+      "feature": "payments",
+      "id": "paymentGateway",
       "operations": [
         {
-          "id": "payment-gateway.charge",
+          "id": "paymentGateway.charge",
           "kind": "external",
           "name": "charge",
+          "signature": "charge: port.external({ input: s.object({ customerId: s.string({ min: 1 }), productId: s.string({ min: 1 }), quantity: s.number({ int: true, min: 1 }), amountCents: s.number({ int: true, min: 1 }), }), output: ChargeResult, })",
           "source": {
-            "column": 5,
-            "file": "src/features/payments/contract.ts",
-            "line": 11
+            "column": 3,
+            "file": "src/features/payments.ts",
+            "line": 10
           }
         }
       ],
       "source": {
         "column": 14,
-        "file": "src/features/payments/contract.ts",
-        "line": 8
+        "file": "src/features/payments.ts",
+        "line": 9
       },
       "symbol": "Payments"
     },
     {
-      "id": "product-clock",
+      "feature": "products",
+      "id": "productClock",
       "operations": [
         {
-          "id": "product-clock.now",
+          "id": "productClock.now",
           "kind": "time",
           "name": "now",
+          "signature": "now: port.time({ input: s.object({}), output: s.string({ min: 1 }) })",
           "source": {
-            "column": 5,
-            "file": "src/features/products/contract.ts",
-            "line": 110
+            "column": 3,
+            "file": "src/features/products.ts",
+            "line": 59
           }
         }
       ],
       "source": {
         "column": 14,
-        "file": "src/features/products/contract.ts",
-        "line": 107
+        "file": "src/features/products.ts",
+        "line": 58
       },
       "symbol": "ProductClock"
     },
     {
-      "id": "product-storage",
+      "feature": "products",
+      "id": "productStorage",
       "operations": [
         {
-          "id": "product-storage.claim",
+          "id": "productStorage.claim",
           "kind": "write",
           "name": "claim",
+          "signature": "claim: port.write({ input: s.string({ min: 1 }), output: s.boolean() })",
           "source": {
-            "column": 5,
-            "file": "src/features/products/contract.ts",
-            "line": 45
+            "column": 3,
+            "file": "src/features/products.ts",
+            "line": 37
           }
         },
         {
-          "id": "product-storage.get",
+          "id": "productStorage.get",
           "kind": "read",
           "name": "get",
+          "signature": "get: port.read({ input: s.string({ min: 1 }), output: s.optional(Product) })",
           "source": {
-            "column": 5,
-            "file": "src/features/products/contract.ts",
-            "line": 61
+            "column": 3,
+            "file": "src/features/products.ts",
+            "line": 39
           }
         },
         {
-          "id": "product-storage.release",
+          "id": "productStorage.release",
           "kind": "write",
           "name": "release",
+          "signature": "release: port.write({ input: s.object({ productId: s.string({ min: 1 }), quantity: PositiveSafeInteger, }), output: Product, })",
           "source": {
-            "column": 5,
-            "file": "src/features/products/contract.ts",
-            "line": 94
+            "column": 3,
+            "file": "src/features/products.ts",
+            "line": 49
           }
         },
         {
-          "id": "product-storage.release-claim",
+          "id": "productStorage.releaseClaim",
           "kind": "write",
           "name": "releaseClaim",
+          "signature": "releaseClaim: port.write({ input: s.string({ min: 1 }), output: s.literal(true) })",
           "source": {
-            "column": 5,
-            "file": "src/features/products/contract.ts",
-            "line": 54
+            "column": 3,
+            "file": "src/features/products.ts",
+            "line": 38
           }
         },
         {
-          "id": "product-storage.reserve",
+          "id": "productStorage.reserve",
           "kind": "write",
           "name": "reserve",
+          "signature": "reserve: port.write({ input: s.object({ productId: s.string({ min: 1 }), quantity: PositiveSafeInteger, }), output: ProductReservation, })",
           "source": {
-            "column": 5,
-            "file": "src/features/products/contract.ts",
-            "line": 77
+            "column": 3,
+            "file": "src/features/products.ts",
+            "line": 42
           }
         },
         {
-          "id": "product-storage.save",
+          "id": "productStorage.save",
           "kind": "write",
           "name": "save",
+          "signature": "save: port.write({ input: Product, output: Product })",
           "source": {
-            "column": 5,
-            "file": "src/features/products/contract.ts",
-            "line": 68
+            "column": 3,
+            "file": "src/features/products.ts",
+            "line": 40
           }
         }
       ],
       "source": {
         "column": 14,
-        "file": "src/features/products/contract.ts",
-        "line": 42
+        "file": "src/features/products.ts",
+        "line": 35
       },
       "symbol": "ProductStorage"
     }
   ],
-  "schemaVersion": "1",
+  "schemaVersion": "2",
   "sourceManifest": {
     "algorithm": "sha256",
-    "digest": "131baff354baeec43121f22f3b299005b00863cb078522472557e1f4b2472899",
+    "digest": "bdee7ebb955b7e33b59125569365c73880a850084702b839a090709e24ad3d45",
     "files": [
       {
         "file": "package.json",
-        "sha256": "f407099863e27b9c58ee5471e13ce5581275355b8d4d853bd8392c0f98aa8b15"
+        "sha256": "0d146455d24eece03682e8dbde12f5e90fd7c8b394a2a8e26178d0a8baa67d38"
       },
       {
         "file": "src/acceptance.test.ts",
-        "sha256": "ec73ba31401148916fb4e3b55101ed587dc49787b3aaccda9ecc070732bc7864"
+        "sha256": "e8089baad5f8a3be8871e646872f7a7a85a5aca3afb23a6f4f0521d105eb6e5f"
+      },
+      {
+        "file": "src/adapters.ts",
+        "sha256": "b45aa05947734e5efed8324da729c0da094f78d5297295defeff9162ee4d425b"
       },
       {
         "file": "src/application.ts",
-        "sha256": "b7f88f99581300e88835a7e59f3173825c6c32194c588e25742fcd85602874b8"
+        "sha256": "2e3fd1dfbd0cfb8b5b6e4552c25c9dd878159ca676600f678285230baa24701f"
       },
       {
         "file": "src/architecture.test.ts",
-        "sha256": "28abed28a49a2abdfb0e0e708568d86b1953989275d72af6da641bc7652b74c0"
+        "sha256": "49c21bee588f9ff78f6a1f7079d140c67ddda3e56d56044f874ffae640bf4cba"
       },
       {
         "file": "src/concurrency.test.ts",
-        "sha256": "04eba9ca0e6fee493bf8a288c2731ea8227b426eec87cd0cc61c7f1586ec90c8"
+        "sha256": "110ccf94ce234b92578443246916c91936f5f58dc39816a791edc90170d8fe85"
       },
       {
-        "file": "src/features/customers/contract.ts",
-        "sha256": "0dc2730ff15dc40d6cfbbbee5e5dbb3da5550ef0e94dc8496d43370d9806be5e"
+        "file": "src/features/customers.test.ts",
+        "sha256": "04aa5e239174a1232e636a5519918cc6d9defcf5405b0fbc56417b3417502e5e"
       },
       {
-        "file": "src/features/customers/customers.test.ts",
-        "sha256": "3e2e8c747193db016c6b72ad1d1a8cadcb6bd2b168b0170f8a4c813321bc1d0f"
+        "file": "src/features/customers.ts",
+        "sha256": "c66fbf2d33a1bd469843a377360a3ebee001f2198394e18814fdd98f827bf4fa"
       },
       {
-        "file": "src/features/customers/feature.ts",
-        "sha256": "71e71bd1ac259ee4882099556829708a3c61fc36ae3e88dcefec86f3ca8e0200"
+        "file": "src/features/orders.test.ts",
+        "sha256": "e4d6aa0ba93cea56e387c2fede78223653493a242e35f2c65ba07c9ce90b32eb"
       },
       {
-        "file": "src/features/customers/operations.ts",
-        "sha256": "a799e01d752c1bdb02ebf41fcd270e3e93b93c3ebda3b371da65f821a9cfd093"
+        "file": "src/features/orders.ts",
+        "sha256": "c5df62b1af45fe8e870bec2490d80d05aaa02f4ddc373fc6efa73bd7f4d3f339"
       },
       {
-        "file": "src/features/orders/contract.ts",
-        "sha256": "c3c426e369d94ffb72ed00d5161a9ad04cd512dd9356e61d668ac68396cd6602"
+        "file": "src/features/payments.ts",
+        "sha256": "c8950abcd8c071501920d818882b47c12802e2f47e9910d4f7cd9542eeefe233"
       },
       {
-        "file": "src/features/orders/feature.ts",
-        "sha256": "07a62737c266db09b1e1ccbdc85ced972c39454e4e512609f6a3ede231000261"
-      },
-      {
-        "file": "src/features/orders/invariants.property.test.ts",
-        "sha256": "dea18ed97ec1f7c75f55411f832703faa65d28595266b0479d2cc9f42cbe7d8c"
-      },
-      {
-        "file": "src/features/orders/invariants.ts",
-        "sha256": "824b20122a3a406acc0b9ee3a34acb24b7a1179ad587dc874bcce6555fca285e"
-      },
-      {
-        "file": "src/features/orders/operations.ts",
-        "sha256": "1e640697ee933debd5f1cb21a545f383531685400cd907604a1c6383958ca9cf"
-      },
-      {
-        "file": "src/features/orders/orders.agent.test.ts",
-        "sha256": "9b90cf6d366b7e86e15a9a136548761c14495931b3aa8ba02886ef24bfb1129f"
-      },
-      {
-        "file": "src/features/payments/contract.ts",
-        "sha256": "72a08fb7b3625c36f6781a7035374c3f3de50a819e71934b850c0aab097727e9"
-      },
-      {
-        "file": "src/features/payments/feature.ts",
-        "sha256": "bff4a64445e0c6f6caec1c2312b4d5d1a38f4df1cdc8c8de8f227cc3d41f76f6"
-      },
-      {
-        "file": "src/features/products/contract.ts",
-        "sha256": "e573a7e34c87eae1771e67fb9d33662fafb7977d076647bdca280ab70d80361a"
-      },
-      {
-        "file": "src/features/products/feature.ts",
-        "sha256": "d98a7d47c4eb28043442cec9ccc8c5bf459b1e60a84399d18b80f9c9a3afba77"
-      },
-      {
-        "file": "src/features/products/operations.ts",
-        "sha256": "46672983e438aa17c2581f4738b0f7269a8acc559a355b3535fa9a063a0e2942"
+        "file": "src/features/products.ts",
+        "sha256": "8e4fc862a0c22c65247700b990409a53b33119a5733c6b47d5f62cad5096bfd9"
       },
       {
         "file": "src/index.ts",
-        "sha256": "60e0c7fdf5065a9b227d3a9d0e2a0300937dbc53afe6f1f005bc39527e567f16"
+        "sha256": "3f77ac1b6f016baebc65365f2bc648703f5455211fcd24c9fb249c25af4b93c1"
       },
       {
         "file": "tsconfig.json",
@@ -1448,17 +1308,52 @@
   },
   "tests": [
     {
+      "features": [],
+      "id": "src/acceptance.test.ts",
+      "operations": [
+        "orders.create"
+      ],
+      "source": {
+        "column": 1,
+        "file": "src/acceptance.test.ts",
+        "line": 1
+      }
+    },
+    {
+      "features": [],
+      "id": "src/architecture.test.ts",
+      "operations": [
+        "orders.create"
+      ],
+      "source": {
+        "column": 1,
+        "file": "src/architecture.test.ts",
+        "line": 1
+      }
+    },
+    {
+      "features": [],
+      "id": "src/concurrency.test.ts",
+      "operations": [
+        "orders.create"
+      ],
+      "source": {
+        "column": 1,
+        "file": "src/concurrency.test.ts",
+        "line": 1
+      }
+    },
+    {
       "features": [
         "customers"
       ],
-      "id": "src/features/customers/customers.test.ts",
+      "id": "src/features/customers.test.ts",
       "operations": [
-        "customers.create",
-        "customers.get"
+        "customers.create"
       ],
       "source": {
         "column": 1,
-        "file": "src/features/customers/customers.test.ts",
+        "file": "src/features/customers.test.ts",
         "line": 1
       }
     },
@@ -1466,31 +1361,15 @@
       "features": [
         "orders"
       ],
-      "id": "src/features/orders/invariants.property.test.ts",
+      "id": "src/features/orders.test.ts",
       "operations": [
         "orders.create",
         "orders.get",
-        "orders.list-events"
+        "orders.listEvents"
       ],
       "source": {
         "column": 1,
-        "file": "src/features/orders/invariants.property.test.ts",
-        "line": 1
-      }
-    },
-    {
-      "features": [
-        "orders"
-      ],
-      "id": "src/features/orders/orders.agent.test.ts",
-      "operations": [
-        "orders.create",
-        "orders.get",
-        "orders.list-events"
-      ],
-      "source": {
-        "column": 1,
-        "file": "src/features/orders/orders.agent.test.ts",
+        "file": "src/features/orders.test.ts",
         "line": 1
       }
     }

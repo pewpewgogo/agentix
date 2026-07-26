@@ -238,6 +238,39 @@ export const computeAffected = (
   return { schemaVersion: "2", target, widened: false, items, diagnostics: [] };
 };
 
+const vitestConfigNames = [
+  "vitest.config.ts",
+  "vitest.config.mts",
+  "vitest.config.cts",
+  "vitest.config.js",
+  "vitest.config.mjs",
+  "vitest.config.cjs",
+  "vite.config.ts",
+  "vite.config.mts",
+  "vite.config.cts",
+  "vite.config.js",
+  "vite.config.mjs",
+  "vite.config.cjs",
+];
+
+/**
+ * Nearest directory at or above rootDir holding a Vitest (or Vite) config.
+ * Vitest resolves its config upward the same way, so when the nearest config
+ * sits above the application the test command must re-anchor `--root` there
+ * or the app-relative file filters match nothing.
+ */
+const nearestVitestConfigDirectory = (rootDir: string): string | undefined => {
+  let directory = resolve(rootDir);
+  for (;;) {
+    if (vitestConfigNames.some((name) => existsSync(resolve(directory, name)))) {
+      return directory;
+    }
+    const parent = dirname(directory);
+    if (parent === directory) return undefined;
+    directory = parent;
+  }
+};
+
 const nearestProject = (rootDir: string, sourceFile: string): string | undefined => {
   const root = resolve(rootDir);
   let directory = dirname(resolve(root, sourceFile));
@@ -315,6 +348,22 @@ export const planVerification = (
         "Project references and associated tests do not prove a narrower scope safe.",
     );
   }
+  // When the nearest Vitest config sits above the application, filters stay
+  // rootDir-relative in testFiles but the command re-anchors `--root` at the
+  // config directory with config-relative filters, because Vitest matches
+  // filters against paths from the config's root, not the invocation cwd.
+  const configDirectory = nearestVitestConfigDirectory(rootDir);
+  const configAbove =
+    configDirectory !== undefined && configDirectory !== resolve(rootDir);
+  const testArguments = configAbove
+    ? [
+        "--root",
+        repositoryPath(rootDir, configDirectory),
+        ...selectedTests.map(
+          (test) => `${repositoryPath(configDirectory, resolve(rootDir))}/${test}`,
+        ),
+      ]
+    : selectedTests;
   return {
     schemaVersion: "2",
     target,
@@ -330,7 +379,7 @@ export const planVerification = (
       "--pretty",
       "false",
     ],
-    tests: ["npm", "exec", "--", "vitest", "run", ...selectedTests],
+    tests: ["npm", "exec", "--", "vitest", "run", ...testArguments],
     testFiles: selectedTests,
   };
 };
