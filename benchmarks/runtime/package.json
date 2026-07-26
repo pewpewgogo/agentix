@@ -18,6 +18,7 @@
     "test": "vitest run --root ../.. benchmarks/runtime"
   },
   "dependencies": {
+    "@agentix/adapters-http": "0.1.0",
     "@agentix/compiler": "0.1.0",
     "@agentix/core": "0.1.0",
     "@agentix/framework-app": "0.0.0",

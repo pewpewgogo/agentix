@@ -1,231 +1,210 @@
 # API Reference
 
-This reference covers the public exports of each Agentix npm package. All
-packages are ESM-only and use one coordinated pre-1.0 version. Only documented
-package roots and the HTTP `/web` and `/node` subpaths are supported. Minor
-releases may change the API without compatibility shims until 1.0.
+Every public export of the five packages, grouped by module. Packages are
+ESM-only, one coordinated pre-1.0 version; supported entry points are the
+package roots plus `@agentix/adapters-http/web` and `/node`. Each package also
+ships this reference offline as `API.md`.
 
 ## `@agentix/core`
 
-### Schemas
+### Schemas (`s` namespace; types also exported top-level)
 
-| Export | Purpose |
-| --- | --- |
-| `schema` | Frozen namespace containing all schema constructors |
-| `string()` | String schema |
-| `number()` | Finite-number schema |
-| `boolean()` | Boolean schema |
-| `literal(value)` | Exact string, number, boolean, or null literal |
-| `array(item)` | Readonly array of values parsed by `item` |
-| `object(shape)` | Strict object; rejects missing required and unknown keys |
-| `optional(inner)` | Optional object field or explicit `undefined` |
-| `union(options)` | Ordered union of two or more schemas |
-| `refine(base, predicate, options)` | Schema with a named application predicate |
-| `id(brand)` | Non-empty branded string ID |
-
-Key types are `Schema<T>`, `Infer<S>`, `ObjectOutput<S>`, `BrandedId<Brand>`,
-`ParseResult<T>`, `ParseSuccess<T>`, `ParseFailure`, `SchemaIssue`,
-`SchemaDescription`, and `SchemaPathSegment`.
-
-`SchemaValidationError` is thrown by `parse`; `safeParse` does not throw for a
-normal validation failure. Custom schema implementations and hostile values can
-still throw while validation executes. Runtime dispatch converts those
-exceptions into boundary faults rather than allowing operation code to recover
-them as success. `ID_BRAND` is the unique-symbol basis of branded ID types.
+- `s.string({min?, max?, trim?, pattern?}?): Schema<string>` — `trim` runs before validation.
+- `s.number({min?, max?, int?}?): Schema<number>`
+- `s.boolean(): Schema<boolean>`
+- `s.literal(value): Schema<value>` — string/number/boolean/null literal.
+- `s.object(shape): ObjectSchema<shape>` — strict (unknown keys rejected); exposes `.shape`.
+- `s.array(item): Schema<Item[]>`
+- `s.optional(schema): OptionalSchema<T>` — accepts `undefined`.
+- `s.union([a, b, ...]): Schema<A | B>` — first matching member wins.
+- `s.refine(base, predicate, {id, message} | id): Schema<T>` — custom predicate on top of `base`.
+- `s.id(brand): Schema<BrandedId<brand>>` — non-empty branded string id.
+- `s.Infer<S>` / `Infer<S>` — static type of a schema.
+- `SchemaValidationError` — thrown by `schema.parse`; carries `issues`.
+- Every schema: `safeParse(value): ParseResult<T>` and `parse(value): T`.
+- Types: `Schema<T>`, `ObjectSchema<Shape>`, `OptionalSchema<T>`, `SchemaShape`,
+  `ObjectOutput<Shape>`, `StringOptions`, `NumberOptions`, `RefinementOptions`,
+  `LiteralValue`, `BrandedId<Brand>`, `ParseSuccess<T>`, `ParseFailure`,
+  `ParseResult<T>`, `SchemaIssue`, `SchemaIssueCode`, `SchemaPathSegment`,
+  `SchemaDescription`.
 
 ### Outcomes
 
-| Export | Purpose |
-| --- | --- |
-| `ok(value)` | Create a successful `Outcome` |
-| `err(error)` | Create a failed `Outcome` for an expected error |
-| `isOutcome(value)` | Runtime check for the outcome envelope |
-| `matchOutcome(outcome, branches)` | Exhaustive success/error mapping |
-
-Types: `Outcome<T, E>`, `Success<T>`, and `Failure<E>`.
+- `ok(value): Outcome<T, never>` / `err(error): Outcome<never, E>`
+- `isOutcome(value): value is Outcome<unknown, unknown>`
+- `matchOutcome(outcome, {ok, err}): A | B`
+- Types: `Outcome<T, E>`, `Success<T>`, `Failure<E>`.
 
 ### Descriptors
 
-| Export | Purpose |
-| --- | --- |
-| `portOperation(definition)` | Declare one read/write/time/random/external capability |
-| `definePort(definition)` | Group named port operations |
-| `bindPort(port, implementation)` | Bind a complete implementation to a port |
-| `defineAdapter` | Alias of `bindPort` |
-| `defineEvent(definition)` | Declare a versioned event payload |
-| `defineFeatureContract(definition)` | Declare one feature's public export surface |
-| `defineContract` | Alias of `defineFeatureContract` |
-| `defineInvariant(definition)` | Declare a pure invariant over evidence |
-| `defineCommand(definition)` | Declare a command |
-| `defineQuery(definition)` | Declare a query that cannot use `write` effects or emit events |
-| `defineFeature(definition)` | Assemble a feature descriptor |
-| `domainError(code, details)` | Construct a typed declared-error value |
+- `command({input, output, errors?, permissions?, http?, effects?, emits?, ensures?, execute}): UnboundOperation<"command", ...>`
+- `query({...same minus emits; write effects rejected}): UnboundOperation<"query", ...>`
+- `feature(id, {operations, events?}): FeatureDescriptor` — binds operation ids `${id}.${key}`.
+- `port(id, {opName: port.read|write|time|random|external({input, output})})` — port with ops addressable as `Port.opName`; `Port.adapter(impl)` binds plain-value handlers.
+- `port.store(id, objectSchema): StorePort` — CRUD preset (`get/save/delete/list`) + `.memory()` Map adapter; schema must have `id`.
+- `event(id, version, payloadSchema): EventDescriptor`
+- `FAIL_RESULT` — symbol branding `fail(...)` results.
+- Error declaration: `errors: { CODE: { http?, details? } | Schema }`; `fail(code, details)` is injected into `execute` and RETURNS the declared failure.
+- Types: `UnboundOperation`, `BoundOperation`, `AnyUnboundOperation`,
+  `AnyBoundOperation`, `CommandDefinition`, `QueryDefinition`,
+  `ExecutionContext`, `ExecuteResult`, `FailFn`, `OperationFailure`,
+  `DeclaredError`, `ErrorConfig`, `ErrorSpec`, `ErrorSpecMap`, `ErrorDetails`,
+  `FeatureDescriptor`, `AnyFeature`, `BindOperations`, `ValidOperations`,
+  `PortDescriptor`, `AnyPort`, `PortFactory`, `PortOperationFactory`,
+  `PortOperationDescriptor`, `UnboundPortOperation`, `AnyPortOperation`,
+  `BoundPortOperations`, `ValidPortOps`, `PortImplementation`,
+  `BoundPortAdapter`, `AdapterHandler`, `EffectHandler`, `EffectContext`,
+  `EffectKind`, `EffectMap`, `StorePort`, `StoreOperations`, `StoreShape`,
+  `EventDescriptor`, `EventEmitter`, `EventMap`, `EnsuresMap`,
+  `OperationEnsure`, `EnsureContext`, `AuthoredHttp`, `HttpMetadata`,
+  `HttpMethod`, `WithoutWriteEffects`, `MaybePromise`.
 
-`command`, `query`, `event`, `invariant`, and `feature` are short aliases. Prefer
-the `define*` names in indexed application source because the compiler recognizes
-those direct declaration forms most reliably.
+### Application
 
-Important types include `PortDescriptor`, `PortOperationDescriptor`,
-`PortImplementation`, `BoundPortAdapter`, `EventDescriptor`,
-`FeatureContractDescriptor`, `InvariantDescriptor`, `CommandDescriptor`,
-`QueryDescriptor`, `FeatureDescriptor`, `DeclaredError`, `EffectKind`,
-`EffectContext`, `EventEmitter`, and `OperationExecutionContext`.
-
-### Application runtime
-
-| Export | Purpose |
-| --- | --- |
-| `principal(id, permissions)` | Create an immutable principal value |
-| `createApplication(definition)` | Validate and assemble features/adapters |
-| `ApplicationDefinitionError` | Aggregated construction-time definition errors |
-
-The returned `Application` exposes:
-
-```ts
-interface Application {
-  readonly features: readonly FeatureDescriptor[];
-  readonly operations: readonly AnyOperationDescriptor[];
-  readonly mode: "production" | "development" | "test";
-  getOperation(id: string): AnyOperationDescriptor | undefined;
-  dispatch(operationOrId, options): Promise<DispatchResult>;
-}
-```
-
-Key runtime types are `Principal`, `DispatchOptions`, `DispatchResult`,
-`CompletedDispatch`, `RejectedDispatch`, `FaultedDispatch`,
-`DispatchRejectionError`, `DispatchFaultError`, `ExecutionTrace`, `TraceEntry`,
-`EmittedEvent`, `ApplicationDefinition`, and `ApplicationDefinitionIssue`.
-
-Every `CompletedDispatch` has an immutable `events` array containing validated
-events emitted by that execution. Payload graphs made of arrays and plain
-objects are detached and deeply frozen at emission; non-plain values returned
-by custom `Schema` implementations are opaque. The array is dispatch data, not
-a publication, delivery, persistence, or transaction guarantee.
-
-An ordinary operation-input validation failure is an `INVALID_INPUT` rejection.
-If operation-input schema execution itself throws, dispatch returns a fault with
-code `INPUT_VALIDATION_FAILED`. Thrown effect-input and event-payload validation
-remain faults under `INVALID_EFFECT_INPUT` and `INVALID_EVENT_PAYLOAD`.
-
-See [core concepts](CORE_CONCEPTS.md) for dispatch order, always-on boundary
-validation, and behavior Agentix intentionally does not provide.
+- `createApplication({features, adapters?, mode?, authorize?}): Application` — validates ids, adapter coverage, query purity, route conflicts; `mode` defaults from `NODE_ENV`.
+- `app.dispatch(idOrDescriptor, {input, principal?, trace?}): Promise<DispatchResult>` — three-way `completed | rejected | fault`.
+- `app.call(id, input, {principal?}?): Promise<Outcome>` — returns the outcome; throws `DispatchError` on rejected/fault.
+- `app.getOperation(id): AnyBoundOperation | undefined`; `app.operations`, `app.features`, `app.mode`.
+- `authorize(operation, principal?): boolean` — the single permission gate (subset check; no permissions ⇒ anonymous OK).
+- `principal(id, permissions): Principal`
+- `DispatchError` — thrown by `call`; `{kind, code, operationId, detail}`.
+- `ApplicationDefinitionError` — thrown by `createApplication`; carries `issues`.
+- Types: `Application<Ops>`, `ApplicationDefinition`, `ApplicationOperations`,
+  `OperationsRecordOf`, `OpInput`, `OpOutput`, `OpError`,
+  `UnionToIntersection`, `DispatchOptions`, `CallOptions`, `DispatchResult`,
+  `CompletedDispatch`, `RejectedDispatch`, `FaultedDispatch`,
+  `DispatchRejectionError`, `DispatchFaultError`, `DispatchFaultCode`,
+  `UnknownOperationError`, `PermissionDeniedError`, `InvalidInputError`,
+  `EmittedEvent`, `ExecutionTrace`, `TraceEntry`, `EffectTraceEntry`,
+  `EventTraceEntry`, `Principal`, `RuntimeMode`,
+  `ApplicationDefinitionIssue`, `ApplicationDefinitionIssueCode`.
 
 ## `@agentix/adapters-http`
 
+Root re-exports `./web` plus `serveNode`; `./web` is edge-safe.
+
+### Handler
+
+- `createHttpHandler(app, {authenticate?, onError?, routes?}?): HttpHandler` — routes auto-derived from operations' `http` metadata.
+- `HttpHandler` — `{fetch(request), handle(request), routes}`.
+- `RequestBodyLimitError` — throw from a custom host's `readBody` for a 413.
+- `JSON_CONTENT_TYPE` — `"application/json; charset=utf-8"`.
+- Types: `CreateHttpHandlerOptions`, `HandlerRequest`, `HandlerResponse`,
+  `HttpErrorInfo`, `HttpErrorObserver`.
+
 ### Authentication
 
-| Export | Purpose |
-| --- | --- |
-| `createBearerPrincipalExtractor(options)` | Parse bearer auth and delegate token resolution |
-| `createTrustedHeaderPrincipalExtractor(options?)` | Read identity inserted by a trusted proxy |
-| `AuthenticationError` | Signal a sanitized 401 authentication failure |
+- `createBearerPrincipalExtractor({resolve(token, request)}): PrincipalExtractor`
+- `createTrustedHeaderPrincipalExtractor({idHeader?, permissionsHeader?, separator?}?): PrincipalExtractor`
+- `AuthenticationError(message?, code?)` — throw from an extractor for a 401.
+- Types: `PrincipalExtractor`, `HttpRequestView`,
+  `BearerPrincipalExtractorOptions`, `TrustedHeaderPrincipalOptions`.
 
-Types: `PrincipalExtractor`, `BearerPrincipalExtractorOptions`, and
-`TrustedHeaderPrincipalOptions`.
+### Routing
 
-### Routes and responses
+- `defineHttpRoute({method, path, operation, status?, errorStatus?, mapRequest?}): HttpRouteOverride` — the only escape hatch; replaces the operation's auto routes.
+- `compileRouteTable(operations, overrides?): CompiledRouteTable` — for custom hosts.
+- `matchRoute(table, method, path): MatchResult` — `matched | method_not_allowed | not_found`.
+- `queryRecord(query): Record<string, string>` — first-value-wins query parsing.
+- `EMPTY_PARAMS` — shared frozen empty params record.
+- Types: `DefineHttpRouteOptions`, `HttpRouteOverride`, `HttpRequestContext`,
+  `CompiledRoute`, `CompiledRouteTable`, `MatchResult`, `RouteBucket`,
+  `RouteSegment`, `BuildInput`, `Awaitable`, re-exported `HttpMethod`.
 
-| Export | Purpose |
-| --- | --- |
-| `defineHttpRoute(options)` | Create an immutable explicit route |
-| `readJsonBody(request)` | Parse JSON or throw `HttpInputError` with `INVALID_JSON` |
-| `jsonResponse(value, status, headers?)` | Produce a JSON `Response` |
-| `mapDispatchResult(result, options?)` | Apply the default safe HTTP mapping |
-| `HttpInputError` | Transport-input error with status and code |
+### Node host (root and `./node`)
 
-Types: `HttpMethod`, `HttpRoute`, `DefineHttpRouteOptions`, `HttpRouteContext`,
-`HttpResponseContext`, and `HttpOutcomeResponseOptions`.
-
-### Handler and Node host
-
-| Export | Purpose |
-| --- | --- |
-| `createHttpHandler(options)` | Build `(Request) => Promise<Response>` from routes |
-| `createNodeHttpListener(handler, options?)` | Adapt the Web handler to a Node request listener |
-
-Types: `HttpHandler`, `CreateHttpHandlerOptions`, and
-`NodeHttpListenerOptions`. Read [HTTP adapter](HTTP.md) for status mapping,
-authentication safety, body limits, buffering, and proxy trust.
-
-Use `@agentix/adapters-http/web` for the Web-standard auth/route/handler surface
-without importing the Node host. Use `@agentix/adapters-http/node` for
-`createNodeHttpListener`. The package root retains both for compatibility.
+- `serveNode(handler, {port, host?, maxBodyBytes?}): Promise<NodeHttpServer>` — raw `node:http` fast path; `{server, url, close()}`.
+- Types: `ServeNodeOptions`, `NodeHttpServer`.
 
 ## `@agentix/testing`
 
-| Area | Exports |
-| --- | --- |
-| Operation harness | `testCommand`, `testQuery` |
-| Test association | `defineOperationTest`, `associateOperationTest` |
-| Traces | `assertEffectSequence`, `assertEventSequence`, `assertTraceEquals`, `assertNoEffects`, `assertNoEvents`, `TraceAssertionError` |
-| Determinism | `createDeterministicClock`, `createDeterministicIdGenerator` |
-| Port recording | `createRecordingAdapter`, `createScriptedEffect` |
-| Adapter contracts | `defineAdapterContract`, `runAdapterContract` |
-| Invariants | `checkInvariant`, `assertInvariant`, `checkInvariantProperty`, `InvariantViolationError` |
-| Replay | `defineReplayRecord`, `parseReplayRecord`, `replay`, `ReplayEffectError`, `ReplayMismatchError` |
+### Test application
 
-The package also exports the corresponding option, result, call-record, JSON,
-replay, and trace types. It is Node-oriented and depends on `fast-check`.
-Read [testing](TESTING.md) for lifecycle and ordering details.
+- `createTestApplication({features, adapters?, overrides?, mode?, authorize?}): {app, calls, clock, ids}` — auto-binds uncovered port ops to recording fakes (store→memory, time→clock, random→ids, other→throwing stub).
+- Types: `TestApplicationDefinition`, `TestApplication`, `TestCallLog`,
+  `TestOverrideHandler`.
+
+### HTTP driver
+
+- `testHttp(handler): TestHttpClient` — `get/delete(path, opts?)`, `post/put/patch(path, body?, opts?)`, `request({...})`; responses `{status, body, headers, text}`.
+- `TEST_PRINCIPAL_HEADER` — header carrying the JSON `principal` option.
+- Types: `TestHttpHandler`, `TestHttpClient`, `TestHttpRequest`,
+  `TestHttpRequestOptions`, `TestHttpResponse`.
+
+### Harnesses
+
+- `testCommand({application, operation, input, principal?, trace?}): Promise<DispatchResult>` — trace defaults on; principal defaults to one granting the operation's permissions.
+- `testQuery({...}): Promise<DispatchResult>` — same for queries.
+- Types: `HarnessApplication`, `OperationHarnessOptions`,
+  `OperationHarnessResult`.
+
+### Deterministic capabilities
+
+- `createDeterministicClock({start?, stepMs?, project?}?): DeterministicClock` — `now/peek/advanceBy/set/reset/calls`.
+- `createDeterministicIdGenerator({prefix?, start?, padding?, values?}?): DeterministicIdGenerator` — `next/peek/reset/calls`.
+- Types: `DeterministicClock`, `DeterministicClockOptions`,
+  `DeterministicIdGenerator`, `DeterministicIdGeneratorOptions`.
+
+### Recording and scripting
+
+- `createRecordingAdapter(port, handlers): RecordingAdapter` — a `BoundPortAdapter` plus `calls()`/`reset()`.
+- `createScriptedEffect<Input, Output>(steps): ScriptedEffect` — `{handler, remaining, reset}`.
+- Types: `RecordingAdapter`, `RecordingPortImplementation`,
+  `RecordedEffectCall`, `ReturnedEffectCall`, `ThrownEffectCall`,
+  `EffectHandler`, `ScriptedEffect`, `ScriptedEffectStep`, `Awaitable`.
+
+### Contracts
+
+- `defineAdapterContract<Adapter>({id, cases}): AdapterContract` — typed cases per adapter operation.
+- `runAdapterContract(contract, adapter): Promise<AdapterContractResult>`
+- Types: `AdapterContract`, `AdapterContractResult`, `ContractAdapter`.
+
+### Ensures
+
+- `checkEnsures(operation, {input, output}): string[]` — violated ensure names.
+- `assertEnsures(operation, context): void` — throws `EnsureViolationError`.
+- `checkEnsuresProperty({operation, contexts, parameters?}): void` — seeded fast-check property.
+- Types: `EnsureContextOf`, `CheckEnsuresPropertyOptions`; class `EnsureViolationError`.
+
+### Traces and association
+
+- `assertEffectSequence(trace, effectIds)` / `assertEventSequence(trace, eventIds)`
+- `assertTraceEquals(actual, expected)`; `assertNoEffects(trace)`; `assertNoEvents(trace)`; class `TraceAssertionError`.
+- `defineOperationTest({id, operation})` / `associateOperationTest(operation, id?)` — compiler-readable test associations.
+- Types: `ExecutionTraceLike`, `EffectTraceLike`, `EventTraceLike`,
+  `AssociableOperation`, `OperationTestAssociation`,
+  `DefineOperationTestOptions`.
 
 ## `@agentix/compiler`
 
-| Export | Purpose |
-| --- | --- |
-| `INDEX_SCHEMA_VERSION` | Current generated-index schema (`"1"`) |
-| `COMPILER_VERSION` | Current compiler projection version (`"0.1.0"`) |
-| `OPERATION_CONTEXT_BYTE_LIMIT` | Hard serialized operation-context limit (`8192`) |
-| `analyzeProject(options)` | Analyze source and return an in-memory `AgentIndex` |
-| `checkArchitecture(options)` | Return architecture and query-rule diagnostics |
-| `generateIndex(options)` | Analyze, deterministically serialize, and optionally write an index |
-| `createOperationContext(index, target, rootDir)` | Project bounded, source-bound context for one operation |
-| `createOperationDetail(index, target, rootDir)` | Expand exact, unbounded detail for one operation |
-| `computeAffected(index, target, rootDir)` | Compute conservative affected closure |
-| `planVerification(index, target, rootDir)` | Produce typecheck/test command plan |
-| `checkIndexStaleness(index, rootDir)` | Check schema/compiler compatibility and compare the source manifest |
-| `readIndex(rootDir, path?)` | Read `.agentix/index.json` or another path |
-| `discoverSourceFiles(rootDir, files?)` | Deterministically discover TypeScript sources |
-| `createSourceManifest(rootDir, files)` | Hash source/config inputs |
-| `repositoryPath`, `toPosixPath` | Normalize repository-relative paths |
-| `stableJson(value, options?)` | Deterministic sorted JSON serialization; `{ compact: true }` removes indentation |
-
-All interfaces in `packages/compiler/src/types.ts` are public, including
-`AgentIndex`, `OperationContext`, `OperationContextAnalysis`,
-`OperationContextAffected`, `OperationContextProjection`,
-`OperationContextOmission`, `OperationContextVerification`, `OperationDetail`,
-indexed entity types, diagnostics, graph edges, source-manifest types,
-`AnalyzeOptions`, `GenerateOptions`, `GeneratedIndex`, `StableJsonOptions`, `AffectedResult`, and
-`VerificationPlan`.
-
-The compiler uses TypeScript's unstable API packages and convention-based
-static analysis. Treat this package as especially pre-release. Generation may
-return/write an index containing diagnostics; it does not itself promise a clean
-architecture result.
+- `analyzeProject({rootDir, files?, include?}): AgentIndex` — static analysis to the schema-2 index.
+- `generateIndex({rootDir, outputFile?, write?, ...}): GeneratedIndex` — deterministic `{index, json, outputFile}`.
+- `readIndex(rootDir, path?): AgentIndex` — reads and shape-checks a cached index.
+- `checkIndexStaleness(index, rootDir): {stale, reason?}` — digest/version staleness check.
+- `computeAffected(index, target, rootDir?): AffectedResult` — conservative closure with per-item reasons.
+- `planVerification(index, target, rootDir, affected?): VerificationPlan` — narrowest safe typecheck + test commands.
+- `workspaceVerificationPlan(target, rootDir, reason): VerificationPlan` — workspace-scope fallback plan.
+- `createOperationContext(index, id, rootDir): OperationContext | undefined` — bounded 8 KiB artifact with excerpts and omissions ledger.
+- `createOperationDetail(index, id, rootDir): OperationDetail | undefined` — unbounded per-operation detail.
+- `checkArchitecture({rootDir, ...}): CompilerDiagnostic[]` — architecture + query-purity diagnostics only.
+- `discoverSourceFiles(rootDir)`, `createSourceManifest(...)`, `stableJson(value, {compact?}?)`, `toPosixPath(path)`, `repositoryPath(rootDir, path)`, `featureSegmentOf(path)`.
+- `INDEX_SCHEMA_VERSION` (`"2"`), `COMPILER_VERSION`, `OPERATION_CONTEXT_BYTE_LIMIT` (8192).
+- Types (all of `types.ts` plus `StableJsonOptions`): `AgentIndex`,
+  `AnalyzeOptions`, `GenerateOptions`, `GeneratedIndex`, `IndexedFeature`,
+  `IndexedOperation`, `IndexedOperationError`, `IndexedHttp`, `IndexedEffect`,
+  `IndexedPort`, `IndexedPortOperation`, `IndexedEvent`, `IndexedTest`,
+  `SchemaExcerpt`, `GraphEdge`, `CompilerDiagnostic`, `DiagnosticSeverity`,
+  `DeclarationKind`, `SourceLocation`, `SourceManifest`, `ManifestEntry`,
+  `AffectedResult`, `AffectedItem`, `AffectedReason`, `VerificationPlan`,
+  `OperationContext`, `OperationContextAnalysis`, `OperationContextAffected`,
+  `OperationContextAffectedItem`, `OperationContextExcerpts`,
+  `OperationContextOmission`, `OperationContextProjection`,
+  `OperationContextVerification`, `OperationDetail`.
 
 ## `@agentix/cli`
 
-The package installs the repository-local `agentix` binary and exposes a small
-programmatic surface:
+- `runCli(argv, {cwd?, io?, runProcess?}?): Promise<number>` — the `agentix` binary's contract, programmable.
+- `ExitCode` — `{success: 0, verificationFailure: 1, invalidInvocation: 2, internalFailure: 3}`.
+- Types: `CliDependencies`, `CliIO`, `ProcessResult`, `ProcessRunner`.
 
-| Export | Purpose |
-| --- | --- |
-| `runCli(argv, dependencies?)` | Execute one command synchronously and return an exit code |
-| `ExitCode` | Named exit-code constants |
-
-Types: `CliDependencies`, `CliIO`, `ProcessResult`, and `ProcessRunner`.
-
-Every JSON-producing command accepts `--compact` together with `--json` for the
-same stable schema without indentation overhead.
-
-See [CLI and generated index](CLI.md) for commands and static-analysis
-conventions.
-
-## Import and module rules
-
-- Import package roots such as `@agentix/core`. The HTTP package additionally
-  exports the documented `/web` and `/node` subpaths; other deep imports are not
-  supported.
-- Application packages use ESM/NodeNext. Relative TypeScript imports include a
-  `.js` suffix so emitted JavaScript resolves correctly.
-- Framework packages require Node.js 24;
-  consuming outside this monorepo is not a supported installation mode.
+Commands and artifact shapes: [CLI.md](CLI.md).

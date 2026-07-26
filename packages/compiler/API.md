@@ -1,0 +1,50 @@
+# `@agentix/compiler` API
+
+Every public export, one line each. Artifact shapes: the repository's
+`docs/CLI.md`.
+
+## Analysis
+
+- `analyzeProject({rootDir, files?, include?}): AgentIndex` — full static analysis to the schema-2 index (no writes).
+- `generateIndex({rootDir, outputFile?, write?, files?, include?}): GeneratedIndex` — deterministic `{index, json, outputFile}`; writes `.agentix/index.json` when `write: true`.
+- `checkArchitecture(options): readonly CompilerDiagnostic[]` — architecture + query-purity diagnostics only.
+
+## Index cache
+
+- `readIndex(rootDir, path?): AgentIndex` — reads and shape-checks a cached index (throws on malformed).
+- `checkIndexStaleness(index, rootDir): {stale, reason?}` — schema/compiler version + source-digest staleness.
+- `INDEX_SCHEMA_VERSION` — `"2"`. `COMPILER_VERSION` — the analyzer version stamped into indexes.
+
+## Affected scope and verification
+
+- `computeAffected(index, target, rootDir?): AffectedResult` — conservative closure with per-item reasons; `widened: true` only when unresolved edges fall outside any indexed feature.
+- `planVerification(index, target, rootDir, affected?): VerificationPlan` — narrow project-scoped `tsc`/`vitest` argv when safe; pass a precomputed `affected` to avoid recomputation.
+- `workspaceVerificationPlan(target, rootDir, reason): VerificationPlan` — workspace-scope plan honoring `package.json` `typecheck`/`test` scripts.
+
+## Context artifacts
+
+- `createOperationContext(index, id, rootDir): OperationContext | undefined` — bounded artifact (`OPERATION_CONTEXT_BYTE_LIMIT` = 8192 bytes) with source excerpts and an omissions ledger.
+- `createOperationDetail(index, id, rootDir): OperationDetail | undefined` — unbounded per-operation detail.
+- `OPERATION_CONTEXT_BYTE_LIMIT` — the 8 KiB projection cap.
+
+## Files and helpers
+
+- `discoverSourceFiles(rootDir, explicitFiles?): string[]` — deterministic sorted source discovery.
+- `createSourceManifest(rootDir, sourceFiles): SourceManifest` — per-file sha256 digests + combined digest (includes config files).
+- `stableJson(value, {compact?}?): string` — stable-key JSON serialization.
+- `toPosixPath(path)`, `repositoryPath(rootDir, path)` — path normalization.
+- `featureSegmentOf(path): string | undefined` — maps `src/features/notes.ts`, `notes.test.ts`, and `notes/` to segment `"notes"`.
+
+## Types
+
+`AgentIndex`, `AnalyzeOptions`, `GenerateOptions`, `GeneratedIndex`,
+`IndexedFeature`, `IndexedOperation`, `IndexedOperationError`, `IndexedHttp`,
+`IndexedEffect`, `IndexedPort`, `IndexedPortOperation`, `IndexedEvent`,
+`IndexedTest`, `SchemaExcerpt`, `GraphEdge`, `CompilerDiagnostic`,
+`DiagnosticSeverity`, `DeclarationKind`, `SourceLocation`, `SourceManifest`,
+`ManifestEntry`, `AffectedResult`, `AffectedItem`, `AffectedReason`,
+`VerificationPlan`, `OperationContext`, `OperationContextAnalysis`,
+`OperationContextAffected`, `OperationContextAffectedItem`,
+`OperationContextExcerpts`, `OperationContextOmission`,
+`OperationContextProjection`, `OperationContextVerification`,
+`OperationDetail`, `StableJsonOptions`.

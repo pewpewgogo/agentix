@@ -1,11 +1,5 @@
-import { type HttpTarget, HTTP_STACKS, type HttpStack } from "./types.js";
-
-interface TargetModule {
-  readonly target?: unknown;
-  readonly agentixTarget?: unknown;
-  readonly expressTarget?: unknown;
-  readonly nestjsTarget?: unknown;
-}
+import { startTarget } from "./targets/registry.js";
+import { HTTP_STACKS, type HttpStack } from "./types.js";
 
 export interface HttpComparisonChildProbe {
   readonly schemaVersion: 1;
@@ -16,33 +10,6 @@ export interface HttpComparisonChildProbe {
   readonly processMaxRssBytes: number | null;
   readonly processMaxRssUnavailableReason: string | null;
 }
-
-const targetModuleFor = (stack: HttpStack): URL => {
-  switch (stack) {
-    case "agentix-node":
-      return new URL("./targets/agentix.js", import.meta.url);
-    case "express":
-      return new URL("./targets/express.js", import.meta.url);
-    case "nestjs-express":
-      return new URL("./targets/nestjs.js", import.meta.url);
-  }
-};
-
-const targetExportFor = (stack: HttpStack, module: TargetModule): unknown => {
-  switch (stack) {
-    case "agentix-node":
-      return module.agentixTarget ?? module.target;
-    case "express":
-      return module.expressTarget ?? module.target;
-    case "nestjs-express":
-      return module.nestjsTarget ?? module.target;
-  }
-};
-
-const isHttpTarget = (value: unknown, stack: HttpStack): value is HttpTarget =>
-  typeof value === "object" && value !== null &&
-  Reflect.get(value, "stack") === stack &&
-  typeof Reflect.get(value, "start") === "function";
 
 const normalizeMaxRss = (): {
   readonly bytes: number | null;
@@ -67,6 +34,11 @@ const normalizeMaxRss = (): {
       };
 };
 
+/**
+ * Fresh-process probe: cold-ready covers dynamic module import plus server
+ * start of exactly one stack. Both conditions serve identical startup work,
+ * so probes always start the "default" condition.
+ */
 export const runHttpComparisonChildProbe = async (
   stack: HttpStack,
 ): Promise<HttpComparisonChildProbe> => {
@@ -74,13 +46,7 @@ export const runHttpComparisonChildProbe = async (
   collect?.();
 
   const startedAt = process.hrtime.bigint();
-  const module = await import(targetModuleFor(stack).href) as TargetModule;
-  const candidate = targetExportFor(stack, module);
-  if (!isHttpTarget(candidate, stack)) {
-    throw new TypeError(`HTTP comparison target module for ${stack} is invalid.`);
-  }
-
-  const started = await candidate.start();
+  const started = await startTarget(stack, "default");
   const coldReadyNanoseconds = Number(process.hrtime.bigint() - startedAt);
   try {
     collect?.();

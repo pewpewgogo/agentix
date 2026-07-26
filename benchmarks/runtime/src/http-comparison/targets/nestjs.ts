@@ -7,19 +7,26 @@ import {
   Body,
   Catch,
   Controller,
+  Get,
   HttpCode,
   HttpException,
   Module,
+  Param,
   Post,
   type ArgumentsHost,
   type ExceptionFilter,
 } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 
-import type { HttpTarget, StartedHttpTarget } from "../types.js";
+import type { HttpCondition, StartedHttpTarget } from "../types.js";
 import {
+  EchoInputZod,
+  EchoOutputZod,
+  ParamInputZod,
+  ParamOutputZod,
   invalidResponse,
   isEchoInput,
+  paramResponse,
   validResponse,
 } from "./shared.js";
 
@@ -74,28 +81,76 @@ class StableHttpExceptionFilter implements ExceptionFilter {
 // self-contained and avoids changing the runtime package's compiler settings.
 Catch()(StableHttpExceptionFilter);
 
-class EchoController {
+interface EchoControllerShape {
+  echo(body: unknown): unknown;
+  item(id: string): unknown;
+}
+
+/** In the "default" condition echo behavior is byte-identical to v1. */
+class EchoController implements EchoControllerShape {
   public echo(body: unknown): unknown {
     if (!isEchoInput(body)) throw new BadRequestException();
     return validResponse(body.value);
   }
+
+  public item(id: string): unknown {
+    return paramResponse(id);
+  }
 }
 
-Body()(EchoController.prototype, "echo", 0);
-const echoDescriptor = Object.getOwnPropertyDescriptor(
-  EchoController.prototype,
-  "echo",
-);
-if (echoDescriptor === undefined) {
-  throw new Error("NestJS echo controller descriptor is unavailable.");
+/** "validated": zod input AND output validation, equal work to Agentix. */
+class ValidatedEchoController implements EchoControllerShape {
+  public echo(body: unknown): unknown {
+    const input = EchoInputZod.safeParse(body);
+    if (!input.success) throw new BadRequestException();
+    const output = EchoOutputZod.parse({ value: input.data.value });
+    return validResponse(output.value);
+  }
+
+  public item(id: string): unknown {
+    const input = ParamInputZod.safeParse({ id });
+    if (!input.success) throw new BadRequestException();
+    const output = ParamOutputZod.parse({ id: input.data.id });
+    return paramResponse(output.id);
+  }
 }
-HttpCode(200)(EchoController.prototype, "echo", echoDescriptor);
-Post("echo")(EchoController.prototype, "echo", echoDescriptor);
-Controller()(EchoController);
+
+const decorateEchoController = (
+  controller: new () => EchoControllerShape,
+): void => {
+  Body()(controller.prototype, "echo", 0);
+  const echoDescriptor = Object.getOwnPropertyDescriptor(
+    controller.prototype,
+    "echo",
+  );
+  if (echoDescriptor === undefined) {
+    throw new Error("NestJS echo controller descriptor is unavailable.");
+  }
+  HttpCode(200)(controller.prototype, "echo", echoDescriptor);
+  Post("echo")(controller.prototype, "echo", echoDescriptor);
+
+  Param("id")(controller.prototype, "item", 0);
+  const itemDescriptor = Object.getOwnPropertyDescriptor(
+    controller.prototype,
+    "item",
+  );
+  if (itemDescriptor === undefined) {
+    throw new Error("NestJS item controller descriptor is unavailable.");
+  }
+  HttpCode(200)(controller.prototype, "item", itemDescriptor);
+  Get("items/:id")(controller.prototype, "item", itemDescriptor);
+
+  Controller()(controller);
+};
+
+decorateEchoController(EchoController);
+decorateEchoController(ValidatedEchoController);
 
 class EchoModule {}
+class ValidatedEchoModule {}
 
 Module({ controllers: [EchoController] })(EchoModule);
+Module({ controllers: [ValidatedEchoController] })(ValidatedEchoModule);
 
 const serverPort = (server: Server): number => {
   const address = server.address();
@@ -105,31 +160,31 @@ const serverPort = (server: Server): number => {
   return address.port;
 };
 
-export const nestjsTarget: HttpTarget = Object.freeze({
-  stack: "nestjs-express",
-  async start(): Promise<StartedHttpTarget> {
-    const app = await NestFactory.create(EchoModule, { logger: false });
-    app.useGlobalFilters(new StableHttpExceptionFilter());
-    try {
-      await app.listen(0, "127.0.0.1");
-    } catch (cause: unknown) {
-      await app.close().catch(() => undefined);
-      throw cause;
-    }
+export const stack = "nestjs-express" as const;
 
-    const server = app.getHttpServer() as Server;
-    let closed = false;
-    return Object.freeze({
-      stack: "nestjs-express",
-      origin: `http://127.0.0.1:${serverPort(server)}`,
-      async close(): Promise<void> {
-        if (closed) return;
-        closed = true;
-        server.closeAllConnections();
-        await app.close();
-      },
-    });
-  },
-});
+export const start = async (
+  condition: HttpCondition,
+): Promise<StartedHttpTarget> => {
+  const module = condition === "validated" ? ValidatedEchoModule : EchoModule;
+  const app = await NestFactory.create(module, { logger: false });
+  app.useGlobalFilters(new StableHttpExceptionFilter());
+  try {
+    await app.listen(0, "127.0.0.1");
+  } catch (cause: unknown) {
+    await app.close().catch(() => undefined);
+    throw cause;
+  }
 
-export const target = nestjsTarget;
+  const server = app.getHttpServer() as Server;
+  let closed = false;
+  return Object.freeze({
+    stack,
+    origin: `http://127.0.0.1:${serverPort(server)}`,
+    async close(): Promise<void> {
+      if (closed) return;
+      closed = true;
+      server.closeAllConnections();
+      await app.close();
+    },
+  });
+};

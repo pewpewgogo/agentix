@@ -1,8 +1,10 @@
 # Agentix agent entry
 
-Agentix is a research-stage TypeScript framework for bounded codebase maintenance.
-TypeScript source is authoritative; `.agentix/index.json` is an ignored,
-disposable output and is never trusted as CLI input.
+Agentix is a research-stage TypeScript framework for bounded codebase
+maintenance. TypeScript source is authoritative. `.agentix/index.json` is a
+cache keyed by a deterministic source digest: the CLI serves it while the
+digest matches and re-analyzes otherwise; it is never a runtime input and
+never overrides source.
 
 ## Start with bounded context
 
@@ -12,52 +14,66 @@ npm run build
 npm exec -- agentix inspect <operation-id> --root <application> --json --compact
 ```
 
-For an operation, `inspect` returns an `operation-context` artifact rather than
-the full index. Check these fields before editing:
+For an operation, `inspect` returns a bounded `operation-context` artifact
+(<= 8 KiB), not the full index. It contains the route, unified errors with
+HTTP statuses, permissions, effects, tests, bounded source excerpts (input/
+output schemas, `execute` signature), plus:
 
-- `analysis.agentixValid` — Agentix architecture and metadata diagnostics only;
-- `analysis.complete` — whether static relationships were resolved;
-- `analysis.typecheck` — inspect always reports `not-run`; `verify` returns a
-  separate `tsc` result;
-- `analysis.sourceDigest` — binds the artifact to the inspected source tree;
-- `projection.truncated` and `projection.omissions` — whether the 8 KiB artifact
-  summarized anything and how to expand it safely; and
-- `affected` plus `verification` — conservative change and test scope.
+- `analysis.agentixValid` / `analysis.complete` — diagnostics and resolution;
+- `analysis.sourceDigest` — binds the artifact to the inspected tree;
+- `projection.truncated` + `projection.omissions` — what the byte cap
+  excluded, each with an exact next action (run from the application root);
+- `affected` + `verification` — conservative change scope and the narrowest
+  safe typecheck/test commands.
 
-Do not paste or read the full generated index when an inspect artifact answers
-the task. If context is invalid/incomplete, run
+Do not read the full generated index when an inspect artifact answers the
+task. If context is invalid or incomplete, run
 `npm exec -- agentix verify <id>` and widen inspection instead of assuming a
-narrow scope. Run omission commands from the declared `application-root` cwd.
+narrow scope. Before editing any feature, read `docs/AUTHORING.md` — a change
+is normally 2 files: `src/features/<name>.ts` and `src/features/<name>.test.ts`.
+
+## Single-file feature layout
+
+One feature = one file. The feature file is the public contract: schema(s),
+`port.store`/`port(...)` declarations, and `feature(id, { operations })` with
+inline `command()`/`query()` calls. Operation ids derive as
+`${featureId}.${key}`; routes derive from `http` metadata; required adapters
+derive from `effects`. The app shell (`createApplication` +
+`createHttpHandler`) changes only when a feature or port is added.
+`agentix scaffold feature <name>` emits the canonical two files.
 
 ## Repository map
 
-- `packages/core` — schemas, descriptors, outcomes, application dispatch.
-- `packages/compiler` — static architecture analysis and context projection.
-- `packages/cli` — inspect, graph, affected, verify, and scaffold UX.
-- `packages/testing` — deterministic harnesses, contracts, traces, replay.
-- `packages/adapters-http` — Web HTTP adapter and optional Node host.
+- `packages/core` — schemas (`s`), `command/query/feature/port/event`, dispatch.
+- `packages/adapters-http` — auto-derived routes, fixed envelope, Node/edge hosts.
+- `packages/testing` — `createTestApplication`, `testHttp`, harnesses, contracts.
+- `packages/compiler` — static analysis, index, affected scope, context artifacts.
+- `packages/cli` — `inspect`, `graph`, `affected`, `verify`, `scaffold`.
 - `examples/framework-app` — parity-tested commerce application.
-- `benchmarks` — historical evidence and isolated maintenance harnesses.
+- `sandbox/` — three-arm notes apps for token/perf comparison.
+- `benchmarks` — frozen evidence and isolated maintenance harnesses.
 
 ## Non-negotiable boundaries
 
-- Keep application behavior in ordinary TypeScript and dependencies explicit.
-- Use declared `Outcome` values for expected domain failures.
-- Domain code receives only declared effects; do not add ambient I/O, clocks,
-  randomness, environment access, or global registries.
+- Application behavior stays in ordinary TypeScript; dependencies explicit.
+- Declared domain failures go through the operation `errors` map and
+  `fail(code, details)`; `fail` returns, it does not throw.
+- Domain code receives only declared effects; no ambient I/O, clocks,
+  randomness, environment access, or global registries in `src/features/`.
+- Adapters return plain values or throw; expected alternatives belong in the
+  port operation's output schema.
 - Queries do not declare write effects or emit events.
+- Cross-feature imports target the other feature's feature file only.
 - Emitted events are dispatch data, not delivery, persistence, or an outbox.
 - Compensation and transaction semantics stay explicit in application code.
 - Relative NodeNext imports use `.js` suffixes.
-- Never hand-edit generated indexes or benchmark result evidence.
-
-The frozen v1 benchmark reads source from its pinned Git revision. Do not refresh
-v1 entry hashes to make product changes pass; create a new intervention for a new
-study corpus.
+- Never hand-edit benchmark result evidence; never refresh frozen v1
+  benchmark entry hashes — new corpus means new intervention files.
 
 ## Verification
 
-Use a targeted workspace command while iterating, then before handoff run:
+While iterating, use the narrow plan from `agentix verify <target>`. Before
+handoff run:
 
 ```sh
 npm run build
@@ -66,5 +82,7 @@ npm run benchmark:corpus:check
 git diff --check
 ```
 
-Run acceptance tests when behavior or adapters change. Update the public guide
-and API reference whenever a public shape, default, or command output changes.
+Run the acceptance suite (both `mode: "test"` and `mode: "production"`) when
+behavior or adapters change. Update `docs/` and the affected package
+`README.md`/`API.md` whenever a public shape, default, or command output
+changes.

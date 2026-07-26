@@ -36,7 +36,9 @@
     "!dist/*.tsbuildinfo*",
     "!dist/**/*.tsbuildinfo*",
     "!dist/*.test.*",
-    "!dist/**/*.test.*"
+    "!dist/**/*.test.*",
+    "README.md",
+    "API.md"
   ],
   "scripts": {
     "build": "tsc -b && node ../../scripts/mark-binaries-executable.mjs dist/bin.js",

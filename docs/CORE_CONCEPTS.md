@@ -1,284 +1,215 @@
 # Core Concepts
 
-Agentix turns application boundaries into ordinary immutable TypeScript values.
-Those values drive runtime validation and can be projected into a machine index
-without decorators, reflection metadata, or a global registry.
+Agentix models application boundaries as ordinary immutable TypeScript values.
+Descriptors drive runtime validation and are statically projected into a
+machine index — no decorators, reflection, or global registries. One feature is
+one file; everything an operation can do is declared on the operation itself.
 
-## Feature capsules
+## Operations
 
-A feature capsule is a directory convention plus a `FeatureDescriptor`. It owns
-one business capability and normally contains:
-
-```text
-src/features/orders/
-  contract.ts       public schemas, ports, and events
-  model.ts          private domain types and pure rules, when needed
-  operations.ts     commands and queries
-  invariants.ts     executable policies
-  feature.ts        feature descriptor and public dependencies
-  orders.test.ts    associated tests
-```
-
-Other features may import only the public `contract.ts` surface. The consuming
-feature also declares the imported contract in `dependencies`:
+`command()` (may write and emit) and `query()` (read-only; write effects and
+`emits` are rejected at type level and at runtime) build unbound operations.
+`feature(id, { operations })` binds them, deriving stable ids
+`${featureId}.${key}`:
 
 ```ts
-export const orders = defineFeature({
-  id: "orders",
-  contract: ordersContract,
-  dependencies: [customersContract, productsContract],
-  operations: [createOrder, getOrder],
-  invariants: [paidOrderHasPayment],
-  events: [OrderCreated],
-  ports: [OrderStore],
-});
+create: command({
+  input: Note,                     // runtime schema; also the static type via s.Infer
+  output: Note,                    // validated on every completion
+  errors: { NOTE_ALREADY_EXISTS: { http: 409, details: { id: s.string() } } },
+  permissions: ["notes:write"],    // optional; absent => anonymous allowed
+  http: { method: "POST", path: "/notes", status: 201 },
+  effects: { load: NoteStorage.get, save: NoteStorage.save },
+  async execute({ input, effects, fail }) {
+    if (await effects.load(input.id)) return fail("NOTE_ALREADY_EXISTS", { id: input.id });
+    return effects.save(input);
+  },
+}),
 ```
 
-The compiler reports private cross-feature imports and missing dependency
-declarations. This is an architecture rule, not a security sandbox: hostile
-JavaScript or dependencies can bypass it.
+`execute` returns a plain output value or a `fail(...)` result. It receives
+only what is declared: `input` (parsed), `effects` (declared port operations),
+`emit` (declared events), and `fail` (typed against `errors`).
 
-## Schemas
+Error declarations unify code, HTTP status, and details schema:
+`CODE: { http?: number, details?: shape | Schema }`; a bare schema is shorthand
+for `{ details }`. `fail(code, details)` RETURNS the declared failure — do not
+throw it.
 
-Every boundary uses a `Schema<T>` with two operations:
+## Ports and adapters
 
-- `parse(value)` returns `T` or throws `SchemaValidationError`.
-- `safeParse(value)` returns a success/failure result with structured issues for
-  normal validation.
-
-A custom schema, hostile proxy, or throwing input getter can still throw while a
-schema executes. Dispatch reports an operation-input schema exception as the
-`INPUT_VALIDATION_FAILED` fault. Effect-input and event-payload schema or event
-snapshot exceptions are latched as `INVALID_EFFECT_INPUT` and
-`INVALID_EVENT_PAYLOAD`, so operation code cannot catch them and return success.
-
-The built-in constructors are `string`, `number`, `boolean`, `literal`, `array`,
-`object`, `optional`, `union`, `refine`, and `id`; the same functions are
-available through the `schema` object.
+A port declares the operations the domain may call; an adapter implements them.
+Port operations declare `input`/`output` schemas only — there is no error
+channel. Model expected alternatives in the output schema; let unexpected
+failures throw (they become `EFFECT_FAILURE` faults):
 
 ```ts
-const ProductId = schema.id("product");
-const Product = schema.object({
-  id: ProductId,
-  name: schema.string(),
-  stock: schema.refine(schema.number(), Number.isSafeInteger, {
-    id: "safe-stock",
-    message: "Stock must be a safe integer",
+import { port, s } from "@agentix/core";
+
+export const Payments = port("payments", {
+  charge: port.external({
+    input: s.object({ orderId: s.string(), amountCents: s.number({ int: true, min: 0 }) }),
+    output: s.union([
+      s.object({ status: s.literal("captured"), reference: s.string() }),
+      s.object({ status: s.literal("declined"), reason: s.string() }),
+    ]),
   }),
-  description: schema.optional(schema.string()),
 });
 
-type Product = Infer<typeof Product>;
-```
+export const Clock = port("clock", {
+  now: port.time({ input: s.object({}), output: s.string() }),
+});
 
-Important behavior:
-
-- object schemas reject unknown keys;
-- number schemas reject `NaN` and infinities;
-- optional means the property may be absent or `undefined`;
-- an ID accepts any non-empty string and brands it at the type level—it does not
-  trim or enforce a format; and
-- schema parsing does not promise deep immutability of returned application
-  data.
-
-## Commands and queries
-
-An operation descriptor declares the full boundary around one action:
-
-| Field | Meaning |
-| --- | --- |
-| `id` | Stable application-wide identifier |
-| `input` / `output` | Runtime schemas and inferred TypeScript types |
-| `errors` | Map of expected domain-error codes to detail schemas |
-| `permissions` | Every permission the principal must have |
-| `effects` | Exact port operations available to `execute` |
-| `emits` | Exact event emitters available to a command |
-| `invariants` | Policies the operation declares it preserves |
-| `execute` | Ordinary synchronous or asynchronous TypeScript |
-
-Commands may declare reads, writes, time, randomness, external calls, and
-events. Queries cannot declare a `write` effect and cannot emit events; both the
-types and application construction enforce this rule. `EffectKind` is not an
-orthogonal mutability model: an `external` adapter can still have side effects,
-so mutating external work belongs in commands.
-
-Descriptor IDs and permission strings must be non-empty and contain no
-whitespace. IDs must be unique across the assembled application.
-
-## Outcomes, rejections, and faults
-
-Domain code returns an `Outcome`:
-
-```ts
-return ok(order);
-return err(domainError("ORDER_NOT_FOUND", { id: input.id }));
-```
-
-Expected business failure is data, not an exception. The dispatcher validates
-both the error code and its details schema.
-
-The outer `DispatchResult` separates three classes of result:
-
-| Dispatch kind | Meaning |
-| --- | --- |
-| `completed` | Execution returned a valid success or declared domain error |
-| `rejected` | Unknown operation, missing permission, or invalid input |
-| `fault` | Invalid boundary data or an unexpected exception |
-
-A completed dispatch can therefore contain `outcome.ok === false`. Do not map
-all non-successful business outcomes to framework faults.
-
-## Ports, effects, and adapters
-
-A port describes infrastructure without implementing it:
-
-```ts
-export const Payments = definePort({
-  id: "payments",
-  operations: {
-    charge: portOperation({
-      id: "payments.charge",
-      kind: "external",
-      input: ChargeInput,
-      output: ChargeResult,
-      errors: { PAYMENT_DECLINED: schema.object({}) },
-    }),
-  },
+export const systemClock = Clock.adapter({
+  now: () => new Date().toISOString(),
 });
 ```
 
-The five effect kinds are `read`, `write`, `time`, `random`, and `external`.
-They describe capability intent; they do not add transactions, retries,
-scheduling, or a proof of adapter purity.
+Operation kinds: `port.read`, `port.write`, `port.time`, `port.random`,
+`port.external`. Kinds gate query purity (`write` is forbidden in queries) and
+let the test package derive deterministic fakes. Operations are addressable as
+`Port.opName`; adapters return plain values or throw — never wrap results.
 
-An adapter binds every operation in one port:
+### port.store
 
-```ts
-const payments = bindPort(Payments, {
-  charge(input) {
-    return gateway.approve(input)
-      ? ok({ status: "approved" as const })
-      : err(domainError("PAYMENT_DECLINED", {}));
-  },
-});
-```
-
-The execution context exposes effects by the aliases selected in the operation,
-not by their port keys. Effect input, the `Outcome` envelope, and effect
-success/error payloads are schema-validated in every runtime mode. Operation
-output and domain-error details are likewise validated in every mode.
-
-Dispatch closes the capability window as soon as `execute` settles, then drains
-every effect already started during that window before completing. Draining does
-not extend the window: a captured effect called from a later timer is rejected.
-Boundary faults are fatal to the dispatch even when operation code catches the
-thrown wrapper error; they cannot be converted into a successful outcome.
-
-## Permissions and principals
-
-A `Principal` contains a stable `id` and a list or set of granted permissions.
-The dispatcher requires every permission declared by the operation:
+`port.store(id, objectSchema)` (schema must contain `id`) expands to a CRUD
+port: `get(id) -> record | undefined`, `save(record) -> record`,
+`delete(id) -> boolean`, `list({}) -> record[]`, plus `.memory()`, a built-in
+Map-backed adapter keyed by `id`:
 
 ```ts
-const actor = principal("user-42", ["orders:create", "orders:read"]);
+export const NoteStorage = port.store("noteStorage", Note);
+// effects: { load: NoteStorage.get, save: NoteStorage.save }
+// adapters: [NoteStorage.memory()]
 ```
 
-Permission checks run before input parsing. This avoids exposing input-shape
-details or doing request-dependent work for an unauthorized actor. Identity and
-role resolution belong in an inbound adapter or application-owned port; Agentix
-has no global identity store.
+## Effects: the plain-value contract
+
+Inside `execute`, `effects.name(input)` is an async function. The runtime
+validates the effect input against the port operation's input schema in every
+mode, calls the adapter, and (outside production) re-validates the adapter's
+output. Effects return plain values; an adapter throw surfaces as a
+dispatch fault (`EFFECT_FAILURE`), never as a domain error.
+
+## Outcomes, rejections, faults
+
+`app.dispatch(idOrDescriptor, { input, principal?, trace? })` returns one of
+three kinds:
+
+| Kind | Meaning | Contents |
+| --- | --- | --- |
+| `completed` | Operation ran | `outcome` (`{ok:true,value}` or `{ok:false,error:{code,details}}`), `events` |
+| `rejected` | Never ran | `error.code`: `UNKNOWN_OPERATION`, `PERMISSION_DENIED`, `INVALID_INPUT` (with `issues`) |
+| `fault` | Defect | `error.code`: e.g. `EFFECT_FAILURE`, `INVALID_OUTPUT`, `INVARIANT_VIOLATION`, `EXECUTION_FAILED` |
+
+Declared domain failures are data (`outcome.ok === false`). Rejections are the
+caller's fault; faults are the application's fault and are opaque to HTTP
+clients.
+
+`app.call(id, input, { principal? })` is sugar for the common case: it returns
+the `Outcome` and throws `DispatchError` (with `kind`, `code`, `detail`) on
+rejections and faults:
+
+```ts
+const outcome = await app.call("notes.get", { id: "n1" });
+if (outcome.ok) console.log(outcome.value.title);
+```
+
+Traces are strictly opt-in (`trace: true` per dispatch); no trace machinery
+runs otherwise.
 
 ## Events
 
-An event is a versioned, schema-backed descriptor:
+`event(id, version, payloadSchema)` declares an event; operations reference it
+in `emits` and call `emit.name(payload)` during execution:
 
 ```ts
-const OrderCreated = defineEvent({
-  id: "orders.created",
-  version: 1,
-  payload: OrderCreatedPayload,
+export const NoteArchived = event("notes.archived", 1, s.object({ id: s.string() }));
+
+archive: command({
+  // ...
+  emits: { archived: NoteArchived },
+  async execute({ input, effects, emit }) {
+    const removed = await effects.remove(input.id);
+    if (removed) emit.archived({ id: input.id });
+    return removed;
+  },
+}),
+```
+
+Payloads are validated on emit. A completed dispatch returns the events;
+publication, persistence, and delivery are explicitly the caller's concern —
+there is no outbox or bus inside the framework.
+
+## Ensures
+
+`ensures` are named postconditions on the operation, executed after successful
+completion in development and test modes only; a false check faults the
+dispatch with `INVARIANT_VIOLATION`:
+
+```ts
+ensures: {
+  "id-preserved": {
+    check: ({ input, output }) => output.id === input.id,
+  },
+},
+```
+
+An optional `evidence` schema is authoring metadata for tooling; it is not
+executed at runtime.
+
+## Modes and the production validation policy
+
+`createApplication({ mode })` accepts `"production" | "development" | "test"`;
+the default derives from `NODE_ENV` (`production`/`test` map directly, anything
+else is `development`).
+
+Always on, in every mode: input parsing, permission checks, operation output
+validation, declared-error details validation, event payload validation, and
+effect input validation. Production skips only interior double-checks:
+
+| Check | dev/test | production |
+| --- | --- | --- |
+| External boundaries (input, output, errors, events, effect inputs) | on | on |
+| Effect output re-validation | on | off |
+| `ensures` postconditions | on | off |
+| Deep-freeze of results/contexts/event payloads | on | off (events still snapshotted) |
+
+## Authorization
+
+`permissions: [...]` on an operation requires a `principal` whose permissions
+are a superset; operations without permissions accept anonymous dispatches.
+The single gate is the exported `authorize(operation, principal?)` — dispatch
+uses it, and the HTTP adapter calls it before reading a request body:
+
+```ts
+import { authorize, principal } from "@agentix/core";
+
+const admin = principal("admin", ["notes:write"]);
+await app.call("notes.create", input, { principal: admin });
+```
+
+A custom hook replaces the decision (not the plumbing):
+
+```ts
+createApplication({
+  features: [notes],
+  adapters: [NoteStorage.memory()],
+  authorize: (who, operation) => operation.kind === "query" || who !== undefined,
 });
 ```
 
-A command may emit only the aliases in its `emits` map. The runtime validates
-the payload and returns ordered `EmittedEvent` values on every completed
-dispatch, independently of optional tracing. At emission, payload graphs made
-of arrays and plain objects are detached and deeply frozen, preserving cyclic or
-shared references. Non-plain values returned by a custom `Schema` are opaque. A
-fault exposes no completed-event list; an enabled trace may still show an
-attempted emission before the fault.
-Core does **not** provide an event bus, persistence, delivery, or an outbox. An
-application that needs those guarantees models them through an explicit port
-and transaction boundary.
-
-## Invariants
-
-An invariant is a named pure predicate over schema-validated evidence:
-
-```ts
-const paidOrderHasPayment = defineInvariant({
-  id: "orders.paid-order-has-payment",
-  dependsOn: [ordersContract, paymentsContract],
-  evidence: PaidOrderEvidence,
-  check: ({ order, payment }) =>
-    order.status !== "paid" || payment?.orderId === order.id,
-});
-```
-
-Listing an invariant on an operation creates dependency and verification
-metadata. It does not install a hidden production hook. The operation or its
-tests must call the predicate explicitly. `@agentix/testing` supplies assertion
-and property-test helpers.
+Denials by a custom hook report `missingPermissions` from the default subset
+diff, which is `[]` when the hook denies despite satisfied permissions.
 
 ## Application assembly
 
-`createApplication` receives all features and adapters explicitly. Construction
-validates:
+```ts
+const app = createApplication({ features: [notes], adapters: [NoteStorage.memory()] });
+```
 
-- duplicate stable IDs;
-- missing, duplicate, or self feature dependencies;
-- query writes or event emission;
-- duplicate adapters;
-- adapter/port identity mismatches; and
-- missing or incomplete adapters.
-
-There is no container scan, startup hook, shutdown hook, automatic adapter
-disposal, transaction manager, or global application instance.
-
-Runtime modes are `production`, `development`, and `test`. The default mode is
-`production`. Tracing defaults on in development/test and off in production;
-`trace` on the application or one dispatch can override that default.
-
-## Dispatch lifecycle
-
-Every dispatch follows the same visible order:
-
-1. Resolve the registered operation by stable ID and, for descriptor dispatch,
-   require the exact registered descriptor identity.
-2. Check all required permissions.
-3. Parse input; distinguish ordinary `INVALID_INPUT` rejection from an
-   `INPUT_VALIDATION_FAILED` schema-execution fault.
-4. Construct the declared effect and event contexts.
-5. Await `execute` and every effect it started.
-6. Fail if any effect/event boundary fault occurred, even if it was caught.
-7. Validate the returned outcome and its output/error data.
-8. Return `completed` with emitted events, or `rejected`/`fault`; include a trace
-   only when tracing is enabled.
-
-Core does not add timeouts, cancellation, concurrency serialization, rollback,
-or resource lifecycle. Those policies must be explicit in the application or
-host.
-
-## Generated index
-
-The compiler projects statically recognizable descriptors into
-`.agentix/index.json`. It includes source locations, dependencies, operations,
-permissions, effects, events, invariants, tests, graph edges, diagnostics, and a
-source-manifest digest.
-
-The on-disk index is disposable and may be stale. The CLI reanalyzes TypeScript
-before every answer and writes a fresh projection instead of trusting that file.
-Operation inspection projects a bounded, source-digest-bound context artifact;
-agents do not need the full index. Runtime dispatch never reads the index. See
-[CLI and generated index](CLI.md) for the compiler's static-analysis conventions
-and conservative widening rules.
+Startup validation fails fast with `ApplicationDefinitionError` listing every
+issue: `DUPLICATE_ID`, `DUPLICATE_ADAPTER`, `MISSING_ADAPTER`,
+`INCOMPLETE_ADAPTER`, `QUERY_WRITE_EFFECT`, `QUERY_EMITS_EVENT`,
+`HTTP_ROUTE_CONFLICT`. Required ports are derived from operation effects — a
+feature never lists its ports, and the app never registers routes.

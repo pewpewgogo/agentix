@@ -5,15 +5,7 @@ import { resolve } from "node:path";
 import { promisify } from "node:util";
 
 import { generateIndex } from "@agentix/compiler";
-import {
-  createApplication,
-  defineCommand,
-  defineFeature,
-  defineFeatureContract,
-  ok,
-  principal,
-  schema,
-} from "@agentix/core";
+import { command, createApplication, feature, principal, s } from "@agentix/core";
 import { z } from "zod";
 
 import { canonicalJson, hashJson, sha256, assertSha256 } from "./evidence.js";
@@ -201,27 +193,23 @@ export interface RuntimeBenchmarkOptions {
   readonly executor?: RuntimeCommandExecutor;
 }
 
-const EchoInput = schema.object({ value: schema.number() });
-const echo = defineCommand({
-  id: "runtime.echo",
-  input: EchoInput,
-  output: schema.number(),
-  errors: {},
-  permissions: ["runtime:dispatch"],
-  effects: {},
-  emits: {},
-  execute: ({ input }) => ok(input.value),
+// v2-API echo feature. Rewriting the dispatch target changes the identity of
+// this benchmark's records: runs of this file are not comparable with v1-API
+// runs and are published as new result files only.
+const EchoInput = s.object({ value: s.number() });
+const echoFeature = feature("runtime", {
+  operations: {
+    echo: command({
+      input: EchoInput,
+      output: s.number(),
+      permissions: ["runtime:dispatch"],
+      execute({ input }) {
+        return input.value;
+      },
+    }),
+  },
 });
-const echoContract = defineFeatureContract({ id: "runtime", exports: {} });
-const echoFeature = defineFeature({
-  id: "runtime",
-  contract: echoContract,
-  dependencies: [],
-  operations: [echo],
-  ports: [],
-  events: [],
-  invariants: [],
-});
+const echo = echoFeature.operations.echo;
 const echoApplication = createApplication({ features: [echoFeature], adapters: [] });
 const echoPrincipal = principal("runtime-benchmark", ["runtime:dispatch"]);
 const PlainEchoInput = z.strictObject({ value: z.number() });
@@ -315,6 +303,10 @@ const measurementPlanDocument = (
   configuration: RuntimeBenchmarkConfiguration,
 ): Readonly<Record<string, unknown>> => ({
   protocol: "agentix-runtime-v2",
+  // The dispatch target moved to the v2 core API (feature()/command()); this
+  // field changes the measurement-plan hash so v2-API runs can never be
+  // mistaken for continuations of v1-API record lineages.
+  dispatchTargetApi: "agentix-core-v2",
   seed,
   configuration,
   armOrder: "seeded-balanced-two-arm-blocks",
@@ -815,7 +807,7 @@ export const runRuntimeBenchmark = async (
       : plainDispatch({ value: 7 }),
   );
 
-  const frameworkSchema = schema.object({ id: schema.id("runtime"), count: schema.number() });
+  const frameworkSchema = s.object({ id: s.id("runtime"), count: s.number() });
   const plainSchema = z.strictObject({ id: z.string().min(1), count: z.number() });
   for (const [metric, input] of [
     ["schema-valid", { id: "sample", count: 1 }],

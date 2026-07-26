@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { glob, readFile } from "node:fs/promises";
 import { Agent, request as httpRequest } from "node:http";
 import { cpus, release, totalmem } from "node:os";
@@ -9,16 +9,20 @@ import { promisify } from "node:util";
 import { hashJson, sha256 } from "../evidence.js";
 import { summarize } from "../statistics.js";
 import { interleavedHttpStackSchedule } from "./schedule.js";
-import { agentixTarget } from "./targets/agentix.js";
-import { expressTarget } from "./targets/express.js";
-import { nestjsTarget } from "./targets/nestjs.js";
+import { startTarget } from "./targets/registry.js";
 import {
   INVALID_REQUEST,
+  PARAM_ID,
   VALID_REQUEST,
+  agentixParamResponse,
+  agentixValidResponse,
   invalidResponse,
+  paramResponse,
   validResponse,
 } from "./targets/shared.js";
 import {
+  BATCH_CONCURRENCY,
+  HTTP_CONDITIONS,
   HTTP_STACKS,
   type HttpComparisonMetric,
   type HttpComparisonPhase,
@@ -26,24 +30,68 @@ import {
   type HttpComparisonSample,
   type HttpComparisonSummary,
   type HttpComparisonUnavailable,
+  type HttpCondition,
   type HttpStack,
-  type HttpTarget,
+  type HttpWorkload,
   type StartedHttpTarget,
 } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 
-const HTTP_METRICS = ["http-valid", "http-invalid"] as const;
+/** v2 seed lineage: deliberately NO v1 ancestry (method change). */
+export const DEFAULT_HTTP_COMPARISON_SEED =
+  "agentix-http-frameworks-exploratory-v2-2026-07-26";
+
+const V1_RESULT_FILE =
+  "benchmarks/results/http-frameworks-exploratory-v1-2026-07-23.json";
+
 const PROCESS_METRICS = [
   "cold-ready",
   "ready-rss",
   "process-max-rss-ready",
 ] as const;
-const TARGETS: readonly HttpTarget[] = [
-  agentixTarget,
-  expressTarget,
-  nestjsTarget,
-];
+
+type HttpMetric = "http-valid" | "http-invalid" | "http-param" | "http-batch";
+
+interface WorkloadSpec {
+  readonly metric: HttpMetric;
+  readonly workload: HttpWorkload;
+  readonly concurrency: number;
+  readonly request: string;
+}
+
+const WORKLOADS: readonly WorkloadSpec[] = Object.freeze([
+  {
+    metric: "http-valid",
+    workload: "echo-valid",
+    concurrency: 1,
+    request: "POST /echo with the valid echo body",
+  },
+  {
+    metric: "http-invalid",
+    workload: "echo-invalid",
+    concurrency: 1,
+    request: "POST /echo with the invalid echo body",
+  },
+  {
+    metric: "http-param",
+    workload: "param-get",
+    concurrency: 1,
+    request: `GET /items/${PARAM_ID}`,
+  },
+  {
+    metric: "http-batch",
+    workload: "echo-batch",
+    concurrency: BATCH_CONCURRENCY,
+    request:
+      `${BATCH_CONCURRENCY} concurrent keep-alive POST /echo valid requests; ` +
+      "one sample = full batch completion",
+  },
+]);
+
+const HTTP_METRICS: readonly HttpMetric[] = Object.freeze(
+  WORKLOADS.map(({ metric }) => metric),
+);
 
 export interface HttpComparisonOptions {
   readonly repositoryRoot: string;
@@ -52,6 +100,12 @@ export interface HttpComparisonOptions {
   readonly measuredIterations?: number;
   readonly processIterations?: number;
   readonly includeProcessMetrics?: boolean;
+  /**
+   * Run every target in its own child process (RECOMMENDED). The in-process
+   * default shares one event loop between all servers and the client, which
+   * inflated the v1 cross-stack gap roughly tenfold.
+   */
+  readonly isolated?: boolean;
   readonly now?: () => string;
 }
 
@@ -146,22 +200,29 @@ const packageVersions = (
     express: version("node_modules/express"),
     nestjsCore: version("node_modules/@nestjs/core"),
     nestjsPlatformExpress: version("node_modules/@nestjs/platform-express"),
+    zod: version("node_modules/zod"),
   });
 };
 
-const postJson = (
+const requestJson = (
   origin: string,
   agent: Agent,
-  body: string,
+  input: {
+    readonly method: "GET" | "POST";
+    readonly path: string;
+    readonly body?: string;
+  },
 ): Promise<HttpObservation> => new Promise((resolveObservation, reject) => {
   const startedAt = process.hrtime.bigint();
-  const request = httpRequest(new URL("/echo", origin), {
-    method: "POST",
+  const headers: Record<string, string | number> = {};
+  if (input.body !== undefined) {
+    headers["content-type"] = "application/json";
+    headers["content-length"] = Buffer.byteLength(input.body);
+  }
+  const request = httpRequest(new URL(input.path, origin), {
+    method: input.method,
     agent,
-    headers: {
-      "content-type": "application/json",
-      "content-length": Buffer.byteLength(body),
-    },
+    headers,
   }, (response) => {
     const chunks: Buffer[] = [];
     response.on("data", (chunk: Buffer | string) => {
@@ -192,27 +253,97 @@ const postJson = (
     });
   });
   request.once("error", reject);
-  request.end(body);
+  request.end(input.body);
 });
 
 const sameJson = (left: unknown, right: unknown): boolean =>
   JSON.stringify(left) === JSON.stringify(right);
 
-const assertHttpContract = (
-  metric: (typeof HTTP_METRICS)[number],
+const isAgentixInvalidInput = (body: unknown): boolean => {
+  if (typeof body !== "object" || body === null) return false;
+  if ((body as Record<string, unknown>)["ok"] !== false) return false;
+  const error = (body as Record<string, unknown>)["error"];
+  return typeof error === "object" && error !== null &&
+    (error as Record<string, unknown>)["code"] === "INVALID_INPUT";
+};
+
+/**
+ * Per-stack contracts: Express/NestJS keep the v1 envelope byte-for-byte in
+ * the default condition; Agentix v2 serves its adapter's fixed envelope
+ * ({ok:true,value} / {ok:false,error:{code,...}}).
+ */
+const assertWorkloadContract = (
+  workload: HttpWorkload,
+  stack: HttpStack,
   observation: HttpObservation,
 ): void => {
-  const valid = metric === "http-valid";
-  const expectedStatus = valid ? 200 : 400;
-  const expectedBody = valid ? validResponse(VALID_REQUEST.value) : invalidResponse();
-  if (observation.status !== expectedStatus ||
-      !observation.contentType.toLowerCase().startsWith("application/json") ||
-      !sameJson(observation.body, expectedBody)) {
+  const agentix = stack === "agentix-node";
+  let matched = false;
+  let expectedStatus = 200;
+  switch (workload) {
+    case "echo-valid":
+    case "echo-batch":
+      matched = observation.status === 200 && sameJson(
+        observation.body,
+        agentix
+          ? agentixValidResponse(VALID_REQUEST.value)
+          : validResponse(VALID_REQUEST.value),
+      );
+      break;
+    case "echo-invalid":
+      expectedStatus = 400;
+      matched = observation.status === 400 && (agentix
+        ? isAgentixInvalidInput(observation.body)
+        : sameJson(observation.body, invalidResponse()));
+      break;
+    case "param-get":
+      matched = observation.status === 200 && sameJson(
+        observation.body,
+        agentix ? agentixParamResponse(PARAM_ID) : paramResponse(PARAM_ID),
+      );
+      break;
+  }
+  if (!matched ||
+      !observation.contentType.toLowerCase().startsWith("application/json")) {
     throw new Error(
-      `${metric} contract mismatch: status=${observation.status} ` +
-      `content-type=${observation.contentType} body=${JSON.stringify(observation.body)}`,
+      `${workload}/${stack} contract mismatch (expected ${expectedStatus}): ` +
+      `status=${observation.status} content-type=${observation.contentType} ` +
+      `body=${JSON.stringify(observation.body)}`,
     );
   }
+};
+
+const runWorkloadOnce = async (
+  spec: WorkloadSpec,
+  stack: HttpStack,
+  origin: string,
+  agent: Agent,
+): Promise<number> => {
+  if (spec.workload === "echo-batch") {
+    const body = JSON.stringify(VALID_REQUEST);
+    const startedAt = process.hrtime.bigint();
+    const observations = await Promise.all(Array.from(
+      { length: spec.concurrency },
+      () => requestJson(origin, agent, { method: "POST", path: "/echo", body }),
+    ));
+    const nanoseconds = Number(process.hrtime.bigint() - startedAt);
+    for (const observation of observations) {
+      assertWorkloadContract(spec.workload, stack, observation);
+    }
+    return nanoseconds;
+  }
+  const request = spec.workload === "param-get"
+    ? { method: "GET" as const, path: `/items/${PARAM_ID}` }
+    : {
+        method: "POST" as const,
+        path: "/echo",
+        body: JSON.stringify(
+          spec.workload === "echo-valid" ? VALID_REQUEST : INVALID_REQUEST,
+        ),
+      };
+  const observation = await requestJson(origin, agent, request);
+  assertWorkloadContract(spec.workload, stack, observation);
+  return observation.nanoseconds;
 };
 
 const pushSample = (
@@ -225,10 +356,11 @@ const pushSample = (
   samples.push(Object.freeze(sample));
 };
 
-const runHotPhase = async (input: {
+const runWorkloadPhase = async (input: {
   readonly count: number;
   readonly phase: HttpComparisonPhase;
-  readonly metric: (typeof HTTP_METRICS)[number];
+  readonly spec: WorkloadSpec;
+  readonly condition: HttpCondition;
   readonly seed: string;
   readonly started: ReadonlyMap<HttpStack, StartedHttpTarget>;
   readonly agents: ReadonlyMap<HttpStack, Agent>;
@@ -239,9 +371,6 @@ const runHotPhase = async (input: {
   const attempted = new Map<HttpStack, number>(
     HTTP_STACKS.map((stack) => [stack, 0]),
   );
-  const body = JSON.stringify(
-    input.metric === "http-valid" ? VALID_REQUEST : INVALID_REQUEST,
-  );
   for (const stack of interleavedHttpStackSchedule(input.count, input.seed)) {
     const iteration = attempted.get(stack) ?? 0;
     attempted.set(stack, iteration + 1);
@@ -249,8 +378,9 @@ const runHotPhase = async (input: {
     const agent = input.agents.get(stack);
     if (target === undefined || agent === undefined) {
       input.unavailable.push(Object.freeze({
-        metric: input.metric,
+        metric: input.spec.metric,
         stack,
+        condition: input.condition,
         iteration,
         phase: input.phase,
         reason: "The HTTP target did not start.",
@@ -258,20 +388,28 @@ const runHotPhase = async (input: {
       continue;
     }
     try {
-      const observation = await postJson(target.origin, agent, body);
-      assertHttpContract(input.metric, observation);
-      pushSample(input.samples, {
-        metric: input.metric,
+      const nanoseconds = await runWorkloadOnce(
+        input.spec,
         stack,
+        target.origin,
+        agent,
+      );
+      pushSample(input.samples, {
+        metric: input.spec.metric,
+        stack,
+        condition: input.condition,
+        workload: input.spec.workload,
+        concurrency: input.spec.concurrency,
         iteration,
         phase: input.phase,
-        value: observation.nanoseconds,
+        value: nanoseconds,
         unit: "nanoseconds",
       });
     } catch (cause: unknown) {
       input.unavailable.push(Object.freeze({
-        metric: input.metric,
+        metric: input.spec.metric,
         stack,
+        condition: input.condition,
         iteration,
         phase: input.phase,
         reason: cause instanceof Error ? cause.message : String(cause),
@@ -279,6 +417,103 @@ const runHotPhase = async (input: {
     }
   }
 };
+
+const SERVER_READY_TIMEOUT_MS = 30_000;
+const SERVER_KILL_TIMEOUT_MS = 5_000;
+
+/**
+ * Isolated mode: the target runs in its own child process; only the measuring
+ * client stays in this process, so requests cross real loopback sockets
+ * between two processes.
+ */
+const startIsolatedTarget = (
+  stack: HttpStack,
+  condition: HttpCondition,
+): Promise<StartedHttpTarget> => new Promise((resolveStart, rejectStart) => {
+  const childPath = fileURLToPath(new URL("./server-child.js", import.meta.url));
+  const child = spawn(process.execPath, [
+    childPath,
+    `--stack=${stack}`,
+    `--condition=${condition}`,
+  ], { stdio: ["pipe", "pipe", "pipe"] });
+  let stdoutBuffer = "";
+  let stderrBuffer = "";
+  let settled = false;
+  let timeout: NodeJS.Timeout | undefined;
+  const fail = (error: Error): void => {
+    if (settled) return;
+    settled = true;
+    if (timeout !== undefined) clearTimeout(timeout);
+    child.kill("SIGKILL");
+    rejectStart(error);
+  };
+  timeout = setTimeout(() => {
+    fail(new Error(
+      `Isolated ${stack}/${condition} server did not report readiness within ` +
+      `${SERVER_READY_TIMEOUT_MS}ms.`,
+    ));
+  }, SERVER_READY_TIMEOUT_MS);
+  child.once("error", fail);
+  const onEarlyExit = (code: number | null): void => {
+    fail(new Error(
+      `Isolated ${stack}/${condition} server exited before readiness ` +
+      `(code ${String(code)}): ${stderrBuffer.trim().slice(0, 1_000)}`,
+    ));
+  };
+  child.once("exit", onEarlyExit);
+  child.stderr?.on("data", (chunk: Buffer | string) => {
+    stderrBuffer += chunk.toString();
+  });
+  child.stdout?.on("data", (chunk: Buffer | string) => {
+    if (settled) return;
+    stdoutBuffer += chunk.toString();
+    const newline = stdoutBuffer.indexOf("\n");
+    if (newline === -1) return;
+    const line = stdoutBuffer.slice(0, newline);
+    let ready: unknown;
+    try {
+      ready = JSON.parse(line);
+    } catch {
+      fail(new Error(
+        `Isolated ${stack}/${condition} server printed an invalid ready line: ${line}`,
+      ));
+      return;
+    }
+    if (typeof ready !== "object" || ready === null ||
+        Reflect.get(ready, "kind") !== "http-comparison-server-ready" ||
+        Reflect.get(ready, "stack") !== stack ||
+        Reflect.get(ready, "condition") !== condition ||
+        typeof Reflect.get(ready, "origin") !== "string") {
+      fail(new Error(
+        `Isolated ${stack}/${condition} server reported the wrong identity: ${line}`,
+      ));
+      return;
+    }
+    settled = true;
+    if (timeout !== undefined) clearTimeout(timeout);
+    child.off("exit", onEarlyExit);
+    const close = (): Promise<void> => new Promise((resolveClose) => {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        resolveClose();
+        return;
+      }
+      const killTimer = setTimeout(
+        () => child.kill("SIGKILL"),
+        SERVER_KILL_TIMEOUT_MS,
+      );
+      child.once("exit", () => {
+        clearTimeout(killTimer);
+        resolveClose();
+      });
+      child.kill("SIGTERM");
+    });
+    resolveStart(Object.freeze({
+      stack,
+      origin: Reflect.get(ready, "origin") as string,
+      close,
+    }));
+  });
+});
 
 const parseChildProbe = (text: string, stack: HttpStack): ChildProbe => {
   let value: unknown;
@@ -340,46 +575,42 @@ const runProcessProbes = async (input: {
         input.unavailable.push(Object.freeze({
           metric,
           stack,
+          condition: "default" as const,
           iteration,
-          phase: "measured",
+          phase: "measured" as const,
           reason,
         }));
       }
       continue;
     }
-    pushSample(input.samples, {
-      metric: "cold-ready",
+    const processSample = (
+      metric: (typeof PROCESS_METRICS)[number],
+      value: number,
+      unit: "nanoseconds" | "bytes",
+    ): void => pushSample(input.samples, {
+      metric,
       stack,
+      condition: "default",
+      workload: null,
+      concurrency: null,
       iteration,
       phase: "measured",
-      value: probe.coldReadyNanoseconds,
-      unit: "nanoseconds",
+      value,
+      unit,
     });
-    pushSample(input.samples, {
-      metric: "ready-rss",
-      stack,
-      iteration,
-      phase: "measured",
-      value: probe.readyRssBytes,
-      unit: "bytes",
-    });
+    processSample("cold-ready", probe.coldReadyNanoseconds, "nanoseconds");
+    processSample("ready-rss", probe.readyRssBytes, "bytes");
     if (probe.processMaxRssBytes === null) {
       input.unavailable.push(Object.freeze({
-        metric: "process-max-rss-ready",
+        metric: "process-max-rss-ready" as const,
         stack,
+        condition: "default" as const,
         iteration,
-        phase: "measured",
+        phase: "measured" as const,
         reason: probe.processMaxRssUnavailableReason ?? "Maximum RSS was unavailable.",
       }));
     } else {
-      pushSample(input.samples, {
-        metric: "process-max-rss-ready",
-        stack,
-        iteration,
-        phase: "measured",
-        value: probe.processMaxRssBytes,
-        unit: "bytes",
-      });
+      processSample("process-max-rss-ready", probe.processMaxRssBytes, "bytes");
     }
   }
 };
@@ -388,23 +619,39 @@ const summariesFor = (
   samples: readonly HttpComparisonSample[],
 ): readonly HttpComparisonSummary[] => {
   const summaries: HttpComparisonSummary[] = [];
-  for (const metric of [...HTTP_METRICS, ...PROCESS_METRICS]) {
+  const metrics: readonly HttpComparisonMetric[] = [
+    ...HTTP_METRICS,
+    ...PROCESS_METRICS,
+  ];
+  for (const metric of metrics) {
     for (const stack of HTTP_STACKS) {
-      const matching = samples.filter((sample) =>
-        sample.metric === metric && sample.stack === stack &&
-        sample.phase === "measured"
-      );
-      if (matching.length === 0) continue;
-      const unit = matching[0]!.unit;
-      if (matching.some((sample) => sample.unit !== unit)) {
-        throw new TypeError(`${metric}/${stack} mixes measurement units.`);
+      for (const condition of HTTP_CONDITIONS) {
+        const matching = samples.filter((sample) =>
+          sample.metric === metric && sample.stack === stack &&
+          sample.condition === condition && sample.phase === "measured"
+        );
+        if (matching.length === 0) continue;
+        const first = matching[0]!;
+        if (matching.some((sample) => sample.unit !== first.unit)) {
+          throw new TypeError(`${metric}/${stack}/${condition} mixes measurement units.`);
+        }
+        const distribution = summarize(matching.map(({ value }) => value));
+        summaries.push(Object.freeze({
+          metric,
+          stack,
+          condition,
+          workload: first.workload,
+          concurrency: first.concurrency,
+          unit: first.unit,
+          distribution,
+          ...(metric === "http-batch"
+            ? {
+                requestsPerSecond:
+                  (BATCH_CONCURRENCY * 1_000_000_000) / distribution.median,
+              }
+            : {}),
+        }));
       }
-      summaries.push(Object.freeze({
-        metric,
-        stack,
-        unit,
-        distribution: summarize(matching.map(({ value }) => value)),
-      }));
     }
   }
   return Object.freeze(summaries);
@@ -414,7 +661,7 @@ export const runHttpFrameworkComparison = async (
   options: HttpComparisonOptions,
 ): Promise<HttpComparisonReport> => {
   const root = resolve(options.repositoryRoot);
-  const seed = options.seed ?? "agentix-http-frameworks-exploratory-v1-2026-07-23";
+  const seed = options.seed ?? DEFAULT_HTTP_COMPARISON_SEED;
   if (seed.length === 0) throw new TypeError("Comparison seed must be non-empty.");
   const warmups = nonNegativeSafeInteger(
     "warmupIterations",
@@ -429,6 +676,7 @@ export const runHttpFrameworkComparison = async (
     options.processIterations ?? 5,
   );
   const includeProcessMetrics = options.includeProcessMetrics !== false;
+  const isolated = options.isolated === true;
   const lockBytes = await readFile(resolve(root, "package-lock.json"));
   const lockValue: unknown = JSON.parse(lockBytes.toString("utf8"));
   const [gitCommit, gitStatus, sourceSha256] = await Promise.all([
@@ -441,57 +689,70 @@ export const runHttpFrameworkComparison = async (
     measuredIterations: measured,
     processIterations,
     processMetrics: includeProcessMetrics,
+    isolatedProcesses: isolated,
+    batchConcurrency: BATCH_CONCURRENCY,
+    conditions: HTTP_CONDITIONS,
   });
   const samples: HttpComparisonSample[] = [];
   const unavailable: HttpComparisonUnavailable[] = [];
-  const started = new Map<HttpStack, StartedHttpTarget>();
-  const agents = new Map<HttpStack, Agent>();
 
-  try {
-    for (const target of TARGETS) {
-      try {
-        const running = await target.start();
-        started.set(target.stack, running);
-        agents.set(target.stack, new Agent({ keepAlive: true, maxSockets: 1 }));
-      } catch (cause: unknown) {
-        const reason = cause instanceof Error ? cause.message : String(cause);
-        for (const metric of HTTP_METRICS) {
-          unavailable.push(Object.freeze({
-            metric,
-            stack: target.stack,
-            iteration: null,
-            phase: null,
-            reason: `Target startup failed: ${reason}`,
+  for (const condition of HTTP_CONDITIONS) {
+    const started = new Map<HttpStack, StartedHttpTarget>();
+    const agents = new Map<HttpStack, Agent>();
+    try {
+      for (const stack of HTTP_STACKS) {
+        try {
+          const running = isolated
+            ? await startIsolatedTarget(stack, condition)
+            : await startTarget(stack, condition);
+          started.set(stack, running);
+          agents.set(stack, new Agent({
+            keepAlive: true,
+            maxSockets: BATCH_CONCURRENCY,
           }));
+        } catch (cause: unknown) {
+          const reason = cause instanceof Error ? cause.message : String(cause);
+          for (const metric of HTTP_METRICS) {
+            unavailable.push(Object.freeze({
+              metric,
+              stack,
+              condition,
+              iteration: null,
+              phase: null,
+              reason: `Target startup failed: ${reason}`,
+            }));
+          }
         }
       }
-    }
 
-    for (const metric of HTTP_METRICS) {
-      await runHotPhase({
-        count: warmups,
-        phase: "warmup",
-        metric,
-        seed: `${seed}:${metric}:warmup`,
-        started,
-        agents,
-        samples,
-        unavailable,
-      });
-      await runHotPhase({
-        count: measured,
-        phase: "measured",
-        metric,
-        seed: `${seed}:${metric}:measured`,
-        started,
-        agents,
-        samples,
-        unavailable,
-      });
+      for (const spec of WORKLOADS) {
+        await runWorkloadPhase({
+          count: warmups,
+          phase: "warmup",
+          spec,
+          condition,
+          seed: `${seed}:${condition}:${spec.metric}:warmup`,
+          started,
+          agents,
+          samples,
+          unavailable,
+        });
+        await runWorkloadPhase({
+          count: measured,
+          phase: "measured",
+          spec,
+          condition,
+          seed: `${seed}:${condition}:${spec.metric}:measured`,
+          started,
+          agents,
+          samples,
+          unavailable,
+        });
+      }
+    } finally {
+      for (const agent of agents.values()) agent.destroy();
+      await Promise.allSettled([...started.values()].map(({ close }) => close()));
     }
-  } finally {
-    for (const agent of agents.values()) agent.destroy();
-    await Promise.allSettled([...started.values()].map(({ close }) => close()));
   }
 
   if (includeProcessMetrics) {
@@ -508,6 +769,7 @@ export const runHttpFrameworkComparison = async (
         unavailable.push(Object.freeze({
           metric,
           stack,
+          condition: "default" as const,
           iteration: null,
           phase: null,
           reason: "Fresh-process metrics were disabled by configuration.",
@@ -516,25 +778,43 @@ export const runHttpFrameworkComparison = async (
     }
   }
 
+  const processIsolation = isolated
+    ? ("per-target-child-process" as const)
+    : ("in-process-shared-event-loop" as const);
   const cpu = cpus();
   const measurementPlanSha256 = hashJson({
-    schemaVersion: 1,
+    schemaVersion: 2,
     classification: "exploratory",
+    methodology: "v2",
+    processIsolation,
     stacks: HTTP_STACKS,
+    conditions: HTTP_CONDITIONS,
     metrics: [...HTTP_METRICS, ...PROCESS_METRICS],
+    workloads: WORKLOADS,
     configuration,
-    endpoint: {
-      method: "POST",
-      path: "/echo",
-      client: "node:http keep-alive; one socket per stack",
-      fullResponseConsumption: true,
-    },
+    client:
+      "node:http keep-alive; one agent per stack per condition; " +
+      `maxSockets=${BATCH_CONCURRENCY}; full response consumption`,
   });
   return Object.freeze({
-    schemaVersion: 1,
+    schemaVersion: 2,
     kind: "agentix-http-framework-comparison",
     classification: "exploratory",
     eligibleForConfirmatoryUse: false,
+    methodology: Object.freeze({
+      version: "v2" as const,
+      processIsolation,
+      recommendedProcessIsolation: "per-target-child-process" as const,
+      supersedes:
+        `${V1_RESULT_FILE} (methodology change; v1 and v2 values are not comparable)`,
+      changesFromV1: Object.freeze([
+        "The Agentix target uses the v2 API (feature()/command()) served by the serveNode raw host; the v1 target's redundant mapResponse output re-validation is removed.",
+        "Optional per-target child-process isolation (--isolated, recommended): the v1 shared-event-loop method ran all servers plus the client on one event loop and inflated the Agentix-vs-Express gap roughly tenfold.",
+        "A second 'validated' condition gives Express and NestJS zod input+output validation, matching the boundary work Agentix always performs; the default condition keeps their v1 behavior byte-identical.",
+        `New workloads: GET /items/${PARAM_ID} param route and a ${BATCH_CONCURRENCY}-in-flight keep-alive echo batch with derived requests-per-second.`,
+        "New seed lineage without v1 ancestry; every sample is labeled with condition, workload, and concurrency.",
+      ]),
+    }),
     generatedAt: (options.now ?? (() => new Date().toISOString()))(),
     seed,
     configuration,
@@ -562,7 +842,12 @@ export const runHttpFrameworkComparison = async (
       "This exploratory microbenchmark is not evidence for the agent-maintenance hypothesis.",
       "NestJS uses Express underneath, so the Express and NestJS stacks are not independent.",
       "Loopback, JSON serialization, JIT, GC, thermal state, and host load can dominate small differences.",
-      "A single echo route does not predict non-trivial application performance.",
+      "Echo-scale routes do not predict non-trivial application performance.",
+      ...(isolated
+        ? []
+        : [
+            "IN-PROCESS METHOD: all servers and the measuring client share one event loop; the v1 corpus showed this inflates cross-stack gaps roughly tenfold. Prefer --isolated.",
+          ]),
     ]),
   });
 };

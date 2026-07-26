@@ -1,217 +1,161 @@
-# Testing Agentix Applications
+# Testing
 
-`@agentix/testing` exercises operations through the same dispatcher used in
-production while keeping time, randomness, and infrastructure deterministic.
-It complements Vitest or another test runner; it does not replace one.
+`@agentix/testing` runs operations through the exact production dispatcher
+with deterministic infrastructure. It complements Vitest (or any runner); it
+does not replace one.
 
-## Test an operation through the dispatcher
+## createTestApplication
 
-`testCommand` and `testQuery` require an already assembled `Application`. They
-do not construct adapters or fake infrastructure for you.
+Builds an app where every port operation reachable from the features is bound:
+your adapters win; uncovered operations get recording fakes. `port.store`
+ports get the `.memory()` equivalent, `time` ops a deterministic clock,
+`random` ops seeded ids; anything else throws with a clear message until
+overridden.
 
 ```ts
-import { describe, expect, it } from "vitest";
-import {
-  assertEffectSequence,
-  assertEventSequence,
-  testCommand,
-} from "@agentix/testing";
+import { createTestApplication } from "@agentix/testing";
 
-describe("orders.create", () => {
-  it("charges, commits, and emits in the declared flow", async () => {
-    const result = await testCommand({
-      application,
-      operation: createOrder,
-      input: createOrder.input.parse({
-        customerId: "customer-1",
-        productId: "product-1",
-        quantity: 2,
-      }),
-    });
+const { app, calls, clock, ids } = createTestApplication({ features: [notes] });
 
-    expect(result.kind).toBe("completed");
-    if (result.kind !== "completed") return;
+await app.call("notes.create", { id: "n1", title: "First", body: "" });
 
-    expect(result.outcome.ok).toBe(true);
-    assertEffectSequence(result.trace ?? [], [
-      "customer-storage.get",
-      "product-storage.reserve",
-      "payment-gateway.charge",
-      "order-ids.next",
-      "order-clock.now",
-      "order-events.commit-paid",
-    ]);
-    assertEventSequence(result.trace ?? [], ["orders.created"]);
-  });
-});
+calls.of("noteStorage.save");       // recorded calls for one port operation
+calls.all();                        // every recorded call in sequence
+calls.reset();
 ```
 
-The harness grants the operation's declared permissions to a deterministic test
-principal unless `principal` is supplied. Tracing defaults to `true`. Input,
-permission, output, error, effect, and event boundaries are still enforced.
+- `overrides` replace one derived fake by port-operation id:
+  `overrides: { "noteStorage.get": () => ({ id: "n1", title: "Cached", body: "" }) }`.
+  Unknown keys throw listing all valid keys. Ports covered by a real adapter
+  cannot be overridden per-op (core allows one adapter per port).
+- `clock` starts at `2000-01-01T00:00:00.000Z`, +1s per `now()`; `ids` yields
+  `"id-1"`, `"id-2"`, ...
+- `mode` defaults to `"test"`; `authorize` passes through to `createApplication`.
+- Only auto-bound fakes are recorded; wrap a real adapter with
+  `createRecordingAdapter` if you need its log.
 
-Trace helpers include:
+## testHttp
 
-- `assertEffectSequence`
-- `assertEventSequence`
-- `assertTraceEquals`
-- `assertNoEffects`
-- `assertNoEvents`
-
-## Associate tests with operations
-
-Make the relationship between a test and operation visible to the compiler:
+Drives any `{ fetch(request) }` handler without a socket:
 
 ```ts
-export const createOrderTest = defineOperationTest({
-  id: "orders.create.happy-path",
-  operation: createOrder,
-});
-```
+import { TEST_PRINCIPAL_HEADER, testHttp } from "@agentix/testing";
+import type { Principal } from "@agentix/core";
 
-`defineOperationTest` and `associateOperationTest` create metadata values only.
-They do not register or execute a test. Keep normal `describe`/`it` blocks and
-assertions in the same file. Explicit associations let `agentix inspect`,
-`affected`, and `verify` find the intended tests without relying only on
-filenames.
-
-## Deterministic time and IDs
-
-```ts
-const clock = createDeterministicClock({
-  start: "2040-01-01T00:00:00.000Z",
-  stepMs: 1_000,
-});
-
-clock.now(); // 2040-01-01T00:00:00.000Z
-clock.now(); // 2040-01-01T00:00:01.000Z
-
-const ids = createDeterministicIdGenerator({
-  prefix: "order-",
-  start: 1,
-  padding: 3,
-});
-
-ids.next(); // order-001
-ids.next(); // order-002
-```
-
-Both helpers expose `peek`, `reset`, and `calls`. The clock also supports
-`advanceBy` and `set`. Bind their functions behind explicit time/random ports;
-domain code should never read ambient time or randomness directly.
-
-## Record port calls
-
-`createRecordingAdapter` wraps one port implementation and records inputs,
-outputs, and thrown exceptions:
-
-```ts
-const recording = createRecordingAdapter(OrderStore, {
-  get: ({ id }) => ok(orders.get(id)),
-  save: (order) => {
-    orders.set(order.id, order);
-    return ok(order);
+const handler = createHttpHandler(app, {
+  authenticate: (request) => {
+    const raw = request.headers(TEST_PRINCIPAL_HEADER);
+    return raw === undefined ? null : (JSON.parse(raw) as Principal);
   },
 });
 
-const application = createApplication({
-  features: [ordersFeature],
-  adapters: [bindPort(OrderStore, recording.operations)],
-  mode: "test",
-});
+const http = testHttp(handler);
 
-// Dispatch an operation, then inspect recording.calls().
+const created = await http.post(
+  "/notes",
+  { id: "n1", title: "First", body: "" },
+  { principal: { id: "tester", permissions: ["notes:write"] } },
+);
+// created.status, created.body (JSON-parsed), created.headers, created.text
 ```
 
-The recording wrapper is not itself a core `BoundPortAdapter`; pass its
-`.operations` to `bindPort`. Call records are appended when handlers complete.
-For concurrent effects, use each record's `sequence` field to reconstruct
-invocation order.
+Methods: `get`/`delete(path, opts?)`, `post`/`put`/`patch(path, body?, opts?)`,
+`request({ method, path, body?, headers?, principal?, token? })`. `token`
+becomes `authorization: Bearer <token>`; `principal` is JSON in the
+`TEST_PRINCIPAL_HEADER` header — wire the authenticate hook above to
+round-trip it.
 
-`createScriptedEffect` provides a resettable sequence of returned values or
-thrown errors. It is useful for retry and compensation tests; wrap the scripted
-handler in a port implementation that returns the port's required `Outcome`.
+## Operation harnesses
 
-## Reuse adapter contracts
-
-An adapter contract runs the same behavioral cases against different
-implementations:
+`testCommand`/`testQuery` dispatch one operation with tracing on and a
+principal that holds exactly the operation's permissions (override with
+`principal`):
 
 ```ts
-const contract = defineAdapterContract<typeof memoryStore.operations>({
-  id: "order-store.contract",
+import { assertEffectSequence, testCommand } from "@agentix/testing";
+
+const created = await testCommand({
+  application: app,
+  operation: notes.operations.create,
+  input: { id: "n1", title: "First", body: "" },
+});
+expect(created.kind).toBe("completed");
+if (created.kind === "completed" && created.trace !== undefined) {
+  assertEffectSequence(created.trace, ["noteStorage.get", "noteStorage.save"]);
+}
+```
+
+The result is the full three-way `DispatchResult`, so rejected and faulted
+paths are testable. Trace assertions: `assertEffectSequence`,
+`assertEventSequence`, `assertTraceEquals`, `assertNoEffects`, `assertNoEvents`.
+
+## Deterministic capabilities
+
+Standalone versions of the fakes used by `createTestApplication`:
+
+```ts
+const clock = createDeterministicClock({ stepMs: 1_000 });
+clock.now();  // "2000-01-01T00:00:00.000Z", then +1s per call
+clock.peek(); clock.advanceBy(60_000); clock.set("2001-01-01"); clock.reset();
+
+const ids = createDeterministicIdGenerator();
+ids.next();   // "id-1", "id-2", ...
+```
+
+`createScriptedEffect<Input, Output>(steps)` returns `{ handler, remaining,
+reset }` for effect handlers with an explicit response script (including
+thrown steps).
+
+## Recording adapters
+
+Wrap a real implementation so its calls are observable, then pass it straight
+to `createApplication`/`createTestApplication`:
+
+```ts
+const recording = createRecordingAdapter(NoteStorage, {
+  get: (id) => memory.get(id),
+  save: (note) => { memory.set(note.id, note); return note; },
+  delete: (id) => memory.delete(id),
+  list: () => [...memory.values()],
+});
+// adapters: [recording]; recording.calls() / recording.reset()
+```
+
+## Adapter contracts
+
+Define one behavioral contract and run it against every implementation of a
+port (memory fake, SQL adapter, HTTP client):
+
+```ts
+const storageContract = defineAdapterContract<{
+  save: (note: Note) => Note | Promise<Note>;
+  get: (id: string) => Note | undefined | Promise<Note | undefined>;
+}>({
+  id: "note-storage",
   cases: [
     {
-      id: "missing-order",
-      operation: "get",
-      input: { id: OrderId.parse("missing") },
-      assert(output) {
-        expect(output).toEqual(ok(undefined));
-      },
+      id: "save-returns-the-record",
+      operation: "save",
+      input: { id: "n1", title: "First", body: "" },
+      assert: (saved) => expect(saved.id).toBe("n1"),
     },
   ],
 });
 
-await runAdapterContract(contract, memoryStore.operations);
-await runAdapterContract(contract, databaseStore.operations);
+const result = await runAdapterContract(storageContract, implementation);
+// result.passedCases
 ```
 
-Cases run sequentially and execution stops at the first failure. Construct a
-fresh adapter or reset its state when cases must be isolated.
+## Ensures helpers
 
-## Check invariants
+`checkEnsures(operation, { input, output })` returns violated ensure names;
+`assertEnsures` throws `EnsureViolationError`; `checkEnsuresProperty({
+operation, contexts })` runs a seeded fast-check property over generated
+contexts (fixed seed, reproducible).
 
-Use `checkInvariant` for a boolean result and `assertInvariant` for an exception
-that includes the invariant ID and evidence:
+## Test association
 
-```ts
-assertInvariant(paidOrderHasPayment, { order, payment });
-```
-
-`checkInvariantProperty` integrates with `fast-check`. It first validates every
-generated evidence value with the invariant's schema, then runs the predicate.
-Its default seed and run count are fixed for reproducibility; explicit
-`parameters` can override them.
-
-Declaring an invariant on an operation does not execute it. Test or operation
-code must provide evidence and call it explicitly.
-
-## Deterministic replay
-
-Replay records are schema-versioned, JSON-only descriptions of:
-
-- the operation ID and kind;
-- input and principal;
-- ordered effect inputs and returned/thrown results; and
-- the expected outcome and events.
-
-Use `defineReplayRecord` for trusted in-memory data and `parseReplayRecord` for
-deserialized unknown input. `replay(record, runner)` supplies a caller-driven
-effect function and checks that calls, outcome, events, and effect consumption
-match exactly.
-
-Replay does not automatically capture an application dispatch and does not
-automatically locate or execute a core operation. The application supplies the
-runner. This keeps operation lookup, migration, and compatibility policy
-explicit.
-
-## Repository test commands
-
-```sh
-npm run typecheck
-npm test
-npm run test:unit
-npm run test:acceptance
-npm run test:phase5
-```
-
-Run a focused workspace while developing:
-
-```sh
-npm test --workspace @agentix/framework-app
-npm test --workspace @agentix/testing
-```
-
-The shared acceptance suite is the behavioral-equivalence gate between the
-Agentix and plain TypeScript commerce applications. Framework-only architecture
-tests supplement that suite; they cannot replace black-box behavior checks.
+`defineOperationTest({ id, operation })` / `associateOperationTest(operation)`
+are plain value declarations the compiler reads to associate a test file with
+an operation. A test file inside a feature segment with no markers associates
+all of that feature's operations automatically.

@@ -33,7 +33,9 @@
     "!dist/*.tsbuildinfo*",
     "!dist/**/*.tsbuildinfo*",
     "!dist/*.test.*",
-    "!dist/**/*.test.*"
+    "!dist/**/*.test.*",
+    "README.md",
+    "API.md"
   ],
   "scripts": {
     "build": "tsc -b",

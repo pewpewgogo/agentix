@@ -1,6 +1,9 @@
 # Agentix Architecture
 
 Status: Phase 1 design implemented through the Phase 5 engineering gate.
+Revision note: the v2 API supersedes parts of this record — see
+[v2 revision (2026-07-26)](#v2-revision-2026-07-26) at the end before relying
+on any section it lists.
 
 ## Design objective
 
@@ -521,3 +524,83 @@ event replay as an application persistence model, code generation that replaces
 source declarations, and a plugin system. These may be useful, but each would
 increase framework construction and learning cost before the two-arm comparison
 is valid.
+
+## v2 revision (2026-07-26)
+
+The sections above are the frozen v1 experiment-design record and are kept
+verbatim. The v2 redesign (validated against three adversarial review verdicts
+and re-measured on this repository; see `docs/HYPOTHESIS.md` for what remains
+unproven) changes the following principles. For current behavior use
+[CORE_CONCEPTS.md](CORE_CONCEPTS.md), [AUTHORING.md](AUTHORING.md), and
+[API_REFERENCE.md](API_REFERENCE.md).
+
+### Explicit registration of aggregates → derived from operation descriptors
+
+v1 required every aggregate to be registered explicitly: features declared
+`dependencies`, `operations`, `invariants`, and a separate `contract`;
+operations authored their own global ids; HTTP routes were defined by hand.
+Measurement showed this explicitness was duplicated bookkeeping, not
+information: every registration restated facts already present on the
+operation descriptor, and each restatement was a file an agent had to read and
+a place drift could hide.
+
+v2 keeps explicitness ON the operation descriptor and derives every
+aggregation from it:
+
+- operation ids derive as `${featureId}.${key}` from `feature(id, {operations})`;
+- required ports derive from operation `effects` (no feature `ports` list);
+- feature dependencies derive from cross-feature imports;
+- HTTP routes derive from operation `http` metadata; per-error statuses live
+  in the unified error declaration `{ http?, details? }`;
+- invariants became operation-level `ensures` (standalone invariant
+  declarations and registration are deleted).
+
+Nothing became implicit at the semantic level: the dispatch still refuses
+undeclared effects, the compiler still verifies the graph — the difference is
+that a single declaration site feeds both.
+
+### Feature capsule directories → single-file capsules
+
+The v1 capsule (`contract.ts`, `feature.ts`, `model.ts`, `operations.ts`,
+`invariants.ts`, tests) is superseded. One feature is one file
+(`src/features/<name>.ts`) plus one colocated test; the feature file itself is
+the public contract, and cross-feature imports must target it. Directory
+capsules remain recognized by the compiler for gradual layouts, but the
+`contract.ts` basename rule is deleted. The three-to-five-file reading budget
+became a two-file budget.
+
+### Uniform full validation → production fast-path validation policy
+
+v1 validated every boundary in every mode. v2 keeps ALL external boundaries
+validated in every mode (operation input, permission check, operation output,
+declared-error details, event payloads, effect inputs) and, in production
+mode only, skips interior double-checks: effect-output re-validation,
+`ensures` postconditions, and defensive deep-freezing. Rationale: the interior
+checks guard against adapter defects that dev/test runs surface, and their
+cost was measurable on the dispatch fast path while the external-boundary
+cost was not (~0.16 µs).
+
+### Other superseded points in this record
+
+- "Feature capsules" section: the `defineFeature` shape, declared
+  dependencies, and the contract/private-path rules are replaced as described
+  above.
+- "Operations" / "Executable invariants" sections: `defineCommand`,
+  `defineQuery`, `defineInvariant`, and `defineFeatureContract` no longer
+  exist; the factories are `command`, `query`, `feature`, `port`, `event`,
+  with `ensures` on the operation.
+- "Ports and explicit effects": port operations no longer carry an error
+  channel; adapters return plain values or throw (`Port.adapter(...)`
+  replaces `defineAdapter`/`bindPort`), and `port.store` provides the CRUD
+  preset.
+- "HTTP adapter": routes are auto-derived; `defineHttpRoute` remains only as
+  an override; the response envelope is fixed (see [HTTP.md](HTTP.md)).
+- "CLI contract": the generated index is now a digest-keyed cache the CLI may
+  serve without re-analysis; staleness invalidates it. The "never trusts the
+  generated file" wording is superseded (the index is still never a runtime
+  input and never overrides source).
+- "Testing package": replay is deleted; `createTestApplication` and
+  `testHttp` are the primary surfaces.
+
+The design objective, the evidence rules, the package dependency direction,
+and the benchmark/verification discipline in this record are unchanged.

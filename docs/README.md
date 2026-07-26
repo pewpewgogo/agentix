@@ -1,43 +1,49 @@
 # Agentix Documentation
 
-This is the entry point for using, extending, and evaluating Agentix. If you are
-new to the framework, follow the learning path in order. The research documents
-are kept separate so experimental claims do not leak into product guidance.
+This is the entry point for using, extending, and evaluating Agentix. If you
+are new to the framework, follow the learning path in order. The research
+documents are kept separate so experimental claims do not leak into product
+guidance.
 
 ## Learn Agentix
 
-1. [Getting started](GETTING_STARTED.md) — set up the repository, inspect the
-   sample application, declare a feature, dispatch a command, and add HTTP.
-2. [Core concepts](CORE_CONCEPTS.md) — schemas, operations, ports, outcomes,
-   events, invariants, application assembly, and the dispatch lifecycle.
-3. [HTTP adapter](HTTP.md) — routes, authentication, response mapping, and the
-   Node listener.
-4. [Testing](TESTING.md) — deterministic operation tests, traces, port contracts,
-   invariant checks, and replay.
-5. [CLI and generated index](CLI.md) — inspect, graph, affected analysis,
-   verification, scaffolding, and index semantics.
-6. [API reference](API_REFERENCE.md) — public package exports and behavioral
-   contracts.
-7. [Releasing](RELEASING.md) — coordinated versions, release pull requests,
-   npm publishing, provenance, and first-release setup.
+1. [Getting started](GETTING_STARTED.md) — one feature from install to
+   verified HTTP endpoint: feature file, app shell, `serveNode`, HTTP-level
+   test, `agentix inspect`.
+2. [Authoring cheat sheet](AUTHORING.md) — the canonical single-file feature
+   and the 2-file change recipe. Read before your first change.
+3. [Core concepts](CORE_CONCEPTS.md) — operations, ports and adapters,
+   effects, outcomes vs rejections vs faults, events, ensures, modes,
+   authorization.
+4. [HTTP adapter](HTTP.md) — auto-derived routes, the fixed envelope,
+   authentication, overrides, Node and edge hosts.
+5. [Testing](TESTING.md) — `createTestApplication`, `testHttp`, harnesses,
+   deterministic capabilities, contracts.
+6. [CLI and generated index](CLI.md) — inspect artifacts, graph, affected
+   scope, narrow verification, scaffolding, cache semantics.
+7. [API reference](API_REFERENCE.md) — every public export of the five
+   packages (each package also ships its own `API.md`).
+8. [Releasing](RELEASING.md) — coordinated versions, release pull requests,
+   npm publishing, provenance.
 
 The complete runnable reference application is
-[`examples/framework-app`](../examples/framework-app/src). Its plain TypeScript
-counterpart is [`examples/plain-app`](../examples/plain-app/src); both share the
-same black-box acceptance contract.
+[`examples/framework-app`](../examples/framework-app/src). Its plain
+TypeScript counterpart is [`examples/plain-app`](../examples/plain-app/src);
+both share the same black-box acceptance contract. The three-arm comparison
+apps live in [`sandbox/`](../sandbox).
 
 ## Design and development
 
-- [Architecture](ARCHITECTURE.md) is the frozen experiment-design record. Some
-  implementation-status wording is historical; use [core concepts](CORE_CONCEPTS.md)
-  and [API reference](API_REFERENCE.md) for current behavior.
-- [Development guide](DEVELOPMENT.md) covers setup, repository commands, change
-  checklists, and evidence hygiene.
+- [Architecture](ARCHITECTURE.md) is the frozen v1 experiment-design record
+  with an appended, dated v2 revision section listing superseded principles.
+  Use [core concepts](CORE_CONCEPTS.md) and the [API reference](API_REFERENCE.md)
+  for current behavior.
+- [Development guide](DEVELOPMENT.md) covers setup, repository commands,
+  change checklists, and evidence hygiene.
 - [Decision log](DECISIONS.md) records accepted tradeoffs and rejected
   alternatives.
-- [Limitations](LIMITATIONS.md) preserves the frozen threats-to-validity record;
-  later mitigations remain documented separately rather than rewriting the
-  intervention context.
+- [Limitations](LIMITATIONS.md) preserves the frozen threats-to-validity
+  record; later mitigations remain documented separately.
 
 ## Empirical study
 
@@ -60,5 +66,6 @@ tokens, files, or tool calls.
 The five framework packages are public, ESM-only, pre-1.0 packages under the
 `@agentix/*` npm scope. They share one coordinated version and follow semantic
 versioning, but minor releases may contain breaking API changes until 1.0.
-Release automation publishes only built package artifacts; benchmark fixtures,
-results, examples, and sandboxes remain repository-only.
+Release automation publishes only built package artifacts plus each package's
+`README.md`/`API.md`; benchmark fixtures, results, examples, and sandboxes
+remain repository-only.

@@ -2,9 +2,41 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
-import { runHttpFrameworkComparison } from "./benchmark.js";
+import {
+  DEFAULT_HTTP_COMPARISON_SEED,
+  runHttpFrameworkComparison,
+} from "./benchmark.js";
+
+const HELP = `Exploratory Agentix/Express/NestJS HTTP comparison (methodology v2).
+
+Usage:
+  node benchmarks/runtime/dist/http-comparison/cli.js [options]
+
+Options:
+  --isolated              Run every target in its own child process and measure
+                          over real loopback sockets. RECOMMENDED: the default
+                          in-process mode keeps all servers and the measuring
+                          client on ONE event loop, which inflated the v1
+                          cross-stack gap roughly tenfold. The default stays
+                          in-process only for continuity with v1 records.
+  --root=<dir>            Repository root (default: current directory).
+  --seed=<seed>           Schedule seed (default: ${DEFAULT_HTTP_COMPARISON_SEED}).
+  --warmups=<n>           Warmup iterations per workload (default: 10).
+  --measured=<n>          Measured iterations per workload (default: 100).
+  --process-iterations=<n> Fresh-process probe iterations (default: 5).
+  --no-process            Skip fresh-process cold-ready/RSS probes.
+  --output=<file>         Write the JSON report create-only (never overwrite);
+                          otherwise the report prints to stdout. NEVER write
+                          into benchmarks/results/ unless publishing a real run.
+  --help                  Show this help.
+`;
 
 const rawArguments = process.argv.slice(2);
+
+if (rawArguments.includes("--help") || rawArguments.includes("-h")) {
+  process.stdout.write(HELP);
+  process.exit(0);
+}
 
 const option = (name: string): string | undefined => {
   const matches = rawArguments.filter((value) => value.startsWith(`${name}=`));
@@ -17,7 +49,7 @@ const option = (name: string): string | undefined => {
 };
 
 for (const argument of rawArguments) {
-  if (argument === "--no-process") continue;
+  if (argument === "--no-process" || argument === "--isolated") continue;
   if ([
     "--root=",
     "--seed=",
@@ -39,11 +71,12 @@ const integerOption = (name: string): number | undefined => {
 const output = option("--output");
 const report = await runHttpFrameworkComparison({
   repositoryRoot: resolve(option("--root") ?? process.cwd()),
-  seed: option("--seed") ?? "agentix-http-frameworks-exploratory-v1-2026-07-23",
+  seed: option("--seed") ?? DEFAULT_HTTP_COMPARISON_SEED,
   warmupIterations: integerOption("--warmups") ?? 10,
   measuredIterations: integerOption("--measured") ?? 100,
   processIterations: integerOption("--process-iterations") ?? 5,
   includeProcessMetrics: !rawArguments.includes("--no-process"),
+  isolated: rawArguments.includes("--isolated"),
 });
 const json = `${JSON.stringify(report, null, 2)}\n`;
 
@@ -55,7 +88,9 @@ if (output === undefined) {
   await writeFile(outputPath, json, { encoding: "utf8", flag: "wx", mode: 0o444 });
   process.stdout.write(`${JSON.stringify({
     kind: "agentix-http-framework-comparison-pointer",
+    schemaVersion: 2,
     path: outputPath,
+    processIsolation: report.methodology.processIsolation,
     measurementPlanSha256: report.measurementPlanSha256,
     comparisonSourceSha256: report.repository.comparisonSourceSha256,
     eligibleForConfirmatoryUse: false,

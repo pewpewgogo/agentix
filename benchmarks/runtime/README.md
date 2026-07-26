@@ -89,25 +89,45 @@ Smoke numbers validate executability and can help set budgets before
 confirmatory agent results are observed. They are not confirmatory evidence for
 the primary hypothesis.
 
-## Exploratory HTTP-framework comparison
+## Exploratory HTTP-framework comparison (methodology v2)
 
-The separate comparison runner exercises identical real loopback `POST /echo`
-endpoints on three configured stacks:
+The separate comparison runner exercises real loopback endpoints on three
+configured stacks:
 
-- Agentix with its Node HTTP adapter;
+- Agentix v2 (`feature()`/`command()`) with the `serveNode` raw Node host —
+  no extra validation in the target: dispatch already validates input and
+  output (the v1 target's redundant `mapResponse` re-parse is gone);
 - Express 5.2.1;
 - NestJS 11.1.28 on its default Express adapter.
 
 ```sh
-npm run benchmark:http-frameworks
+npm run benchmark:http-frameworks -- --isolated
 ```
 
-The runner uses seeded three-stack blocks, a dedicated keep-alive client for
-each ready server, complete response consumption, fresh child processes for
-cold-ready and memory observations, and raw distributions for valid and invalid
-requests. Every report is explicitly exploratory and ineligible for use as a
-confirmatory result under the preregistered Agentix-versus-plain hypothesis.
+Prefer `--isolated`: each target then runs in its own child process while the
+measuring client stays in the parent, so requests cross real loopback sockets
+between processes. The in-process default is kept only for continuity; it runs
+every server and the client on one event loop, which inflated the v1
+cross-stack gap roughly tenfold.
+
+Workloads: `POST /echo` valid and invalid, `GET /items/:id`, and an
+8-in-flight keep-alive echo batch whose summaries derive requests-per-second
+from batch completion time. Two validation conditions run per report:
+`default` (Express/NestJS byte-identical to v1: hand-written echo guard, no
+output validation) and `validated` (Express/NestJS run zod input AND output
+validation, matching the work Agentix always performs). Every sample is
+labeled with its condition, workload, and concurrency.
+
+The runner uses seeded three-stack blocks, a dedicated keep-alive client per
+stack and condition, complete response consumption, fresh child processes for
+cold-ready and memory observations, and raw distributions. v2 reports use a
+new seed lineage without v1 ancestry and supersede
+`benchmarks/results/http-frameworks-exploratory-v1-2026-07-23.json` with a
+methodology change: v1 and v2 values are not comparable, and the frozen v1
+record is never modified. Every report is explicitly exploratory and
+ineligible for use as a confirmatory result under the preregistered
+Agentix-versus-plain hypothesis.
 
 This microbenchmark measures the configured HTTP stacks, not framework cores.
-NestJS includes Express, loopback and JSON costs can dominate, and one echo
-route does not predict commerce-application or agent-maintenance performance.
+NestJS includes Express, loopback and JSON costs can dominate, and echo-scale
+routes do not predict commerce-application or agent-maintenance performance.

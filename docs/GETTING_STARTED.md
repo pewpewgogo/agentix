@@ -1,355 +1,201 @@
 # Getting Started
 
-This guide takes you from an empty TypeScript application to one complete
-Agentix feature using the public npm packages.
+One complete Agentix feature from install to verified HTTP endpoint. A feature
+is a single TypeScript file; the application shell is a second, rarely-touched
+file.
 
-## Prerequisites
+## Install
 
-- Node.js `>=24 <25`
-- npm `>=11 <12`
-- TypeScript with ESM and NodeNext module resolution
-
-Create an application and install the runtime, test, and CLI packages:
+Requirements: Node.js `>=24 <25`, npm `>=11 <12`, TypeScript with NodeNext
+module resolution (relative imports use `.js` suffixes).
 
 ```sh
-mkdir agentix-notes
-cd agentix-notes
-npm init -y
+mkdir agentix-notes && cd agentix-notes
+npm init -y && npm pkg set type=module
 npm install @agentix/core @agentix/adapters-http
-npm install --save-dev @agentix/cli @agentix/testing typescript
+npm install --save-dev @agentix/cli @agentix/testing typescript vitest
 ```
 
-The packages are ESM-only and require Node.js 24. Configure the application as
-`"type": "module"`, use TypeScript's `NodeNext` module and module-resolution
-settings, and include `.js` suffixes in relative TypeScript imports. The
-repository's [framework application](../examples/framework-app/package.json)
-is the complete package and TypeScript configuration reference.
+`tsconfig.json`:
 
-## Tour the reference application
-
-The cloned repository includes a commerce application with customers, products,
-payments, and orders. From a repository checkout, start from an operation
-instead of opening the entire tree:
-
-```sh
-npm exec -- agentix inspect orders.create --root examples/framework-app
-```
-
-The output points to the declaration and lists its permission, seven effects,
-event, invariant, associated tests, verification scope, and compiler trust. The
-JSON form is a source-derived operation context with a hard 8 KiB limit; it is
-not the full generated index. Check `projection.truncated` and follow any
-machine-readable `projection.omissions` expansion before assuming a list is
-complete. Try the other views:
-
-```sh
-npm exec -- agentix graph orders --root examples/framework-app
-npm exec -- agentix affected src/features/orders/contract.ts \
-  --root examples/framework-app
-npm exec -- agentix inspect orders.create \
-  --root examples/framework-app --json --compact
-```
-
-The compact form preserves every field while removing indentation overhead from
-agent context. Omit `--compact` when you want indented JSON for manual reading.
-
-Run the behavior shared with the plain TypeScript implementation:
-
-```sh
-npm run test:acceptance
-```
-
-## Understand a minimal feature capsule
-
-The declarations below are a complete, type-checked API example. They are a
-small companion to the runnable `examples/framework-app`; copy its strict
-TypeScript configuration rather than weakening types to fit the example.
-
-A small feature normally has a public contract, operations, a feature
-descriptor, and tests:
-
-```text
-src/features/notes/
-  contract.ts
-  operations.ts
-  feature.ts
-  notes.test.ts
-```
-
-The CLI can preview the minimal three-file scaffold without writing anything.
-It creates a contract, feature descriptor, and test; add operations, models, and
-invariants only when the feature needs them:
-
-```sh
-npm exec -- agentix scaffold feature notes --root path/to/your-app --dry-run
-```
-
-The following smaller example shows the essential declarations. Application
-package configuration follows the same pattern as
-[`examples/framework-app/package.json`](../examples/framework-app/package.json)
-and its TypeScript project files.
-
-### 1. Declare schemas and a port
-
-Create `src/features/notes/contract.ts`:
-
-```ts
-import {
-  defineFeatureContract,
-  definePort,
-  portOperation,
-  schema,
-  type Infer,
-} from "@agentix/core";
-
-export const NoteId = schema.id("note");
-
-export const Note = schema.object({
-  id: NoteId,
-  body: schema.refine(
-    schema.string(),
-    (value) => value.trim().length > 0,
-    { id: "note-body", message: "A note body must not be empty" },
-  ),
-});
-
-export type Note = Infer<typeof Note>;
-
-export const NoteStore = definePort({
-  id: "note-store",
-  operations: {
-    save: portOperation({
-      id: "note-store.save",
-      kind: "write",
-      input: Note,
-      output: Note,
-      errors: {
-        NOTE_ALREADY_EXISTS: schema.object({ id: NoteId }),
-      },
-    }),
+```json
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "outDir": "dist"
   },
-});
-
-export const notesContract = defineFeatureContract({
-  id: "notes",
-  exports: { Note, NoteId, NoteStore },
-});
-```
-
-Schemas provide both runtime parsing and inferred TypeScript types. The branded
-`NoteId` prevents accidental use of another entity's ID at compile time. The
-port says that persistence is a write effect, but it does not choose a database.
-
-### 2. Declare a command
-
-Create `src/features/notes/operations.ts`:
-
-```ts
-import { defineCommand, schema } from "@agentix/core";
-
-import { Note, NoteId, NoteStore } from "./contract.js";
-
-export const createNote = defineCommand({
-  id: "notes.create",
-  input: Note,
-  output: Note,
-  errors: {
-    NOTE_ALREADY_EXISTS: schema.object({ id: NoteId }),
-  },
-  permissions: ["notes:create"],
-  effects: {
-    save: NoteStore.operations.save,
-  },
-  emits: {},
-  async execute({ input, effects }) {
-    return effects.save({ ...input, body: input.body.trim() });
-  },
-});
-```
-
-`execute` receives only the `save` capability declared by this command. It
-cannot obtain another application adapter from a container or global registry.
-Expected failures are returned as typed outcomes by the adapter; unexpected
-exceptions remain faults.
-
-### 3. Assemble the feature
-
-Create `src/features/notes/feature.ts`:
-
-```ts
-import { defineFeature } from "@agentix/core";
-
-import { NoteStore, notesContract } from "./contract.js";
-import { createNote } from "./operations.js";
-
-export const notes = defineFeature({
-  id: "notes",
-  contract: notesContract,
-  dependencies: [],
-  operations: [createNote],
-  invariants: [],
-  events: [],
-  ports: [NoteStore],
-});
-```
-
-The feature and contract IDs must match. Cross-feature dependencies are public
-contract values in `dependencies`, never implicit imports from another
-feature's private files.
-
-## Bind infrastructure and create the application
-
-Create `src/application.ts`:
-
-```ts
-import {
-  bindPort,
-  createApplication,
-  domainError,
-  err,
-  ok,
-} from "@agentix/core";
-
-import { NoteStore, type Note } from "./features/notes/contract.js";
-import { notes } from "./features/notes/feature.js";
-
-const storedNotes = new Map<string, Note>();
-
-const noteStore = bindPort(NoteStore, {
-  save(note) {
-    if (storedNotes.has(note.id)) {
-      return err(domainError("NOTE_ALREADY_EXISTS", { id: note.id }));
-    }
-    storedNotes.set(note.id, note);
-    return ok(note);
-  },
-});
-
-export const application = createApplication({
-  features: [notes],
-  adapters: [noteStore],
-  mode: "development",
-});
-```
-
-Application construction rejects duplicate IDs, missing feature dependencies,
-query write effects, missing adapters, and incomplete or mismatched adapters.
-The same port can be bound to memory in tests and to real infrastructure in a
-host application.
-
-## Dispatch the command
-
-```ts
-import { principal } from "@agentix/core";
-
-import { application } from "./application.js";
-import { Note } from "./features/notes/contract.js";
-import { createNote } from "./features/notes/operations.js";
-
-const result = await application.dispatch(createNote, {
-  input: Note.parse({ id: "note-1", body: "Learn Agentix" }),
-  principal: principal("developer", ["notes:create"]),
-});
-
-if (result.kind === "completed" && result.outcome.ok) {
-  console.log(result.outcome.value);
+  "include": ["src/**/*.ts"]
 }
 ```
 
-A dispatch has two layers:
+## 1. The feature file
 
-- `kind: "completed"` contains either a successful value or an expected typed
-  domain error, plus the validated events emitted by the completed execution.
-- `kind: "rejected"` represents an unknown operation, missing permission, or
-  invalid input. No operation code runs.
-- `kind: "fault"` represents an unexpected execution or boundary failure.
-
-Authorization runs before input parsing. Development and test applications add
-an effect/event trace by default; production applications do not unless a
-dispatch opts in. Completed events are available independently of tracing; they
-are not automatically published or persisted.
-
-## Expose the operation through HTTP
-
-Agentix routes use Web-standard `Request` and `Response` values. A thin adapter
-connects them to Node's HTTP server:
+`src/features/notes.ts` — schema, storage port, and both operations. This one
+file is the feature's public contract:
 
 ```ts
-import { createServer } from "node:http";
+import { command, feature, port, query, s } from "@agentix/core";
 
-import {
-  createHttpHandler,
-  createTrustedHeaderPrincipalExtractor,
-  defineHttpRoute,
-  readJsonBody,
-} from "@agentix/adapters-http/web";
-import { createNodeHttpListener } from "@agentix/adapters-http/node";
-import type { Infer } from "@agentix/core";
+export const Note = s.object({
+  id: s.string({ min: 1 }),
+  title: s.string({ min: 1, trim: true }),
+  body: s.string(),
+});
+export type Note = s.Infer<typeof Note>;
 
-import { application } from "./application.js";
-import { createNote } from "./features/notes/operations.js";
+export const NoteStorage = port.store("noteStorage", Note);
 
-const handler = createHttpHandler({
-  application,
-  principal: createTrustedHeaderPrincipalExtractor(),
-  routes: [
-    defineHttpRoute({
-      method: "POST",
-      path: "/notes",
-      operation: createNote,
-      mapRequest: async ({ request }) =>
-        await readJsonBody(request) as Infer<typeof createNote.input>,
-      responses: {
-        successStatus: 201,
-        domainErrorStatuses: { NOTE_ALREADY_EXISTS: 409 },
+export const notes = feature("notes", {
+  operations: {
+    create: command({
+      input: Note,
+      output: Note,
+      errors: { NOTE_ALREADY_EXISTS: { http: 409, details: { id: s.string() } } },
+      http: { method: "POST", path: "/notes", status: 201 },
+      effects: { load: NoteStorage.get, save: NoteStorage.save },
+      async execute({ input, effects, fail }) {
+        if (await effects.load(input.id)) return fail("NOTE_ALREADY_EXISTS", { id: input.id });
+        return effects.save(input);
       },
     }),
-  ],
+    get: query({
+      input: s.object({ id: s.string({ min: 1 }) }),
+      output: Note,
+      errors: { NOTE_NOT_FOUND: { http: 404, details: { id: s.string() } } },
+      http: { method: "GET", path: "/notes/:id" },
+      effects: { load: NoteStorage.get },
+      async execute({ input, effects, fail }) {
+        return (await effects.load(input.id)) ?? fail("NOTE_NOT_FOUND", { id: input.id });
+      },
+    }),
+  },
+});
+```
+
+What each block declares:
+
+- `s.object(...)` — runtime schema; unknown keys are rejected, `trim` runs
+  before validation. `s.Infer` derives the static type.
+- `port.store("noteStorage", Note)` — a CRUD port (`get/save/delete/list`)
+  plus a built-in `.memory()` adapter.
+- `command`/`query` — input/output schemas, typed errors with their HTTP
+  status, the route, and the exact effects `execute` may call. Operation ids
+  derive from the feature id: `notes.create`, `notes.get`.
+- `fail(code, details)` — returns the declared domain failure; it is typed
+  against the `errors` map.
+
+## 2. The application shell
+
+`src/app.ts` — assemble features and adapters; HTTP routes are derived:
+
+```ts
+import { createHttpHandler } from "@agentix/adapters-http";
+import { createApplication } from "@agentix/core";
+
+import { notes, NoteStorage } from "./features/notes.js";
+
+export const app = createApplication({
+  features: [notes],
+  adapters: [NoteStorage.memory()],
 });
 
-const server = createServer(createNodeHttpListener(handler));
-server.listen(3000, "127.0.0.1", () => {
-  console.log("Agentix listening on http://127.0.0.1:3000");
+export const handler = createHttpHandler(app);
+```
+
+`createApplication` validates at startup: duplicate ids, adapter coverage for
+every declared effect, query purity, and HTTP route conflicts. Routes come
+from the operations' `http` metadata — there is no route table to maintain.
+
+## 3. Serve it
+
+`src/serve.ts`:
+
+```ts
+import { serveNode } from "@agentix/adapters-http";
+
+import { handler } from "./app.js";
+
+const server = await serveNode(handler, { port: 3000 });
+console.log(`listening on ${server.url}`);
+```
+
+```sh
+npx tsc -b . && node dist/serve.js
+curl -s -X POST localhost:3000/notes -d '{"id":"n1","title":"First","body":""}'
+# {"ok":true,"value":{"id":"n1","title":"First","body":""}}
+curl -s localhost:3000/notes/n1
+```
+
+Edge runtimes skip `serveNode` and use `handler.fetch(request)` directly.
+
+## 4. Test it
+
+`src/features/notes.test.ts` — HTTP-level, no server socket:
+
+```ts
+import { testHttp } from "@agentix/testing";
+import { describe, expect, it } from "vitest";
+
+import { handler } from "../app.js";
+
+const http = testHttp(handler);
+
+describe("notes over HTTP", () => {
+  it("creates a note and reads it back", async () => {
+    const created = await http.post("/notes", { id: "n1", title: "First", body: "" });
+
+    expect(created.status).toBe(201);
+    expect(created.body).toEqual({
+      ok: true,
+      value: { id: "n1", title: "First", body: "" },
+    });
+
+    const read = await http.get("/notes/n1");
+    expect(read.status).toBe(200);
+  });
+
+  it("returns the declared conflict and not-found statuses", async () => {
+    await http.post("/notes", { id: "n2", title: "First", body: "" });
+    const duplicate = await http.post("/notes", { id: "n2", title: "Again", body: "" });
+
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.body).toEqual({
+      ok: false,
+      error: { code: "NOTE_ALREADY_EXISTS", details: { id: "n2" } },
+    });
+
+    expect((await http.get("/notes/missing")).status).toBe(404);
+  });
 });
 ```
 
-Call it through the trusted-header example:
-
 ```sh
-curl --request POST http://127.0.0.1:3000/notes \
-  --header 'content-type: application/json' \
-  --header 'x-principal-id: developer' \
-  --header 'x-principal-permissions: notes:create' \
-  --data '{"id":"note-1","body":"Learn Agentix"}'
+npx vitest run
 ```
 
-`createTrustedHeaderPrincipalExtractor` is safe only behind a trusted proxy that
-strips client-supplied identity headers and replaces them with verified values.
-For bearer tokens, use `createBearerPrincipalExtractor` with an application-
-owned token resolver. See the [HTTP guide](HTTP.md) for response mapping and
-host security options.
+For dispatch-level tests without HTTP, call operations directly:
+`await app.call("notes.create", { id: "n1", title: "First", body: "" })`
+returns `{ ok: true, value }` or `{ ok: false, error }`.
 
-## Verify the feature
-
-Generate or refresh the index implicitly and ask Agentix for a conservative
-verification plan:
+## 5. Inspect it
 
 ```sh
-npm exec -- agentix inspect notes.create --root path/to/your-app
-npm exec -- agentix affected notes.create --root path/to/your-app
-npm exec -- agentix verify notes.create --root path/to/your-app
+npm exec -- agentix inspect notes.create --root . --json --compact
 ```
 
-`verify` narrows only when project references and test associations prove that
-the smaller scope is safe. Otherwise it runs the application's workspace-level
-`typecheck` and `test` scripts.
+The CLI analyzes source (caching by digest in `.agentix/index.json`) and
+returns a bounded `operation-context` artifact: route, errors with statuses,
+effects, permissions, tests, bounded source excerpts of the schemas and
+`execute`, plus the conservative `affected` scope and the narrowest safe
+`verification` plan. Use it instead of reading the whole application.
 
-## Next steps
+## Next
 
-- Read [core concepts](CORE_CONCEPTS.md) before adding events or invariants.
-- Use the [testing helpers](TESTING.md) to replace time, randomness, and external
-  services deterministically.
-- Read [CLI and generated index](CLI.md) before integrating Agentix into an
-  agent workflow.
-- Use the complete [`orders.create`](../examples/framework-app/src/features/orders/operations.ts)
-  flow as the production-sized reference.
+- [AUTHORING.md](AUTHORING.md) — the change recipe (read before editing).
+- [CORE_CONCEPTS.md](CORE_CONCEPTS.md) — the execution model.
+- [HTTP.md](HTTP.md) — envelope, auth, overrides, hosts.
+- [TESTING.md](TESTING.md) — test application, fakes, harnesses.
+- [CLI.md](CLI.md) — all commands and artifact shapes.
