@@ -37,7 +37,7 @@ export interface Clock {
 
 export interface CustomerAlreadyExists {
   readonly code: "CUSTOMER_ALREADY_EXISTS";
-  readonly message: string;
+  readonly details: { readonly id: string };
 }
 
 export class CustomerService {
@@ -52,7 +52,7 @@ export class CustomerService {
     if (!(await this.customers.claimCustomerId(input.id))) {
       return failure({
         code: "CUSTOMER_ALREADY_EXISTS",
-        message: "Customer already exists.",
+        details: { id: input.id },
       });
     }
     try {
@@ -68,7 +68,7 @@ export class CustomerService {
         ? success(customer)
         : failure({
             code: "CUSTOMER_ALREADY_EXISTS",
-            message: "Customer already exists.",
+            details: { id: input.id },
           });
     } catch (error) {
       await this.customers.releaseCustomerId(input.id);

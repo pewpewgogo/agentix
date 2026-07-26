@@ -18,14 +18,19 @@ defineCommerceAcceptance("plain app", createCommerceSystem);
 ## HTTP surface
 
 Every response is JSON with `content-type: application/json`. Successes use
-`{ "ok": true, "data": ... }`; failures use
-`{ "ok": false, "error": { "code": "...", "message": "..." } }`.
+`{ "ok": true, "value": ... }`. Domain failures use
+`{ "ok": false, "error": { "code": "...", "details": { ... } } }`. Transport
+failures are opaque `{ "ok": false, "error": { "code": "..." } }`, except
+`INVALID_INPUT`, which adds a non-empty implementation-defined `issues` array.
 
 Known routes require a non-blank `x-principal-id` and the route permission in
 the comma-separated `x-permissions` header. Permission entries are trimmed.
-Unknown method/path combinations return `ROUTE_NOT_FOUND` before authentication.
-Authorization is resolved before request-body parsing. Malformed percent-encoded
-paths return the standard `VALIDATION_ERROR` response.
+A missing or insufficient principal yields the opaque 403 `PERMISSION_DENIED`.
+Unknown paths return 404 `NOT_FOUND`; known paths with a wrong method return
+405 `METHOD_NOT_ALLOWED` with an `Allow` header, both before authentication.
+Authorization is resolved before request-body parsing. Malformed
+percent-encoded paths never match a parameterized route and return
+404 `NOT_FOUND`.
 
 | Method and path | Permission | Input | Success |
 | --- | --- | --- | --- |
@@ -40,8 +45,8 @@ paths return the standard `VALIDATION_ERROR` response.
 Request objects are strict. IDs and names are trimmed and must then be
 non-empty. `unitPriceCents` and `quantity` are positive safe integers; `stock`
 is a non-negative safe integer. Customer status is `active` (the default) or
-`suspended`. Invalid JSON, unknown properties, and invalid values all return
-the exact `VALIDATION_ERROR` envelope exported in `COMMERCE_ERRORS`.
+`suspended`. Unknown properties and invalid values return 400 `INVALID_INPUT`
+with `issues`; a body that is not parseable JSON returns 400 `INVALID_JSON`.
 
 ## Order transaction
 

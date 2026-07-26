@@ -5,10 +5,10 @@ import {
 
 import type { Route } from "../../http/router.js";
 import {
-  invalidInputResponse,
+  domainErrorResponse,
   jsonResponse,
-  normalizedPathId,
   parseJson,
+  parsePathId,
 } from "../../http/router.js";
 import { createProductInputSchema } from "./product.js";
 import type { ProductService } from "./product.js";
@@ -21,15 +21,18 @@ export const productRoutes = (service: ProductService): readonly Route[] => [
     async handle({ request }) {
       const parsed = await parseJson(request, createProductInputSchema);
       if (!parsed.ok) {
-        return jsonResponse(parsed, 400);
+        return parsed.response;
       }
       const result = await service.create(parsed.value);
-      return jsonResponse(
-        result.ok ? { ok: true, data: result.value } : result,
-        result.ok
-          ? COMMERCE_HTTP_CONTRACT.routes.createProduct.successStatus
-          : COMMERCE_ERRORS.productExists.status,
-      );
+      return result.ok
+        ? jsonResponse(
+            { ok: true, value: result.value },
+            COMMERCE_HTTP_CONTRACT.routes.createProduct.successStatus,
+          )
+        : domainErrorResponse(
+            COMMERCE_ERRORS.productExists,
+            result.error.details,
+          );
     },
   },
   {
@@ -37,22 +40,13 @@ export const productRoutes = (service: ProductService): readonly Route[] => [
     path: COMMERCE_HTTP_CONTRACT.routes.getProduct.path,
     permission: COMMERCE_HTTP_CONTRACT.routes.getProduct.permission,
     async handle({ params }) {
-      const id = normalizedPathId(params["id"]);
-      if (id === undefined) return invalidInputResponse();
-      const product = await service.get(id);
+      const id = parsePathId("id", params["id"]);
+      if (!id.ok) return id.response;
+      const product = await service.get(id.value);
       return product === undefined
-        ? jsonResponse(
-            {
-              ok: false,
-              error: {
-                code: COMMERCE_ERRORS.productNotFound.code,
-                message: COMMERCE_ERRORS.productNotFound.message,
-              },
-            },
-            COMMERCE_ERRORS.productNotFound.status,
-          )
+        ? domainErrorResponse(COMMERCE_ERRORS.productNotFound, { id: id.value })
         : jsonResponse(
-            { ok: true, data: product },
+            { ok: true, value: product },
             COMMERCE_HTTP_CONTRACT.routes.getProduct.successStatus,
           );
     },

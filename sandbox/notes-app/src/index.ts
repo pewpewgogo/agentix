@@ -1,3 +1,2 @@
-export { createNotesSystem } from "./system.js";
-export { Note, NoteId, type Note as NoteRecord } from "./features/notes/contract.js";
-export { createNote, getNote } from "./features/notes/operations.js";
+export { createNotesApp } from "./app.js";
+export { Note, notes, NoteStorage } from "./features/notes.js";

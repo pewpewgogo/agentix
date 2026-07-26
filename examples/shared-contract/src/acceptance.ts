@@ -26,7 +26,6 @@ interface RequestOptions {
 interface ExpectedError {
   readonly status: number;
   readonly code: string;
-  readonly message: string;
 }
 
 function makeRequest(
@@ -83,14 +82,41 @@ async function expectJson(
   await expect(response.json()).resolves.toEqual(body);
 }
 
-async function expectError(
+/** Domain error: exact `{ ok: false, error: { code, details } }` body. */
+async function expectDomainError(
+  response: Response,
+  expected: ExpectedError,
+  details: unknown,
+): Promise<void> {
+  await expectJson(response, expected.status, {
+    ok: false,
+    error: { code: expected.code, details },
+  });
+}
+
+/** Opaque transport error: exact `{ ok: false, error: { code } }` body. */
+async function expectOpaqueError(
   response: Response,
   expected: ExpectedError,
 ): Promise<void> {
   await expectJson(response, expected.status, {
     ok: false,
-    error: { code: expected.code, message: expected.message },
+    error: { code: expected.code },
   });
+}
+
+/** 400 INVALID_INPUT with a non-empty, implementation-defined issues array. */
+async function expectInvalidInput(response: Response): Promise<void> {
+  expect(response.status).toBe(COMMERCE_ERRORS.invalidInput.status);
+  expect(response.headers.get("content-type")).toMatch(/^application\/json\b/);
+  const body = (await response.json()) as {
+    readonly ok?: unknown;
+    readonly error?: { readonly code?: unknown; readonly issues?: unknown };
+  };
+  expect(body.ok).toBe(false);
+  expect(body.error?.code).toBe(COMMERCE_ERRORS.invalidInput.code);
+  expect(Array.isArray(body.error?.issues)).toBe(true);
+  expect((body.error?.issues as readonly unknown[]).length).toBeGreaterThan(0);
 }
 
 async function createCustomer(
@@ -148,8 +174,8 @@ async function seedActiveCustomerAndProduct(
   ).toBe(201);
 }
 
-function success<T>(data: T): { readonly ok: true; readonly data: T } {
-  return { ok: true, data };
+function success<T>(value: T): { readonly ok: true; readonly value: T } {
+  return { ok: true, value };
 }
 
 /**
@@ -223,14 +249,13 @@ export function defineCommerceAcceptance(
         200,
         success(customer),
       );
-      await expectError(
+      await expectInvalidInput(
         await send(
           system,
           "GET",
           "/customers/%20",
           COMMERCE_PERMISSIONS.readCustomer,
         ),
-        COMMERCE_ERRORS.validation,
       );
       await expectJson(
         await send(
@@ -267,29 +292,27 @@ export function defineCommerceAcceptance(
         paymentOutcomes: ["declined"],
       });
 
-      await expectError(
+      await expectInvalidInput(
         await createCustomer(system, { id: " ", name: "Ada" }),
-        COMMERCE_ERRORS.validation,
       );
-      await expectError(
+      await expectOpaqueError(
         await system.handle(
           makeRequest("POST", "/products", {
             rawBody: "{not-json",
             permissions: [COMMERCE_PERMISSIONS.createProduct],
           }),
         ),
-        COMMERCE_ERRORS.validation,
+        COMMERCE_ERRORS.invalidJson,
       );
-      await expectError(
+      await expectInvalidInput(
         await createProduct(system, {
           id: "product-1",
           name: "Engine",
           unitPriceCents: 0,
           stock: -1,
         }),
-        COMMERCE_ERRORS.validation,
       );
-      await expectError(
+      await expectInvalidInput(
         await send(
           system,
           "POST",
@@ -297,7 +320,6 @@ export function defineCommerceAcceptance(
           COMMERCE_PERMISSIONS.createCustomer,
           { id: "customer-1", name: "Ada", unexpected: true },
         ),
-        COMMERCE_ERRORS.validation,
       );
       expect(nowCalls).toBe(0);
       expect(await system.snapshot()).toEqual({
@@ -311,7 +333,7 @@ export function defineCommerceAcceptance(
       await seedActiveCustomerAndProduct(system);
       const beforeInvalidOrder = await system.snapshot();
       const nowCallsBeforeOrder = nowCalls;
-      await expectError(
+      await expectInvalidInput(
         await send(
           system,
           "POST",
@@ -319,13 +341,12 @@ export function defineCommerceAcceptance(
           COMMERCE_PERMISSIONS.createOrder,
           { customerId: "customer-1", productId: "product-1", quantity: 1.5 },
         ),
-        COMMERCE_ERRORS.validation,
       );
       expect(await system.snapshot()).toEqual(beforeInvalidOrder);
       expect(nowCalls).toBe(nowCallsBeforeOrder);
       expect(orderIdCalls).toBe(0);
 
-      await expectError(
+      await expectDomainError(
         await send(
           system,
           "POST",
@@ -334,6 +355,7 @@ export function defineCommerceAcceptance(
           { customerId: "customer-1", productId: "product-1", quantity: 1 },
         ),
         COMMERCE_ERRORS.paymentDeclined,
+        {},
       );
     });
 
@@ -355,7 +377,7 @@ export function defineCommerceAcceptance(
       const before = await system.snapshot();
       const callsBefore = nowCalls;
 
-      await expectError(
+      await expectOpaqueError(
         await system.handle(
           makeRequest("POST", "/orders", {
             body: {
@@ -369,7 +391,7 @@ export function defineCommerceAcceptance(
         ),
         COMMERCE_ERRORS.forbidden,
       );
-      await expectError(
+      await expectOpaqueError(
         await system.handle(
           makeRequest("POST", "/orders", {
             body: {
@@ -382,7 +404,9 @@ export function defineCommerceAcceptance(
         ),
         COMMERCE_ERRORS.forbidden,
       );
-      await expectError(
+      // 403 must be decided BEFORE the body is parsed: a malformed body with a
+      // wrong permission still yields the opaque permission error.
+      await expectOpaqueError(
         await system.handle(
           makeRequest("POST", "/orders", {
             rawBody: "{malformed-json",
@@ -391,7 +415,7 @@ export function defineCommerceAcceptance(
         ),
         COMMERCE_ERRORS.forbidden,
       );
-      await expectError(
+      await expectOpaqueError(
         await system.handle(
           makeRequest("POST", "/orders", {
             permissions: [COMMERCE_PERMISSIONS.readOrder],
@@ -404,7 +428,7 @@ export function defineCommerceAcceptance(
       expect(orderIdCalls).toBe(0);
 
       // If either denied request consumed the payment script, this would approve.
-      await expectError(
+      await expectDomainError(
         await send(
           system,
           "POST",
@@ -413,6 +437,7 @@ export function defineCommerceAcceptance(
           { customerId: "customer-1", productId: "product-1", quantity: 1 },
         ),
         COMMERCE_ERRORS.paymentDeclined,
+        {},
       );
       expect(nowCalls).toBe(callsBefore);
       expect(orderIdCalls).toBe(0);
@@ -514,7 +539,7 @@ export function defineCommerceAcceptance(
       await seedActiveCustomerAndProduct(system, 2);
       const before = await system.snapshot();
 
-      await expectError(
+      await expectDomainError(
         await send(
           system,
           "POST",
@@ -523,6 +548,7 @@ export function defineCommerceAcceptance(
           { customerId: "customer-1", productId: "product-1", quantity: 1 },
         ),
         COMMERCE_ERRORS.paymentDeclined,
+        {},
       );
       expect(await system.snapshot()).toEqual(before);
       expect(idNumber).toBe(0);
@@ -537,7 +563,7 @@ export function defineCommerceAcceptance(
       expect(approved.status).toBe(201);
       expect(await approved.json()).toMatchObject({
         ok: true,
-        data: { id: "order-1", status: "paid" },
+        value: { id: "order-1", status: "paid" },
       });
       expect((await system.snapshot()).products[0]?.stock).toBe(1);
     });
@@ -551,7 +577,7 @@ export function defineCommerceAcceptance(
       await seedActiveCustomerAndProduct(system, 1);
       const before = await system.snapshot();
 
-      await expectError(
+      await expectOpaqueError(
         await send(
           system,
           "POST",
@@ -604,7 +630,7 @@ export function defineCommerceAcceptance(
         expect.anything(),
       );
 
-      await expectError(
+      await expectDomainError(
         await send(
           system,
           "POST",
@@ -617,8 +643,9 @@ export function defineCommerceAcceptance(
           },
         ),
         COMMERCE_ERRORS.customerSuspended,
+        { id: "customer-suspended" },
       );
-      await expectError(
+      await expectDomainError(
         await send(
           system,
           "POST",
@@ -631,12 +658,13 @@ export function defineCommerceAcceptance(
           },
         ),
         COMMERCE_ERRORS.outOfStock,
+        { productId: "product-1", requested: 2, available: 1 },
       );
       expect(orderIdCalls).toBe(0);
       expect((await system.snapshot()).products[0]?.stock).toBe(1);
 
       // The first payment outcome remains unused after both business failures.
-      await expectError(
+      await expectDomainError(
         await send(
           system,
           "POST",
@@ -649,10 +677,11 @@ export function defineCommerceAcceptance(
           },
         ),
         COMMERCE_ERRORS.paymentDeclined,
+        {},
       );
     });
 
-    it("returns stable duplicate, missing-resource, route, and event authorization errors", async () => {
+    it("returns stable duplicate, missing-resource, route, method, and event authorization errors", async () => {
       const system = await factory({
         now: () => "2040-07-01T00:00:00.000Z",
       });
@@ -664,11 +693,12 @@ export function defineCommerceAcceptance(
         stock: 1,
       });
 
-      await expectError(
+      await expectDomainError(
         await createCustomer(system, { id: "customer-1", name: "Other" }),
         COMMERCE_ERRORS.customerExists,
+        { id: "customer-1" },
       );
-      await expectError(
+      await expectDomainError(
         await createProduct(system, {
           id: "product-1",
           name: "Other",
@@ -676,8 +706,9 @@ export function defineCommerceAcceptance(
           stock: 0,
         }),
         COMMERCE_ERRORS.productExists,
+        { id: "product-1" },
       );
-      await expectError(
+      await expectDomainError(
         await send(
           system,
           "GET",
@@ -685,8 +716,9 @@ export function defineCommerceAcceptance(
           COMMERCE_PERMISSIONS.readCustomer,
         ),
         COMMERCE_ERRORS.customerNotFound,
+        { id: "missing" },
       );
-      await expectError(
+      await expectDomainError(
         await send(
           system,
           "GET",
@@ -694,8 +726,9 @@ export function defineCommerceAcceptance(
           COMMERCE_PERMISSIONS.readProduct,
         ),
         COMMERCE_ERRORS.productNotFound,
+        { id: "missing" },
       );
-      await expectError(
+      await expectDomainError(
         await send(
           system,
           "GET",
@@ -703,8 +736,9 @@ export function defineCommerceAcceptance(
           COMMERCE_PERMISSIONS.readOrder,
         ),
         COMMERCE_ERRORS.orderNotFound,
+        { id: "missing" },
       );
-      await expectError(
+      await expectOpaqueError(
         await system.handle(
           makeRequest("GET", "/events", {
             permissions: [COMMERCE_PERMISSIONS.readOrder],
@@ -712,19 +746,26 @@ export function defineCommerceAcceptance(
         ),
         COMMERCE_ERRORS.forbidden,
       );
-      await expectError(
+      await expectOpaqueError(
         await system.handle(
           makeRequest("GET", "/unknown", { principalId: null }),
         ),
         COMMERCE_ERRORS.routeNotFound,
       );
-      await expectError(
+      // Known path, wrong method: 405 with an Allow header, before any auth.
+      const wrongMethod = await system.handle(
+        makeRequest("PUT", "/customers", { principalId: null }),
+      );
+      await expectOpaqueError(wrongMethod, COMMERCE_ERRORS.methodNotAllowed);
+      expect(wrongMethod.headers.get("allow")).toBe("POST");
+      // Malformed percent-encoding never matches a param route: 404, not 500.
+      await expectOpaqueError(
         await system.handle(
           makeRequest("GET", "/customers/%E0%A4%A", {
             permissions: [COMMERCE_PERMISSIONS.readCustomer],
           }),
         ),
-        COMMERCE_ERRORS.validation,
+        COMMERCE_ERRORS.routeNotFound,
       );
     });
 
@@ -754,7 +795,7 @@ export function defineCommerceAcceptance(
         ok: false,
         error: {
           code: COMMERCE_ERRORS.outOfStock.code,
-          message: COMMERCE_ERRORS.outOfStock.message,
+          details: { productId: "product-1", requested: 1, available: 0 },
         },
       });
 
@@ -793,7 +834,7 @@ export function defineCommerceAcceptance(
         ok: false,
         error: {
           code: COMMERCE_ERRORS.customerExists.code,
-          message: COMMERCE_ERRORS.customerExists.message,
+          details: { id: "customer-1" },
         },
       });
 
@@ -818,7 +859,7 @@ export function defineCommerceAcceptance(
         ok: false,
         error: {
           code: COMMERCE_ERRORS.productExists.code,
-          message: COMMERCE_ERRORS.productExists.message,
+          details: { id: "product-1" },
         },
       });
 

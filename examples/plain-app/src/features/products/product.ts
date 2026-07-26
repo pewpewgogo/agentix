@@ -35,7 +35,7 @@ export interface ProductRepository {
 
 export interface ProductAlreadyExists {
   readonly code: "PRODUCT_ALREADY_EXISTS";
-  readonly message: "Product already exists.";
+  readonly details: { readonly id: string };
 }
 
 export class ProductService {
@@ -50,7 +50,7 @@ export class ProductService {
     if (!(await this.products.claimProductId(input.id))) {
       return failure({
         code: "PRODUCT_ALREADY_EXISTS",
-        message: "Product already exists.",
+        details: { id: input.id },
       });
     }
     try {
@@ -66,7 +66,7 @@ export class ProductService {
         ? success(product)
         : failure({
             code: "PRODUCT_ALREADY_EXISTS",
-            message: "Product already exists.",
+            details: { id: input.id },
           });
     } catch (error) {
       await this.products.releaseProductId(input.id);

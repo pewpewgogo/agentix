@@ -2,11 +2,18 @@ import { defineCommerceAcceptance } from "@agentix/shared-contract/acceptance";
 import { associateOperationTest } from "@agentix/testing";
 
 import { createFrameworkSystem } from "./application.js";
-import { createOrder } from "./features/orders/operations.js";
+import { orders } from "./features/orders.js";
 
 export const createOrderAcceptanceTest = associateOperationTest(
-  createOrder,
+  orders.operations.create,
   "orders.create.acceptance",
 );
 
-defineCommerceAcceptance("framework commerce app", createFrameworkSystem);
+// The parity proof runs the identical black-box suite in BOTH runtime modes:
+// "test" keeps every dev check on; "production" exercises the fast path.
+defineCommerceAcceptance("framework commerce app (mode: test)", (options) =>
+  createFrameworkSystem({ ...options, mode: "test" }),
+);
+defineCommerceAcceptance("framework commerce app (mode: production)", (options) =>
+  createFrameworkSystem({ ...options, mode: "production" }),
+);

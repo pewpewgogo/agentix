@@ -10,7 +10,7 @@ const cli = resolve(repositoryRoot, "packages/cli/dist/bin.js");
 const arms = {
   agentix: {
     root: "sandbox/notes-app",
-    recommendedFiles: ["AGENTS.md", "src/features/notes/operations.ts"],
+    recommendedFiles: ["AGENTS.md", "src/features/notes.ts"],
   },
   express: {
     root: "sandbox/plain-notes-app",

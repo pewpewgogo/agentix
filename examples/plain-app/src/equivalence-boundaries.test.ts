@@ -33,12 +33,9 @@ const request = (
   });
 };
 
-const errorEnvelope = (error: {
-  readonly code: string;
-  readonly message: string;
-}) => ({
+const opaqueEnvelope = (error: { readonly code: string }) => ({
   ok: false,
-  error: { code: error.code, message: error.message },
+  error: { code: error.code },
 });
 
 const createCustomer = (id: string): Request =>
@@ -121,7 +118,7 @@ describe("plain-app equivalence boundaries", () => {
 
     expect(response.status).toBe(COMMERCE_ERRORS.internal.status);
     await expect(response.json()).resolves.toEqual(
-      errorEnvelope(COMMERCE_ERRORS.internal),
+      opaqueEnvelope(COMMERCE_ERRORS.internal),
     );
     expect(await system.snapshot()).toEqual(before);
     expect(now).toHaveBeenCalledTimes(2);
@@ -152,7 +149,7 @@ describe("plain-app equivalence boundaries", () => {
     );
     await expect(response.json()).resolves.toMatchObject({
       ok: true,
-      data: { id: "order-1" },
+      value: { id: "order-1" },
     });
     await expect(system.snapshot()).resolves.toMatchObject({
       orders: [{ id: "order-1" }],
@@ -161,7 +158,7 @@ describe("plain-app equivalence boundaries", () => {
     });
   });
 
-  it("maps malformed percent-encoding to the standard validation error", async () => {
+  it("never matches a param route on malformed percent-encoding", async () => {
     const system = createPlainSystem();
     const response = await system.handle(
       request("/customers/%E0%A4%A", {
@@ -169,9 +166,9 @@ describe("plain-app equivalence boundaries", () => {
       }),
     );
 
-    expect(response.status).toBe(COMMERCE_ERRORS.validation.status);
+    expect(response.status).toBe(COMMERCE_ERRORS.routeNotFound.status);
     await expect(response.json()).resolves.toEqual(
-      errorEnvelope(COMMERCE_ERRORS.validation),
+      opaqueEnvelope(COMMERCE_ERRORS.routeNotFound),
     );
   });
 });

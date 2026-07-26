@@ -8,67 +8,30 @@ export const COMMERCE_PERMISSIONS = {
   readEvents: "events:read",
 } as const;
 
+/**
+ * Frozen HTTP error contract shared by both arms (v2 envelope).
+ *
+ * Transport-level errors (permission, routing, parsing, faults) are OPAQUE:
+ * their bodies carry only `error.code`. `INVALID_INPUT` additionally carries a
+ * non-empty `error.issues` array whose entries are implementation-defined.
+ * Domain errors carry `error.details` objects described per scenario in the
+ * acceptance suite.
+ */
 export const COMMERCE_ERRORS = {
-  internal: {
-    status: 500,
-    code: "INTERNAL_ERROR",
-    message: "The request failed unexpectedly.",
-  },
-  forbidden: {
-    status: 403,
-    code: "FORBIDDEN",
-    message: "Permission denied.",
-  },
-  validation: {
-    status: 400,
-    code: "VALIDATION_ERROR",
-    message: "Request body is invalid.",
-  },
-  routeNotFound: {
-    status: 404,
-    code: "ROUTE_NOT_FOUND",
-    message: "Route not found.",
-  },
-  customerNotFound: {
-    status: 404,
-    code: "CUSTOMER_NOT_FOUND",
-    message: "Customer not found.",
-  },
-  productNotFound: {
-    status: 404,
-    code: "PRODUCT_NOT_FOUND",
-    message: "Product not found.",
-  },
-  orderNotFound: {
-    status: 404,
-    code: "ORDER_NOT_FOUND",
-    message: "Order not found.",
-  },
-  customerExists: {
-    status: 409,
-    code: "CUSTOMER_ALREADY_EXISTS",
-    message: "Customer already exists.",
-  },
-  productExists: {
-    status: 409,
-    code: "PRODUCT_ALREADY_EXISTS",
-    message: "Product already exists.",
-  },
-  customerSuspended: {
-    status: 409,
-    code: "CUSTOMER_SUSPENDED",
-    message: "Customer is suspended.",
-  },
-  outOfStock: {
-    status: 409,
-    code: "OUT_OF_STOCK",
-    message: "Insufficient product stock.",
-  },
-  paymentDeclined: {
-    status: 402,
-    code: "PAYMENT_DECLINED",
-    message: "Payment was declined.",
-  },
+  internal: { status: 500, code: "INTERNAL" },
+  forbidden: { status: 403, code: "PERMISSION_DENIED" },
+  invalidInput: { status: 400, code: "INVALID_INPUT" },
+  invalidJson: { status: 400, code: "INVALID_JSON" },
+  routeNotFound: { status: 404, code: "NOT_FOUND" },
+  methodNotAllowed: { status: 405, code: "METHOD_NOT_ALLOWED" },
+  customerNotFound: { status: 404, code: "CUSTOMER_NOT_FOUND" },
+  productNotFound: { status: 404, code: "PRODUCT_NOT_FOUND" },
+  orderNotFound: { status: 404, code: "ORDER_NOT_FOUND" },
+  customerExists: { status: 409, code: "CUSTOMER_ALREADY_EXISTS" },
+  productExists: { status: 409, code: "PRODUCT_ALREADY_EXISTS" },
+  customerSuspended: { status: 409, code: "CUSTOMER_SUSPENDED" },
+  outOfStock: { status: 409, code: "OUT_OF_STOCK" },
+  paymentDeclined: { status: 402, code: "PAYMENT_DECLINED" },
 } as const;
 
 export const COMMERCE_HTTP_CONTRACT = {
@@ -193,16 +156,22 @@ export interface CreateOrderInput {
   readonly quantity: number;
 }
 
+/** v2 success envelope: `{ ok: true, value }`. */
 export interface SuccessEnvelope<T> {
   readonly ok: true;
-  readonly data: T;
+  readonly value: T;
 }
 
+/**
+ * v2 error envelope: `{ ok: false, error: { code, ... } }`. Domain errors add
+ * `details`; INVALID_INPUT adds `issues`; opaque transport errors add nothing.
+ */
 export interface ErrorEnvelope {
   readonly ok: false;
   readonly error: {
     readonly code: string;
-    readonly message: string;
+    readonly details?: unknown;
+    readonly issues?: readonly unknown[];
   };
 }
 

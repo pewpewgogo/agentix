@@ -17,16 +17,17 @@ describe("commerce contract declaration", () => {
     expect(new Set(permissions).size).toBe(permissions.length);
   });
 
-  it("uses valid HTTP status classes for every frozen response", () => {
+  it("uses valid HTTP status classes and stable codes for every frozen response", () => {
     for (const route of Object.values(COMMERCE_HTTP_CONTRACT.routes)) {
       expect(route.successStatus).toBeGreaterThanOrEqual(200);
       expect(route.successStatus).toBeLessThan(300);
     }
+    const codes = Object.values(COMMERCE_ERRORS).map((error) => error.code);
+    expect(new Set(codes).size).toBe(codes.length);
     for (const error of Object.values(COMMERCE_ERRORS)) {
       expect(error.status).toBeGreaterThanOrEqual(400);
       expect(error.status).toBeLessThan(600);
-      expect(error.code).toMatch(/^[A-Z][A-Z_]+$/);
-      expect(error.message).toMatch(/\.$/);
+      expect(error.code).toMatch(/^[A-Z][A-Z_]*$/);
     }
   });
 });

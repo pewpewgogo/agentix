@@ -5,10 +5,10 @@ import {
 
 import type { Route } from "../../http/router.js";
 import {
-  invalidInputResponse,
   jsonResponse,
-  normalizedPathId,
+  domainErrorResponse,
   parseJson,
+  parsePathId,
 } from "../../http/router.js";
 import { createOrderInputSchema } from "./order.js";
 import type { CreateOrderError, OrderService } from "./order.js";
@@ -36,15 +36,18 @@ export const orderRoutes = (service: OrderService): readonly Route[] => [
     async handle({ request }) {
       const parsed = await parseJson(request, createOrderInputSchema);
       if (!parsed.ok) {
-        return jsonResponse(parsed, 400);
+        return parsed.response;
       }
       const result = await service.create(parsed.value);
-      return jsonResponse(
-        result.ok ? { ok: true, data: result.value } : result,
-        result.ok
-          ? COMMERCE_HTTP_CONTRACT.routes.createOrder.successStatus
-          : orderErrorStatus(result.error),
-      );
+      return result.ok
+        ? jsonResponse(
+            { ok: true, value: result.value },
+            COMMERCE_HTTP_CONTRACT.routes.createOrder.successStatus,
+          )
+        : jsonResponse(
+            { ok: false, error: result.error },
+            orderErrorStatus(result.error),
+          );
     },
   },
   {
@@ -52,22 +55,13 @@ export const orderRoutes = (service: OrderService): readonly Route[] => [
     path: COMMERCE_HTTP_CONTRACT.routes.getOrder.path,
     permission: COMMERCE_HTTP_CONTRACT.routes.getOrder.permission,
     async handle({ params }) {
-      const id = normalizedPathId(params["id"]);
-      if (id === undefined) return invalidInputResponse();
-      const order = await service.get(id);
+      const id = parsePathId("id", params["id"]);
+      if (!id.ok) return id.response;
+      const order = await service.get(id.value);
       return order === undefined
-        ? jsonResponse(
-            {
-              ok: false,
-              error: {
-                code: COMMERCE_ERRORS.orderNotFound.code,
-                message: COMMERCE_ERRORS.orderNotFound.message,
-              },
-            },
-            COMMERCE_ERRORS.orderNotFound.status,
-          )
+        ? domainErrorResponse(COMMERCE_ERRORS.orderNotFound, { id: id.value })
         : jsonResponse(
-            { ok: true, data: order },
+            { ok: true, value: order },
             COMMERCE_HTTP_CONTRACT.routes.getOrder.successStatus,
           );
     },
@@ -78,7 +72,7 @@ export const orderRoutes = (service: OrderService): readonly Route[] => [
     permission: COMMERCE_HTTP_CONTRACT.routes.listEvents.permission,
     async handle() {
       return jsonResponse(
-        { ok: true, data: await service.events() },
+        { ok: true, value: await service.events() },
         COMMERCE_HTTP_CONTRACT.routes.listEvents.successStatus,
       );
     },

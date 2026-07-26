@@ -1,4 +1,3 @@
-import { COMMERCE_ERRORS } from "@agentix/shared-contract";
 import { z } from "zod";
 
 import { failure, success } from "../../domain/result.js";
@@ -83,27 +82,31 @@ export interface OrderIdGenerator {
 
 export interface CustomerNotFound {
   readonly code: "CUSTOMER_NOT_FOUND";
-  readonly message: "Customer not found.";
+  readonly details: { readonly id: string };
 }
 
 export interface ProductNotFound {
   readonly code: "PRODUCT_NOT_FOUND";
-  readonly message: "Product not found.";
+  readonly details: { readonly id: string };
 }
 
 export interface CustomerSuspended {
   readonly code: "CUSTOMER_SUSPENDED";
-  readonly message: "Customer is suspended.";
+  readonly details: { readonly id: string };
 }
 
 export interface OutOfStock {
   readonly code: "OUT_OF_STOCK";
-  readonly message: "Insufficient product stock.";
+  readonly details: {
+    readonly productId: string;
+    readonly requested: number;
+    readonly available: number;
+  };
 }
 
 export interface PaymentDeclined {
   readonly code: "PAYMENT_DECLINED";
-  readonly message: "Payment was declined.";
+  readonly details: Record<string, never>;
 }
 
 export type CreateOrderError =
@@ -112,22 +115,6 @@ export type CreateOrderError =
   | CustomerSuspended
   | OutOfStock
   | PaymentDeclined;
-
-const domainError = <
-  const TError extends { readonly code: string; readonly message: string },
->(
-  error: TError,
-): Pick<TError, "code" | "message"> => ({
-  code: error.code,
-  message: error.message,
-});
-
-const errors = {
-  customerNotFound: domainError(COMMERCE_ERRORS.customerNotFound),
-  productNotFound: domainError(COMMERCE_ERRORS.productNotFound),
-  customerSuspended: domainError(COMMERCE_ERRORS.customerSuspended),
-  outOfStock: domainError(COMMERCE_ERRORS.outOfStock),
-} as const;
 
 export class OrderService {
   #tail: Promise<void> = Promise.resolve();
@@ -172,18 +159,34 @@ export class OrderService {
   ): Promise<Result<Order, CreateOrderError>> {
     const customer = await this.customers.findCustomerById(input.customerId);
     if (customer === undefined) {
-      return failure(errors.customerNotFound);
+      return failure({
+        code: "CUSTOMER_NOT_FOUND",
+        details: { id: input.customerId },
+      });
     }
     if (customer.status === "suspended") {
-      return failure(errors.customerSuspended);
+      return failure({
+        code: "CUSTOMER_SUSPENDED",
+        details: { id: customer.id },
+      });
     }
 
     const product = await this.products.findProductById(input.productId);
     if (product === undefined) {
-      return failure(errors.productNotFound);
+      return failure({
+        code: "PRODUCT_NOT_FOUND",
+        details: { id: input.productId },
+      });
     }
     if (product.stock < input.quantity) {
-      return failure(errors.outOfStock);
+      return failure({
+        code: "OUT_OF_STOCK",
+        details: {
+          productId: product.id,
+          requested: input.quantity,
+          available: product.stock,
+        },
+      });
     }
 
     const totalCents = product.unitPriceCents * input.quantity;
@@ -237,7 +240,15 @@ export class OrderService {
     }
     const committed = await this.orders.commitPaidOrder({ order, payment, event });
     if (committed === "insufficient-stock") {
-      return failure(errors.outOfStock);
+      const current = await this.products.findProductById(product.id);
+      return failure({
+        code: "OUT_OF_STOCK",
+        details: {
+          productId: product.id,
+          requested: input.quantity,
+          available: current?.stock ?? 0,
+        },
+      });
     }
     if (committed === "duplicate-order") {
       throw new Error(`Order ID ${id} already exists.`);

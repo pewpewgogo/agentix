@@ -1,41 +1,40 @@
-import { associateOperationTest } from "@agentix/testing";
+import { associateOperationTest, testHttp } from "@agentix/testing";
 import { describe, expect, it } from "vitest";
 
-import { createNote, getNote } from "./features/notes/operations.js";
-import { createNotesSystem } from "./system.js";
+import { createNotesApp } from "./app.js";
+import { notes } from "./features/notes.js";
 
-export const createNoteBehavior = associateOperationTest(
-  createNote,
-  "notes.create.behavior",
-);
-export const getNoteBehavior = associateOperationTest(
-  getNote,
-  "notes.get.behavior",
-);
+associateOperationTest(notes.operations.create);
+associateOperationTest(notes.operations.get);
 
-describe("Agentix notes", () => {
+describe("Agentix notes over HTTP", () => {
   it("creates and gets a note", async () => {
-    const system = createNotesSystem();
-    const created = await system.create({ id: "note-1", title: " First ", body: "Body" });
-    const loaded = await system.get("note-1");
+    const http = testHttp(createNotesApp().handler);
+    const created = await http.post("/notes", { id: "note-1", title: " First ", body: "Body" });
+    const loaded = await http.get("/notes/note-1");
 
-    expect(created).toEqual({
+    expect(created.status).toBe(201);
+    expect(created.body).toEqual({
       ok: true,
       value: { id: "note-1", title: "First", body: "Body" },
     });
-    expect(loaded).toEqual(created);
+    expect(loaded.status).toBe(200);
+    expect(loaded.body).toEqual(created.body);
   });
 
   it("returns stable duplicate and missing-note failures", async () => {
-    const system = createNotesSystem();
-    await system.create({ id: "note-1", title: "First", body: "Body" });
+    const http = testHttp(createNotesApp().handler);
+    await http.post("/notes", { id: "note-1", title: "First", body: "Body" });
 
-    expect(await system.create({ id: "note-1", title: "Again", body: "Body" }))
-      .toEqual({
-        ok: false,
-        error: { code: "NOTE_ALREADY_EXISTS", details: { id: "note-1" } },
-      });
-    expect(await system.get("missing")).toEqual({
+    const dup = await http.post("/notes", { id: "note-1", title: "Again", body: "Body" });
+    expect(dup.status).toBe(409);
+    expect(dup.body).toEqual({
+      ok: false,
+      error: { code: "NOTE_ALREADY_EXISTS", details: { id: "note-1" } },
+    });
+    const missing = await http.get("/notes/missing");
+    expect(missing.status).toBe(404);
+    expect(missing.body).toEqual({
       ok: false,
       error: { code: "NOTE_NOT_FOUND", details: { id: "missing" } },
     });

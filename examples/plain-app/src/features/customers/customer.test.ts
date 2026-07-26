@@ -38,7 +38,7 @@ describe("customers", () => {
     expect(created.status).toBe(201);
     await expect(created.json()).resolves.toEqual({
       ok: true,
-      data: {
+      value: {
         id: "customer-1",
         name: "Ada",
         status: "active",
@@ -52,7 +52,7 @@ describe("customers", () => {
     expect(found.status).toBe(200);
     await expect(found.json()).resolves.toMatchObject({
       ok: true,
-      data: { id: "customer-1", status: "active" },
+      value: { id: "customer-1", status: "active" },
     });
   });
 
@@ -69,7 +69,7 @@ describe("customers", () => {
     expect(forbidden.status).toBe(403);
     await expect(forbidden.json()).resolves.toEqual({
       ok: false,
-      error: { code: "FORBIDDEN", message: "Permission denied." },
+      error: { code: "PERMISSION_DENIED" },
     });
 
     const invalid = await system.handle(

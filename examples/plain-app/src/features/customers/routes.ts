@@ -5,10 +5,10 @@ import {
 
 import type { Route } from "../../http/router.js";
 import {
-  invalidInputResponse,
+  domainErrorResponse,
   jsonResponse,
-  normalizedPathId,
   parseJson,
+  parsePathId,
 } from "../../http/router.js";
 import { createCustomerInputSchema } from "./customer.js";
 import type { CustomerService } from "./customer.js";
@@ -21,15 +21,18 @@ export const customerRoutes = (service: CustomerService): readonly Route[] => [
     async handle({ request }) {
       const parsed = await parseJson(request, createCustomerInputSchema);
       if (!parsed.ok) {
-        return jsonResponse(parsed, 400);
+        return parsed.response;
       }
       const result = await service.create(parsed.value);
-      return jsonResponse(
-        result.ok ? { ok: true, data: result.value } : result,
-        result.ok
-          ? COMMERCE_HTTP_CONTRACT.routes.createCustomer.successStatus
-          : COMMERCE_ERRORS.customerExists.status,
-      );
+      return result.ok
+        ? jsonResponse(
+            { ok: true, value: result.value },
+            COMMERCE_HTTP_CONTRACT.routes.createCustomer.successStatus,
+          )
+        : domainErrorResponse(
+            COMMERCE_ERRORS.customerExists,
+            result.error.details,
+          );
     },
   },
   {
@@ -37,22 +40,15 @@ export const customerRoutes = (service: CustomerService): readonly Route[] => [
     path: COMMERCE_HTTP_CONTRACT.routes.getCustomer.path,
     permission: COMMERCE_HTTP_CONTRACT.routes.getCustomer.permission,
     async handle({ params }) {
-      const id = normalizedPathId(params["id"]);
-      if (id === undefined) return invalidInputResponse();
-      const customer = await service.get(id);
+      const id = parsePathId("id", params["id"]);
+      if (!id.ok) return id.response;
+      const customer = await service.get(id.value);
       return customer === undefined
-        ? jsonResponse(
-            {
-              ok: false,
-              error: {
-                code: COMMERCE_ERRORS.customerNotFound.code,
-                message: COMMERCE_ERRORS.customerNotFound.message,
-              },
-            },
-            COMMERCE_ERRORS.customerNotFound.status,
-          )
+        ? domainErrorResponse(COMMERCE_ERRORS.customerNotFound, {
+            id: id.value,
+          })
         : jsonResponse(
-            { ok: true, data: customer },
+            { ok: true, value: customer },
             COMMERCE_HTTP_CONTRACT.routes.getCustomer.successStatus,
           );
     },

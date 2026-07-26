@@ -4,10 +4,10 @@ import { checkArchitecture } from "@agentix/compiler";
 import { associateOperationTest } from "@agentix/testing";
 import { describe, expect, it } from "vitest";
 
-import { createOrder } from "./features/orders/operations.js";
+import { orders } from "./features/orders.js";
 
 export const createOrderArchitectureTest = associateOperationTest(
-  createOrder,
+  orders.operations.create,
   "orders.create.architecture",
 );
 

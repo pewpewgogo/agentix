@@ -22,7 +22,7 @@ export class ScriptedPaymentGateway implements PaymentGateway {
       ? success("approved" as const)
       : failure({
           code: "PAYMENT_DECLINED" as const,
-          message: "Payment was declined." as const,
+          details: {},
         });
   }
 }

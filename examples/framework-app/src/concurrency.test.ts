@@ -6,10 +6,10 @@ import { associateOperationTest } from "@agentix/testing";
 import { describe, expect, it } from "vitest";
 
 import { createFrameworkSystem } from "./application.js";
-import { createOrder } from "./features/orders/operations.js";
+import { orders } from "./features/orders.js";
 
 export const createOrderConcurrencyTest = associateOperationTest(
-  createOrder,
+  orders.operations.create,
   "orders.create.concurrency",
 );
 
@@ -31,7 +31,7 @@ const request = (
 describe("order stock reservation", () => {
   it("allows only one concurrent order to consume the last stock item", async () => {
     let orderNumber = 0;
-    const system = await createFrameworkSystem({
+    const system = createFrameworkSystem({
       now: () => "2040-10-01T00:00:00.000Z",
       orderIds: () => `order-${++orderNumber}`,
     });
@@ -74,7 +74,7 @@ describe("order stock reservation", () => {
       ok: false,
       error: {
         code: COMMERCE_ERRORS.outOfStock.code,
-        message: COMMERCE_ERRORS.outOfStock.message,
+        details: { productId: "product-1", requested: 1, available: 0 },
       },
     });
     expect(await system.snapshot()).toMatchObject({
@@ -88,7 +88,7 @@ describe("order stock reservation", () => {
 
   it("releases reserved stock when a later declared effect faults", async () => {
     let clockCalls = 0;
-    const system = await createFrameworkSystem({
+    const system = createFrameworkSystem({
       now: () => {
         clockCalls += 1;
         if (clockCalls === 3) throw new Error("order clock failed");
@@ -117,6 +117,10 @@ describe("order stock reservation", () => {
     ));
 
     expect(response.status).toBe(COMMERCE_ERRORS.internal.status);
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: { code: COMMERCE_ERRORS.internal.code },
+    });
     expect(await system.snapshot()).toMatchObject({
       products: [{ stock: 2 }],
       orders: [],
@@ -129,7 +133,7 @@ describe("order stock reservation", () => {
 describe("entity creation claims", () => {
   it("releases a customer claim when a declared clock adapter throws", async () => {
     let calls = 0;
-    const system = await createFrameworkSystem({
+    const system = createFrameworkSystem({
       now: () => {
         calls += 1;
         if (calls === 1) throw new Error("clock failed");
