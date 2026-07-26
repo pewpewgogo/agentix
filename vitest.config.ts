@@ -37,6 +37,7 @@ export default defineConfig({
       "**/node_modules/**",
       "**/dist/**",
       "packages/**/test/fixtures/**",
+      "packages/**/test/_v1/**",
       "benchmarks/fixtures/**"
     ],
     environment: "node",

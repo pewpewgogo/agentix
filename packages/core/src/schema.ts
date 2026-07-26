@@ -2,6 +2,7 @@ export type SchemaPathSegment = string | number;
 
 export type SchemaIssueCode =
   | "invalid_type"
+  | "invalid_string"
   | "invalid_number"
   | "invalid_literal"
   | "required"
@@ -20,8 +21,19 @@ export interface SchemaIssue {
 export type LiteralValue = string | number | boolean | null;
 
 export type SchemaDescription =
-  | { readonly type: "string" }
-  | { readonly type: "number" }
+  | {
+      readonly type: "string";
+      readonly min?: number;
+      readonly max?: number;
+      readonly trim?: boolean;
+      readonly pattern?: string;
+    }
+  | {
+      readonly type: "number";
+      readonly min?: number;
+      readonly max?: number;
+      readonly int?: boolean;
+    }
   | { readonly type: "boolean" }
   | { readonly type: "literal"; readonly value: LiteralValue }
   | { readonly type: "array"; readonly item: SchemaDescription }
@@ -64,6 +76,8 @@ export interface OptionalSchema<T> extends Schema<T | undefined> {
   readonly inner: Schema<T>;
 }
 
+export type SchemaShape = Readonly<Record<string, Schema<unknown>>>;
+
 export type Infer<S extends Schema<unknown>> =
   S extends Schema<infer T> ? T : never;
 
@@ -83,52 +97,57 @@ export class SchemaValidationError extends TypeError {
   }
 }
 
-type Parser<T> = (
-  value: unknown,
-  path: readonly SchemaPathSegment[],
-) => ParseResult<T>;
+type Parser<T> = (value: unknown) => ParseResult<T>;
 
-const success = <T>(data: T): ParseSuccess<T> =>
-  Object.freeze({ success: true, data });
+const success = <T>(data: T): ParseSuccess<T> => ({ success: true, data });
 
-const failure = (...issues: readonly SchemaIssue[]): ParseFailure =>
-  Object.freeze({ success: false, issues: Object.freeze([...issues]) });
+const failure = (...issues: readonly SchemaIssue[]): ParseFailure => ({
+  success: false,
+  issues,
+});
 
+/** Issues start with a root-relative path; parents prefix keys on failure only. */
 const issue = (
   code: SchemaIssueCode,
-  path: readonly SchemaPathSegment[],
   message: string,
+  segment?: SchemaPathSegment,
   causes?: readonly SchemaIssue[],
 ): SchemaIssue => {
-  const base = {
-    code,
-    path: Object.freeze([...path]),
-    message,
-  };
-  return Object.freeze(
-    causes === undefined
-      ? base
-      : { ...base, causes: Object.freeze([...causes]) },
-  );
+  const path: readonly SchemaPathSegment[] = segment === undefined ? [] : [segment];
+  return causes === undefined
+    ? { code, path, message }
+    : { code, path, message, causes };
 };
+
+/** Lazy path construction: only failing branches pay for path arrays. */
+const prefixIssues = (
+  segment: SchemaPathSegment,
+  issues: readonly SchemaIssue[],
+): SchemaIssue[] =>
+  issues.map((entry) =>
+    entry.causes === undefined
+      ? { code: entry.code, path: [segment, ...entry.path], message: entry.message }
+      : {
+          code: entry.code,
+          path: [segment, ...entry.path],
+          message: entry.message,
+          causes: entry.causes,
+        },
+  );
 
 const createSchema = <T>(
   description: SchemaDescription,
   parser: Parser<T>,
-): Schema<T> => {
-  const safeParse = (value: unknown): ParseResult<T> => parser(value, []);
-  return Object.freeze({
+): Schema<T> =>
+  Object.freeze({
     description,
-    safeParse,
+    safeParse: parser,
     parse(value: unknown): T {
-      const result = safeParse(value);
-      if (result.success) {
-        return result.data;
-      }
+      const result = parser(value);
+      if (result.success) return result.data;
       throw new SchemaValidationError(result.issues);
     },
   });
-};
 
 const describeValue = (value: unknown): string => {
   if (value === null) return "null";
@@ -137,59 +156,133 @@ const describeValue = (value: unknown): string => {
   return typeof value;
 };
 
-export const string = (): Schema<string> =>
-  createSchema(Object.freeze({ type: "string" }), (value, path) =>
-    typeof value === "string"
-      ? success(value)
-      : failure(
-          issue(
-            "invalid_type",
-            path,
-            `Expected string, received ${describeValue(value)}`,
-          ),
-        ),
-  );
+const assertLengthBound = (value: number | undefined, label: string): void => {
+  if (value === undefined) return;
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new TypeError(`${label} must be a non-negative safe integer`);
+  }
+};
 
-export const number = (): Schema<number> =>
-  createSchema(Object.freeze({ type: "number" }), (value, path) => {
-    if (typeof value !== "number") {
-      return failure(
-        issue(
-          "invalid_type",
-          path,
-          `Expected number, received ${describeValue(value)}`,
-        ),
-      );
-    }
-    return Number.isFinite(value)
-      ? success(value)
-      : failure(issue("invalid_number", path, "Expected a finite number"));
+const assertNumericBound = (value: number | undefined, label: string): void => {
+  if (value !== undefined && !Number.isFinite(value)) {
+    throw new TypeError(`${label} must be a finite number`);
+  }
+};
+
+export interface StringOptions {
+  readonly min?: number;
+  readonly max?: number;
+  /** The only transform: runs before length/pattern validation. */
+  readonly trim?: boolean;
+  readonly pattern?: RegExp;
+}
+
+export const string = (options: StringOptions = {}): Schema<string> => {
+  const { min, max } = options;
+  const trim = options.trim === true;
+  assertLengthBound(min, "string min");
+  assertLengthBound(max, "string max");
+  if (min !== undefined && max !== undefined && min > max) {
+    throw new TypeError("string min must not exceed max");
+  }
+  // Copy without sticky/global flags so shared schemas never carry lastIndex state.
+  const pattern =
+    options.pattern === undefined
+      ? undefined
+      : new RegExp(options.pattern.source, options.pattern.flags.replace(/[gy]/gu, ""));
+
+  const description: SchemaDescription = Object.freeze({
+    type: "string",
+    ...(min === undefined ? {} : { min }),
+    ...(max === undefined ? {} : { max }),
+    ...(trim ? { trim } : {}),
+    ...(pattern === undefined ? {} : { pattern: pattern.source }),
   });
 
+  return createSchema(description, (value) => {
+    if (typeof value !== "string") {
+      return failure(
+        issue("invalid_type", `Expected string, received ${describeValue(value)}`),
+      );
+    }
+    const text = trim ? value.trim() : value;
+    if (min !== undefined && text.length < min) {
+      return failure(
+        issue("invalid_string", `Expected at least ${min} character(s)`),
+      );
+    }
+    if (max !== undefined && text.length > max) {
+      return failure(
+        issue("invalid_string", `Expected at most ${max} character(s)`),
+      );
+    }
+    if (pattern !== undefined && !pattern.test(text)) {
+      return failure(
+        issue("invalid_string", `Expected string matching /${pattern.source}/`),
+      );
+    }
+    return success(text);
+  });
+};
+
+export interface NumberOptions {
+  readonly min?: number;
+  readonly max?: number;
+  readonly int?: boolean;
+}
+
+export const number = (options: NumberOptions = {}): Schema<number> => {
+  const { min, max } = options;
+  const int = options.int === true;
+  assertNumericBound(min, "number min");
+  assertNumericBound(max, "number max");
+  if (min !== undefined && max !== undefined && min > max) {
+    throw new TypeError("number min must not exceed max");
+  }
+
+  const description: SchemaDescription = Object.freeze({
+    type: "number",
+    ...(min === undefined ? {} : { min }),
+    ...(max === undefined ? {} : { max }),
+    ...(int ? { int } : {}),
+  });
+
+  return createSchema(description, (value) => {
+    if (typeof value !== "number") {
+      return failure(
+        issue("invalid_type", `Expected number, received ${describeValue(value)}`),
+      );
+    }
+    if (!Number.isFinite(value)) {
+      return failure(issue("invalid_number", "Expected a finite number"));
+    }
+    if (int && !Number.isInteger(value)) {
+      return failure(issue("invalid_number", "Expected an integer"));
+    }
+    if (min !== undefined && value < min) {
+      return failure(issue("invalid_number", `Expected a number >= ${min}`));
+    }
+    if (max !== undefined && value > max) {
+      return failure(issue("invalid_number", `Expected a number <= ${max}`));
+    }
+    return success(value);
+  });
+};
+
 export const boolean = (): Schema<boolean> =>
-  createSchema(Object.freeze({ type: "boolean" }), (value, path) =>
+  createSchema(Object.freeze({ type: "boolean" }), (value) =>
     typeof value === "boolean"
       ? success(value)
       : failure(
-          issue(
-            "invalid_type",
-            path,
-            `Expected boolean, received ${describeValue(value)}`,
-          ),
+          issue("invalid_type", `Expected boolean, received ${describeValue(value)}`),
         ),
   );
 
 export const literal = <const T extends LiteralValue>(value: T): Schema<T> =>
-  createSchema(Object.freeze({ type: "literal", value }), (input, path) =>
+  createSchema(Object.freeze({ type: "literal", value }), (input) =>
     Object.is(input, value)
       ? success(value)
-      : failure(
-          issue(
-            "invalid_literal",
-            path,
-            `Expected literal ${JSON.stringify(value)}`,
-          ),
-        ),
+      : failure(issue("invalid_literal", `Expected literal ${JSON.stringify(value)}`)),
   );
 
 export const array = <S extends Schema<unknown>>(
@@ -197,29 +290,24 @@ export const array = <S extends Schema<unknown>>(
 ): Schema<readonly Infer<S>[]> =>
   createSchema<readonly Infer<S>[]>(
     Object.freeze({ type: "array", item: item.description }),
-    (value, path) => {
+    (value) => {
       if (!Array.isArray(value)) {
         return failure(
-          issue(
-            "invalid_type",
-            path,
-            `Expected array, received ${describeValue(value)}`,
-          ),
+          issue("invalid_type", `Expected array, received ${describeValue(value)}`),
         );
       }
 
       const parsed: Infer<S>[] = [];
-      const issues: SchemaIssue[] = [];
-      value.forEach((entry, index) => {
-        const result = parseAt(item, entry, [...path, index]);
-        if (result.success) parsed.push(result.data);
-        else issues.push(...result.issues);
-      });
-      return issues.length > 0 ? failure(...issues) : success(Object.freeze(parsed));
+      let issues: SchemaIssue[] | undefined;
+      for (let index = 0; index < value.length; index += 1) {
+        const result = item.safeParse(value[index]);
+        if (result.success) parsed.push(result.data as Infer<S>);
+        else (issues ??= []).push(...prefixIssues(index, result.issues));
+      }
+      return issues === undefined ? success(parsed) : { success: false, issues };
     },
   );
 
-type SchemaShape = Readonly<Record<string, Schema<unknown>>>;
 type OptionalKey<S extends SchemaShape> = {
   [K in keyof S]: S[K] extends OptionalSchema<unknown> ? K : never;
 }[keyof S];
@@ -236,75 +324,100 @@ export type ObjectOutput<S extends SchemaShape> = Simplify<
   }
 >;
 
-export const object = <const S extends SchemaShape>(
-  shape: S,
-): Schema<ObjectOutput<S>> => {
-  const shapeSnapshot = Object.freeze({ ...shape }) as S;
-  const keys = Object.keys(shapeSnapshot).sort();
-  const fields = Object.freeze(
-    Object.fromEntries(keys.map((key) => [key, shapeSnapshot[key]?.description])),
-  ) as Readonly<Record<string, SchemaDescription>>;
+export interface ObjectSchema<S extends SchemaShape>
+  extends Schema<ObjectOutput<S>> {
+  readonly shape: S;
+}
 
-  return createSchema(
-    Object.freeze({ type: "object", fields }),
-    (value, path) => {
-      if (typeof value !== "object" || value === null || Array.isArray(value)) {
-        return failure(
-          issue(
-            "invalid_type",
-            path,
-            `Expected object, received ${describeValue(value)}`,
-          ),
+interface ObjectField {
+  readonly key: string;
+  readonly schema: Schema<unknown>;
+  readonly optional: boolean;
+}
+
+/** Strict object schema: unknown keys are rejected. */
+export const object = <const S extends SchemaShape>(shape: S): ObjectSchema<S> => {
+  const shapeSnapshot = Object.freeze({ ...shape }) as S;
+  // Keys sorted ONCE at creation; parse never re-sorts.
+  const keys = Object.keys(shapeSnapshot).sort();
+  const known = new Set(keys);
+  const fields: ObjectField[] = [];
+  const descriptionFields: Record<string, SchemaDescription> = {};
+  for (const key of keys) {
+    const field = shapeSnapshot[key];
+    if (field === undefined) continue;
+    fields.push({ key, schema: field, optional: isOptionalSchema(field) });
+    descriptionFields[key] = field.description;
+  }
+
+  const parser: Parser<ObjectOutput<S>> = (value) => {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      return failure(
+        issue("invalid_type", `Expected object, received ${describeValue(value)}`),
+      );
+    }
+
+    const source = value as Record<string, unknown>;
+    const parsed: Record<string, unknown> = {};
+    let issues: SchemaIssue[] | undefined;
+
+    for (const field of fields) {
+      if (!Object.prototype.hasOwnProperty.call(source, field.key)) {
+        if (!field.optional) {
+          (issues ??= []).push(issue("required", "Required field is missing", field.key));
+        }
+        continue;
+      }
+      const result = field.schema.safeParse(source[field.key]);
+      if (result.success) parsed[field.key] = result.data;
+      else (issues ??= []).push(...prefixIssues(field.key, result.issues));
+    }
+
+    for (const key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key) && !known.has(key)) {
+        (issues ??= []).push(
+          issue("unexpected_key", `Unexpected key ${JSON.stringify(key)}`, key),
         );
       }
+    }
 
-      const source = value as Record<string, unknown>;
-      const parsed: Record<string, unknown> = {};
-      const issues: SchemaIssue[] = [];
+    return issues === undefined
+      ? success(parsed as ObjectOutput<S>)
+      : { success: false, issues };
+  };
 
-      for (const key of keys) {
-        const field = shapeSnapshot[key];
-        if (field === undefined) continue;
-        const present = Object.prototype.hasOwnProperty.call(source, key);
-        if (!present && isOptionalSchema(field)) continue;
-        if (!present) {
-          issues.push(issue("required", [...path, key], "Required field is missing"));
-          continue;
-        }
-        const result = parseAt(field, source[key], [...path, key]);
-        if (result.success) parsed[key] = result.data;
-        else issues.push(...result.issues);
-      }
-
-      for (const key of Object.keys(source).sort()) {
-        if (!Object.prototype.hasOwnProperty.call(shapeSnapshot, key)) {
-          issues.push(
-            issue("unexpected_key", [...path, key], `Unexpected key ${JSON.stringify(key)}`),
-          );
-        }
-      }
-
-      return issues.length > 0
-        ? failure(...issues)
-        : success(parsed as ObjectOutput<S>);
+  return Object.freeze({
+    description: Object.freeze({
+      type: "object",
+      fields: Object.freeze(descriptionFields),
+    }) as SchemaDescription,
+    shape: shapeSnapshot,
+    safeParse: parser,
+    parse(value: unknown): ObjectOutput<S> {
+      const result = parser(value);
+      if (result.success) return result.data;
+      throw new SchemaValidationError(result.issues);
     },
-  );
+  });
 };
 
 export const optional = <S extends Schema<unknown>>(
   inner: S,
-): OptionalSchema<Infer<S>> => {
-  const base = createSchema<Infer<S> | undefined>(
-    Object.freeze({ type: "optional", inner: inner.description }),
-    (value, path) =>
-      value === undefined ? success(undefined) : parseAt(inner, value, path),
-  );
-  return Object.freeze({
-    ...base,
+): OptionalSchema<Infer<S>> =>
+  Object.freeze({
+    description: Object.freeze({ type: "optional", inner: inner.description }) as SchemaDescription,
     optional: true,
     inner: inner as Schema<Infer<S>>,
+    safeParse(value: unknown): ParseResult<Infer<S> | undefined> {
+      return value === undefined
+        ? success(undefined)
+        : (inner.safeParse(value) as ParseResult<Infer<S>>);
+    },
+    parse(value: unknown): Infer<S> | undefined {
+      if (value === undefined) return undefined;
+      return inner.parse(value) as Infer<S>;
+    },
   });
-};
 
 export const union = <const S extends readonly [Schema<unknown>, ...Schema<unknown>[]]>(
   options: S,
@@ -315,15 +428,15 @@ export const union = <const S extends readonly [Schema<unknown>, ...Schema<unkno
       type: "union",
       options: Object.freeze(optionsSnapshot.map((option) => option.description)),
     }),
-    (value, path) => {
-      const causes: SchemaIssue[] = [];
+    (value) => {
+      let causes: SchemaIssue[] | undefined;
       for (const option of optionsSnapshot) {
-        const result = parseAt(option, value, path);
+        const result = option.safeParse(value);
         if (result.success) return result as ParseSuccess<Infer<S[number]>>;
-        causes.push(...result.issues);
+        (causes ??= []).push(...result.issues);
       }
       return failure(
-        issue("invalid_union", path, "Value did not match any union option", causes),
+        issue("invalid_union", "Value did not match any union option", undefined, causes),
       );
     },
   );
@@ -351,15 +464,15 @@ export const refine = <S extends Schema<unknown>>(
       id: normalized.id,
       base: base.description,
     }),
-    (value, path) => {
-      const parsed = parseAt(base, value, path);
+    (value) => {
+      const parsed = base.safeParse(value) as ParseResult<Infer<S>>;
       if (!parsed.success) return parsed;
       try {
         return predicate(parsed.data)
           ? parsed
-          : failure(issue("refinement_failed", path, normalized.message));
+          : failure(issue("refinement_failed", normalized.message));
       } catch {
-        return failure(issue("refinement_failed", path, normalized.message));
+        return failure(issue("refinement_failed", normalized.message));
       }
     },
   );
@@ -369,33 +482,15 @@ export const id = <const Brand extends string>(
   brand: Brand,
 ): Schema<BrandedId<Brand>> => {
   if (brand.length === 0) throw new TypeError("ID brand must not be empty");
-  return createSchema(
-    Object.freeze({ type: "id", brand }),
-    (value, path) =>
-      typeof value === "string" && value.length > 0
-        ? success(value as BrandedId<Brand>)
-        : failure(
-            issue("invalid_id", path, `Expected a non-empty ${brand} id`),
-          ),
+  return createSchema(Object.freeze({ type: "id", brand }), (value) =>
+    typeof value === "string" && value.length > 0
+      ? success(value as BrandedId<Brand>)
+      : failure(issue("invalid_id", `Expected a non-empty ${brand} id`)),
   );
 };
 
 const isOptionalSchema = (value: Schema<unknown>): value is OptionalSchema<unknown> =>
-  "optional" in value && value.optional === true;
-
-const parseAt = <S extends Schema<unknown>>(
-  schemaValue: S,
-  value: unknown,
-  path: readonly SchemaPathSegment[],
-): ParseResult<Infer<S>> => {
-  const result = schemaValue.safeParse(value) as ParseResult<Infer<S>>;
-  if (path.length === 0 || result.success) return result;
-  return failure(
-    ...result.issues.map((entry) =>
-      issue(entry.code, [...path, ...entry.path], entry.message, entry.causes),
-    ),
-  );
-};
+  "optional" in value && (value as { optional?: unknown }).optional === true;
 
 const formatIssues = (issues: readonly SchemaIssue[]): string =>
   issues
@@ -404,17 +499,3 @@ const formatIssues = (issues: readonly SchemaIssue[]): string =>
       return `${path}: ${entry.message} [${entry.code}]`;
     })
     .join("; ");
-
-/** Namespace-style convenience without custom syntax or registration. */
-export const schema = Object.freeze({
-  string,
-  number,
-  boolean,
-  literal,
-  array,
-  object,
-  optional,
-  union,
-  refine,
-  id,
-});

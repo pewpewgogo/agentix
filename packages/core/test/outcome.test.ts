@@ -18,13 +18,18 @@ describe("Outcome", () => {
     expect(failed).toEqual({ ok: false, error: "missing" });
     expectTypeOf(failed).toEqualTypeOf<Outcome<number, "missing">>();
     expect(Object.isFrozen(failed)).toBe(true);
+    expect(Object.isFrozen(ok("value"))).toBe(true);
   });
 
   it("recognizes only the stable wire shape", () => {
     expect(isOutcome(ok("yes"))).toBe(true);
     expect(isOutcome(err("no"))).toBe(true);
+    expect(isOutcome({ ok: true, value: 1 })).toBe(true);
+    expect(isOutcome({ ok: false, error: "e" })).toBe(true);
     expect(isOutcome({ ok: true })).toBe(false);
     expect(isOutcome({ ok: false })).toBe(false);
+    expect(isOutcome({ ok: "yes", value: 1 })).toBe(false);
     expect(isOutcome(null)).toBe(false);
+    expect(isOutcome("ok")).toBe(false);
   });
 });

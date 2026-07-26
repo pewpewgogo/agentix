@@ -1,38 +1,87 @@
-import type { Outcome } from "./outcome.js";
-import type { Infer, Schema } from "./schema.js";
+import {
+  array,
+  boolean,
+  object,
+  optional,
+  type Infer,
+  type ObjectOutput,
+  type ObjectSchema,
+  type Schema,
+  type SchemaShape,
+} from "./schema.js";
 
 export type MaybePromise<T> = T | Promise<T>;
 
 export type EffectKind = "read" | "write" | "time" | "random" | "external";
 
-export type ErrorSchemaMap = Readonly<Record<string, Schema<unknown>>>;
+/* ------------------------------------------------------------------ */
+/* Errors: unified { http?, details? } declarations (amendment A7)    */
+/* ------------------------------------------------------------------ */
 
-export type DeclaredError<Errors extends ErrorSchemaMap> = {
+export interface ErrorConfig {
+  readonly http?: number;
+  readonly details?: Schema<unknown> | SchemaShape;
+}
+
+/** A bare Schema value is shorthand for `{ details: schema }`. */
+export type ErrorSpec = Schema<unknown> | ErrorConfig;
+
+export type ErrorSpecMap = Readonly<Record<string, ErrorSpec>>;
+
+export type ErrorDetails<Spec> = Spec extends Schema<infer T>
+  ? T
+  : Spec extends { readonly details: infer D }
+    ? D extends Schema<infer T>
+      ? T
+      : D extends infer Shape extends SchemaShape
+        ? ObjectOutput<Shape>
+        : never
+    : Record<string, never>;
+
+export type DeclaredError<Errors extends ErrorSpecMap> = {
   [Code in keyof Errors & string]: Readonly<{
     code: Code;
-    details: Infer<Errors[Code]>;
+    details: ErrorDetails<Errors[Code]>;
   }>;
 }[keyof Errors & string];
 
-export const domainError = <
-  const Code extends string,
-  Details,
->(code: Code, details: Details): Readonly<{ code: Code; details: Details }> =>
-  Object.freeze({ code, details });
+/** Marks failures produced by the injected `fail` so plain outputs stay unambiguous. */
+export const FAIL_RESULT: unique symbol = Symbol("agentix.fail");
 
-export interface UnboundPortOperationDescriptor<
-  Id extends string = string,
+export interface OperationFailure<E> {
+  readonly [FAIL_RESULT]: true;
+  readonly ok: false;
+  readonly error: E;
+}
+
+type FailArgs<Spec> = Spec extends Schema<infer T>
+  ? [details: T]
+  : Spec extends { readonly details: infer D }
+    ? D extends Schema<infer T>
+      ? [details: T]
+      : D extends infer Shape extends SchemaShape
+        ? [details: ObjectOutput<Shape>]
+        : never
+    : [details?: Record<string, never>];
+
+export type FailFn<Errors extends ErrorSpecMap> = <Code extends keyof Errors & string>(
+  code: Code,
+  ...details: FailArgs<Errors[Code]>
+) => OperationFailure<DeclaredError<Errors>>;
+
+/* ------------------------------------------------------------------ */
+/* Ports                                                              */
+/* ------------------------------------------------------------------ */
+
+export interface UnboundPortOperation<
   Kind extends EffectKind = EffectKind,
   Input extends Schema<unknown> = Schema<unknown>,
   Output extends Schema<unknown> = Schema<unknown>,
-  Errors extends ErrorSchemaMap = ErrorSchemaMap,
 > {
   readonly descriptorType: "port-operation";
-  readonly id: Id;
   readonly kind: Kind;
   readonly input: Input;
   readonly output: Output;
-  readonly errors: Errors;
 }
 
 export interface PortOperationDescriptor<
@@ -40,135 +89,306 @@ export interface PortOperationDescriptor<
   Kind extends EffectKind = EffectKind,
   Input extends Schema<unknown> = Schema<unknown>,
   Output extends Schema<unknown> = Schema<unknown>,
-  Errors extends ErrorSchemaMap = ErrorSchemaMap,
-  PortId extends string = string,
-> extends UnboundPortOperationDescriptor<Id, Kind, Input, Output, Errors> {
-  readonly portId: PortId;
-  readonly operationKey: string;
+> extends UnboundPortOperation<Kind, Input, Output> {
+  readonly id: Id;
+  readonly portId: string;
+  readonly opKey: string;
 }
 
-export type AnyPortOperationDescriptor = PortOperationDescriptor<
-  string,
-  EffectKind,
-  Schema<unknown>,
-  Schema<unknown>,
-  ErrorSchemaMap,
-  string
->;
+export type AnyPortOperation = PortOperationDescriptor;
 
-export const portOperation = <
-  const Id extends string,
-  const Kind extends EffectKind,
-  Input extends Schema<unknown>,
-  Output extends Schema<unknown>,
-  const Errors extends ErrorSchemaMap = Record<never, never>,
->(definition: {
-  readonly id: Id;
-  readonly kind: Kind;
-  readonly input: Input;
-  readonly output: Output;
-  readonly errors?: Errors;
-}): UnboundPortOperationDescriptor<Id, Kind, Input, Output, Errors> => {
-  assertStableId(definition.id, "Port operation");
-  return Object.freeze({
-    descriptorType: "port-operation",
-    id: definition.id,
-    kind: definition.kind,
-    input: definition.input,
-    output: definition.output,
-    errors: freezeRecord(definition.errors ?? {}) as Errors,
-  });
-};
-
-type UnboundOperationMap = Readonly<
-  Record<string, UnboundPortOperationDescriptor>
->;
-
-type BoundOperationMap<
-  PortId extends string,
-  Operations extends UnboundOperationMap,
-> = {
-  readonly [Key in keyof Operations]: Operations[Key] extends UnboundPortOperationDescriptor<
-    infer Id,
+export type BoundPortOperations<PortId extends string, Ops> = {
+  readonly [K in keyof Ops & string]: Ops[K] extends UnboundPortOperation<
     infer Kind,
     infer Input,
-    infer Output,
-    infer Errors
+    infer Output
   >
-    ? PortOperationDescriptor<Id, Kind, Input, Output, Errors, PortId>
+    ? PortOperationDescriptor<`${PortId}.${K}`, Kind, Input, Output>
     : never;
 };
+
+/**
+ * Effect functions injected into execute. Amendment A1: effects return plain
+ * (validated) values; unexpected adapter failures become dispatch faults.
+ */
+export type EffectHandler<Operation extends AnyPortOperation> = (
+  input: Infer<Operation["input"]>,
+) => Promise<Infer<Operation["output"]>>;
+
+/** Adapter implementations return plain values or throw (no Outcome wrapping). */
+export type AdapterHandler<Operation extends AnyPortOperation> = (
+  input: Infer<Operation["input"]>,
+) => MaybePromise<Infer<Operation["output"]>>;
+
+// The conditional guard is load-bearing: it keeps specific instantiations
+// assignable to the Any* top types under strictFunctionTypes.
+export type PortImplementation<Ops extends Record<string, AnyPortOperation>> = {
+  readonly [K in keyof Ops]: Ops[K] extends AnyPortOperation
+    ? AdapterHandler<Ops[K]>
+    : never;
+};
+
+// Non-generic on purpose: keeps PortDescriptor.Ops covariant. The runtime
+// carries the specific handlers; the type system treats them opaquely.
+export interface BoundPortAdapter {
+  readonly descriptorType: "port-adapter";
+  readonly portId: string;
+  readonly operations: Readonly<Record<string, (input: never) => unknown>>;
+}
 
 export interface PortDescriptor<
   Id extends string = string,
-  Operations extends Readonly<Record<string, AnyPortOperationDescriptor>> = Readonly<
-    Record<string, AnyPortOperationDescriptor>
-  >,
+  Ops extends Record<string, AnyPortOperation> = Record<string, AnyPortOperation>,
 > {
   readonly descriptorType: "port";
   readonly id: Id;
-  readonly operations: Operations;
+  readonly operations: Ops;
+  adapter(implementation: PortImplementation<Ops>): BoundPortAdapter;
 }
 
-export const definePort = <
-  const Id extends string,
-  const Operations extends UnboundOperationMap,
->(definition: {
-  readonly id: Id;
-  readonly operations: Operations;
-}): PortDescriptor<Id, BoundOperationMap<Id, Operations>> => {
-  assertStableId(definition.id, "Port");
-  const seen = new Set<string>();
-  const operations: Record<string, AnyPortOperationDescriptor> = {};
-  for (const key of Object.keys(definition.operations).sort()) {
-    const operation = definition.operations[key];
-    if (operation === undefined) continue;
-    if (seen.has(operation.id)) {
-      throw new TypeError(`Duplicate port operation id ${JSON.stringify(operation.id)}`);
+export type AnyPort = PortDescriptor;
+
+// Validation intersection: rejects non-port-op properties at the call site
+// WITHOUT giving the argument a concrete contextual type (which would poison
+// inner generic defaults).
+export type ValidPortOps<Ops> = {
+  readonly [K in keyof Ops]: Ops[K] extends UnboundPortOperation
+    ? Ops[K]
+    : UnboundPortOperation;
+};
+
+export interface PortOperationFactory<Kind extends EffectKind> {
+  <Input extends Schema<unknown>, Output extends Schema<unknown>>(definition: {
+    readonly input: Input;
+    readonly output: Output;
+  }): UnboundPortOperation<Kind, Input, Output>;
+}
+
+export type StoreShape = SchemaShape & { readonly id: Schema<unknown> };
+
+export type StoreOperations<PortId extends string, Shape extends StoreShape> = {
+  readonly get: PortOperationDescriptor<
+    `${PortId}.get`,
+    "read",
+    Shape["id"],
+    Schema<ObjectOutput<Shape> | undefined>
+  >;
+  readonly save: PortOperationDescriptor<
+    `${PortId}.save`,
+    "write",
+    ObjectSchema<Shape>,
+    ObjectSchema<Shape>
+  >;
+  readonly delete: PortOperationDescriptor<
+    `${PortId}.delete`,
+    "write",
+    Shape["id"],
+    Schema<boolean>
+  >;
+  readonly list: PortOperationDescriptor<
+    `${PortId}.list`,
+    "read",
+    ObjectSchema<Record<never, never>>,
+    Schema<readonly ObjectOutput<Shape>[]>
+  >;
+};
+
+export type StorePort<PortId extends string, Shape extends StoreShape> =
+  PortDescriptor<PortId, StoreOperations<PortId, Shape>> &
+    StoreOperations<PortId, Shape> & {
+      /** Built-in Map-backed adapter keyed by the record's `id` field. */
+      memory(): BoundPortAdapter;
+    };
+
+export interface PortFactory {
+  <const Id extends string, const Ops extends Readonly<Record<string, unknown>>>(
+    id: Id,
+    operations: Ops & ValidPortOps<Ops>,
+  ): PortDescriptor<Id, BoundPortOperations<Id, Ops>> & BoundPortOperations<Id, Ops>;
+  readonly read: PortOperationFactory<"read">;
+  readonly write: PortOperationFactory<"write">;
+  readonly time: PortOperationFactory<"time">;
+  readonly random: PortOperationFactory<"random">;
+  readonly external: PortOperationFactory<"external">;
+  store<const Id extends string, Shape extends StoreShape>(
+    id: Id,
+    schema: ObjectSchema<Shape>,
+  ): StorePort<Id, Shape>;
+}
+
+const isSchema = (value: unknown): value is Schema<unknown> =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as { safeParse?: unknown }).safeParse === "function" &&
+  typeof (value as { parse?: unknown }).parse === "function";
+
+const isUnboundPortOperation = (value: unknown): value is UnboundPortOperation =>
+  typeof value === "object" &&
+  value !== null &&
+  (value as { descriptorType?: unknown }).descriptorType === "port-operation" &&
+  !("id" in value);
+
+const isBoundPortOperation = (value: unknown): value is AnyPortOperation =>
+  typeof value === "object" &&
+  value !== null &&
+  (value as { descriptorType?: unknown }).descriptorType === "port-operation" &&
+  typeof (value as { id?: unknown }).id === "string" &&
+  typeof (value as { portId?: unknown }).portId === "string" &&
+  typeof (value as { opKey?: unknown }).opKey === "string";
+
+const bindPortOperation = (
+  portId: string,
+  opKey: string,
+  kind: EffectKind,
+  input: Schema<unknown>,
+  output: Schema<unknown>,
+): AnyPortOperation =>
+  Object.freeze({
+    descriptorType: "port-operation",
+    id: `${portId}.${opKey}`,
+    kind,
+    input,
+    output,
+    portId,
+    opKey,
+  });
+
+const createAdapter = (
+  portId: string,
+  operations: Readonly<Record<string, AnyPortOperation>>,
+  implementation: Readonly<Record<string, unknown>>,
+): BoundPortAdapter => {
+  const handlers: Record<string, (input: never) => unknown> = {};
+  for (const key of Object.keys(operations)) {
+    const handler = implementation[key];
+    if (typeof handler !== "function") {
+      throw new TypeError(
+        `Adapter for port ${portId} must implement operation ${JSON.stringify(key)}`,
+      );
     }
-    seen.add(operation.id);
-    operations[key] = Object.freeze({
-      ...operation,
-      portId: definition.id,
-      operationKey: key,
-    }) as AnyPortOperationDescriptor;
+    handlers[key] = handler as (input: never) => unknown;
   }
   return Object.freeze({
-    descriptorType: "port",
-    id: definition.id,
-    operations: Object.freeze(operations) as BoundOperationMap<Id, Operations>,
-  });
-};
-
-export type EffectHandler<Operation extends AnyPortOperationDescriptor> = (
-  input: Infer<Operation["input"]>,
-) => MaybePromise<
-  Outcome<Infer<Operation["output"]>, DeclaredError<Operation["errors"]>>
->;
-
-export type PortImplementation<Port extends PortDescriptor> = {
-  readonly [Key in keyof Port["operations"]]: Port["operations"][Key] extends AnyPortOperationDescriptor
-    ? EffectHandler<Port["operations"][Key]>
-    : never;
-};
-
-export interface BoundPortAdapter<Port extends PortDescriptor = PortDescriptor> {
-  readonly descriptorType: "port-adapter";
-  readonly port: Port;
-  readonly operations: PortImplementation<Port>;
-}
-
-export const bindPort = <Port extends PortDescriptor>(
-  port: Port,
-  implementation: PortImplementation<Port>,
-): BoundPortAdapter<Port> =>
-  Object.freeze({
     descriptorType: "port-adapter",
-    port,
-    operations: freezeRecord(implementation),
+    portId,
+    operations: Object.freeze(handlers),
   });
+};
 
-export const defineAdapter = bindPort;
+/**
+ * Builds the port descriptor and attaches each operation as a top-level
+ * property (amendment A4), colliding-checked against reserved keys.
+ */
+const createPortObject = (
+  id: string,
+  operations: Readonly<Record<string, AnyPortOperation>>,
+): Record<string, unknown> => {
+  const frozenOperations = Object.freeze({ ...operations });
+  const descriptor: Record<string, unknown> = {
+    descriptorType: "port",
+    id,
+    operations: frozenOperations,
+    adapter: (implementation: Readonly<Record<string, unknown>>) =>
+      createAdapter(id, frozenOperations, implementation),
+  };
+  for (const key of Object.keys(frozenOperations)) {
+    if (key in descriptor) {
+      throw new TypeError(
+        `Port ${id} operation key ${JSON.stringify(key)} collides with a reserved port property`,
+      );
+    }
+    descriptor[key] = frozenOperations[key];
+  }
+  return descriptor;
+};
+
+const portFunction = (
+  id: string,
+  operations: Readonly<Record<string, unknown>>,
+): Record<string, unknown> => {
+  assertStableId(id, "Port");
+  const bound: Record<string, AnyPortOperation> = {};
+  for (const key of Object.keys(operations)) {
+    const operation = operations[key];
+    if (!isUnboundPortOperation(operation)) {
+      throw new TypeError(
+        `Port ${id} operation ${JSON.stringify(key)} must be created with port.read/write/time/random/external`,
+      );
+    }
+    assertOperationKey(key, `Port ${id}`);
+    bound[key] = bindPortOperation(id, key, operation.kind, operation.input, operation.output);
+  }
+  return Object.freeze(createPortObject(id, bound));
+};
+
+const portOperationFactory =
+  (kind: EffectKind) =>
+  (definition: { readonly input: Schema<unknown>; readonly output: Schema<unknown> }): UnboundPortOperation => {
+    if (!isSchema(definition.input) || !isSchema(definition.output)) {
+      throw new TypeError(`Port operation (${kind}) requires input and output schemas`);
+    }
+    return Object.freeze({
+      descriptorType: "port-operation",
+      kind,
+      input: definition.input,
+      output: definition.output,
+    });
+  };
+
+const storeFunction = (
+  id: string,
+  schema: ObjectSchema<SchemaShape>,
+): Record<string, unknown> => {
+  assertStableId(id, "Port");
+  if (!isSchema(schema) || !("shape" in schema)) {
+    throw new TypeError(`port.store(${JSON.stringify(id)}) requires an object schema`);
+  }
+  const idSchema = schema.shape["id"];
+  if (idSchema === undefined) {
+    throw new TypeError(
+      `port.store(${JSON.stringify(id)}) requires an object schema with an "id" field`,
+    );
+  }
+  const operations: Record<string, AnyPortOperation> = {
+    get: bindPortOperation(id, "get", "read", idSchema, optional(schema)),
+    save: bindPortOperation(id, "save", "write", schema, schema),
+    delete: bindPortOperation(id, "delete", "write", idSchema, boolean()),
+    list: bindPortOperation(id, "list", "read", object({}), array(schema)),
+  };
+  const descriptor = createPortObject(id, operations);
+  descriptor["memory"] = (): BoundPortAdapter => {
+    const records = new Map<unknown, unknown>();
+    return Object.freeze({
+      descriptorType: "port-adapter",
+      portId: id,
+      operations: Object.freeze({
+        get: (key: unknown) => records.get(key),
+        save: (value: unknown) => {
+          records.set((value as { id: unknown }).id, value);
+          return value;
+        },
+        delete: (key: unknown) => records.delete(key),
+        list: () => [...records.values()],
+      }) as BoundPortAdapter["operations"],
+    });
+  };
+  return Object.freeze(descriptor);
+};
+
+export const port: PortFactory = Object.freeze(
+  Object.assign(portFunction, {
+    read: portOperationFactory("read"),
+    write: portOperationFactory("write"),
+    time: portOperationFactory("time"),
+    random: portOperationFactory("random"),
+    external: portOperationFactory("external"),
+    store: storeFunction,
+  }),
+) as unknown as PortFactory;
+
+/* ------------------------------------------------------------------ */
+/* Events                                                             */
+/* ------------------------------------------------------------------ */
 
 export interface EventDescriptor<
   Id extends string = string,
@@ -181,89 +401,39 @@ export interface EventDescriptor<
   readonly payload: Payload;
 }
 
-export const defineEvent = <
+export const event = <
   const Id extends string,
   const Version extends number,
   Payload extends Schema<unknown>,
->(definition: {
-  readonly id: Id;
-  readonly version: Version;
-  readonly payload: Payload;
-}): EventDescriptor<Id, Version, Payload> => {
-  assertStableId(definition.id, "Event");
-  if (!Number.isSafeInteger(definition.version) || definition.version < 1) {
+>(
+  id: Id,
+  version: Version,
+  payload: Payload,
+): EventDescriptor<Id, Version, Payload> => {
+  assertStableId(id, "Event");
+  if (!Number.isSafeInteger(version) || version < 1) {
     throw new TypeError("Event version must be a positive safe integer");
   }
-  return Object.freeze({ descriptorType: "event", ...definition });
+  if (!isSchema(payload)) {
+    throw new TypeError(`Event ${id} requires a payload schema`);
+  }
+  return Object.freeze({ descriptorType: "event", id, version, payload });
 };
 
-export interface FeatureContractDescriptor<
-  Id extends string = string,
-  Exports extends Readonly<Record<string, unknown>> = Readonly<
-    Record<string, unknown>
-  >,
-> {
-  readonly descriptorType: "feature-contract";
-  readonly id: Id;
-  readonly exports: Exports;
-}
+const isEventDescriptor = (value: unknown): value is EventDescriptor =>
+  typeof value === "object" &&
+  value !== null &&
+  (value as { descriptorType?: unknown }).descriptorType === "event";
 
-export const defineFeatureContract = <
-  const Id extends string,
-  const Exports extends Readonly<Record<string, unknown>> = Record<never, never>,
->(definition: {
-  readonly id: Id;
-  readonly exports?: Exports;
-}): FeatureContractDescriptor<Id, Exports> => {
-  assertStableId(definition.id, "Feature contract");
-  return Object.freeze({
-    descriptorType: "feature-contract",
-    id: definition.id,
-    exports: freezeRecord(definition.exports ?? {}) as Exports,
-  });
-};
+/* ------------------------------------------------------------------ */
+/* Operations: command/query (unbound), bound by feature()            */
+/* ------------------------------------------------------------------ */
 
-export const defineContract = defineFeatureContract;
-
-export type ContractReference = Readonly<{ id: string }>;
-
-export interface InvariantDescriptor<
-  Id extends string = string,
-  Evidence extends Schema<unknown> = Schema<unknown>,
-  Dependencies extends readonly ContractReference[] = readonly ContractReference[],
-> {
-  readonly descriptorType: "invariant";
-  readonly id: Id;
-  readonly dependsOn: Dependencies;
-  readonly evidence: Evidence;
-  check(evidence: Infer<Evidence>): boolean;
-}
-
-export const defineInvariant = <
-  const Id extends string,
-  Evidence extends Schema<unknown>,
-  const Dependencies extends readonly ContractReference[],
->(definition: {
-  readonly id: Id;
-  readonly dependsOn: Dependencies;
-  readonly evidence: Evidence;
-  readonly check: (evidence: Infer<Evidence>) => boolean;
-}): InvariantDescriptor<Id, Evidence, Dependencies> => {
-  assertStableId(definition.id, "Invariant");
-  return Object.freeze({
-    descriptorType: "invariant",
-    id: definition.id,
-    dependsOn: Object.freeze([...definition.dependsOn]) as Dependencies,
-    evidence: definition.evidence,
-    check: definition.check,
-  });
-};
-
-export type EffectMap = Readonly<Record<string, AnyPortOperationDescriptor>>;
+export type EffectMap = Readonly<Record<string, AnyPortOperation>>;
 export type EventMap = Readonly<Record<string, EventDescriptor>>;
 
 export type EffectContext<Effects extends EffectMap> = {
-  readonly [Name in keyof Effects]: Effects[Name] extends AnyPortOperationDescriptor
+  readonly [Name in keyof Effects]: Effects[Name] extends AnyPortOperation
     ? EffectHandler<Effects[Name]>
     : never;
 };
@@ -278,248 +448,460 @@ export type EventEmitter<Events extends EventMap> = {
     : never;
 };
 
-export interface OperationExecutionContext<
+export interface ExecutionContext<
   Input extends Schema<unknown>,
+  Errors extends ErrorSpecMap,
   Effects extends EffectMap,
   Emits extends EventMap,
 > {
   readonly input: Infer<Input>;
   readonly effects: EffectContext<Effects>;
   readonly emit: EventEmitter<Emits>;
+  readonly fail: FailFn<Errors>;
 }
 
-export interface OperationDescriptor<
-  Id extends string = string,
+/** Execute returns a plain output value, or a `fail(...)` result. */
+export type ExecuteResult<
+  Output extends Schema<unknown>,
+  Errors extends ErrorSpecMap,
+> = MaybePromise<Infer<Output> | OperationFailure<DeclaredError<Errors>>>;
+
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+/** Authored http metadata; per-error statuses live on the error declarations. */
+export interface AuthoredHttp {
+  readonly method: HttpMethod;
+  readonly path: string;
+  readonly status?: number;
+}
+
+// Stored on descriptors: variance-neutral (no keyof Errors here). errorStatus
+// is DERIVED from the unified error declarations' `http` numbers.
+export interface HttpMetadata {
+  readonly method: HttpMethod;
+  readonly path: string;
+  readonly status?: number;
+  readonly errorStatus: Readonly<Record<string, number>>;
+}
+
+export interface EnsureContext<Input, Output> {
+  readonly input: Input;
+  readonly output: Output;
+}
+
+export interface OperationEnsure {
+  readonly evidence?: Schema<unknown>;
+  // Method syntax on purpose: bivariant, so typed authored checks stay assignable.
+  check(context: EnsureContext<unknown, unknown>): boolean;
+}
+
+export type EnsuresMap = Readonly<Record<string, OperationEnsure>>;
+
+type AuthoredEnsures<
+  Input extends Schema<unknown>,
+  Output extends Schema<unknown>,
+> = Readonly<
+  Record<
+    string,
+    {
+      readonly evidence?: Schema<unknown>;
+      readonly check: (context: EnsureContext<Infer<Input>, Infer<Output>>) => boolean;
+    }
+  >
+>;
+
+export interface UnboundOperation<
   Kind extends "command" | "query" = "command" | "query",
   Input extends Schema<unknown> = Schema<unknown>,
   Output extends Schema<unknown> = Schema<unknown>,
-  Errors extends ErrorSchemaMap = ErrorSchemaMap,
+  Errors extends ErrorSpecMap = ErrorSpecMap,
   Effects extends EffectMap = EffectMap,
   Emits extends EventMap = EventMap,
 > {
   readonly descriptorType: "operation";
   readonly kind: Kind;
-  readonly id: Id;
   readonly input: Input;
   readonly output: Output;
   readonly errors: Errors;
+  /** Normalized details schema per declared error code (runtime validation). */
+  readonly errorDetails: Readonly<Record<string, Schema<unknown>>>;
   readonly permissions: readonly string[];
+  readonly http?: HttpMetadata;
   readonly effects: Effects;
   readonly emits: Emits;
-  readonly invariants: readonly InvariantDescriptor[];
+  readonly ensures: EnsuresMap;
+  /** Internal: constructs declared failures; injected into execute as `fail`. */
+  readonly fail: (
+    code: string,
+    details?: unknown,
+  ) => OperationFailure<Readonly<{ code: string; details: unknown }>>;
+  // Method syntax on purpose: params are bivariant positions during variance
+  // measurement, so Input/Errors/Effects/Emits stay covariant here.
   execute(
-    context: OperationExecutionContext<Input, Effects, Emits>,
-  ): MaybePromise<Outcome<Infer<Output>, DeclaredError<Errors>>>;
+    context: ExecutionContext<Input, Errors, Effects, Emits>,
+  ): ExecuteResult<Output, Errors>;
 }
 
-export type CommandDescriptor<
+export type AnyUnboundOperation = UnboundOperation;
+
+export interface BoundOperation<
   Id extends string = string,
+  Kind extends "command" | "query" = "command" | "query",
   Input extends Schema<unknown> = Schema<unknown>,
   Output extends Schema<unknown> = Schema<unknown>,
-  Errors extends ErrorSchemaMap = ErrorSchemaMap,
+  Errors extends ErrorSpecMap = ErrorSpecMap,
   Effects extends EffectMap = EffectMap,
   Emits extends EventMap = EventMap,
-> = OperationDescriptor<Id, "command", Input, Output, Errors, Effects, Emits>;
-
-export type QueryDescriptor<
-  Id extends string = string,
-  Input extends Schema<unknown> = Schema<unknown>,
-  Output extends Schema<unknown> = Schema<unknown>,
-  Errors extends ErrorSchemaMap = ErrorSchemaMap,
-  Effects extends EffectMap = EffectMap,
-> = OperationDescriptor<Id, "query", Input, Output, Errors, Effects, Record<never, never>>;
-
-export type AnyOperationDescriptor = OperationDescriptor<
-  string,
-  "command" | "query",
-  Schema<unknown>,
-  Schema<unknown>,
-  ErrorSchemaMap,
-  EffectMap,
-  EventMap
->;
-
-interface CommonOperationDefinition<
-  Id extends string,
-  Input extends Schema<unknown>,
-  Output extends Schema<unknown>,
-  Errors extends ErrorSchemaMap,
-  Effects extends EffectMap,
-> {
+> extends UnboundOperation<Kind, Input, Output, Errors, Effects, Emits> {
   readonly id: Id;
-  readonly input: Input;
-  readonly output: Output;
-  readonly errors: Errors;
-  readonly permissions: readonly string[];
-  readonly effects: Effects;
-  readonly invariants?: readonly InvariantDescriptor[];
 }
 
-export const defineCommand = <
-  const Id extends string,
+export type AnyBoundOperation = BoundOperation;
+
+export interface CommandDefinition<
   Input extends Schema<unknown>,
   Output extends Schema<unknown>,
-  const Errors extends ErrorSchemaMap,
-  const Effects extends EffectMap,
-  const Emits extends EventMap,
->(definition: CommonOperationDefinition<Id, Input, Output, Errors, Effects> & {
-  readonly emits: Emits;
+  Errors extends ErrorSpecMap,
+  Effects extends EffectMap,
+  Emits extends EventMap,
+> {
+  readonly input: Input;
+  readonly output: Output;
+  readonly errors?: Errors;
+  readonly permissions?: readonly string[];
+  readonly http?: AuthoredHttp;
+  readonly effects?: Effects;
+  readonly emits?: Emits;
+  readonly ensures?: AuthoredEnsures<Input, Output>;
   readonly execute: (
-    context: OperationExecutionContext<Input, Effects, Emits>,
-  ) => MaybePromise<Outcome<Infer<Output>, DeclaredError<Errors>>>;
-}): CommandDescriptor<Id, Input, Output, Errors, Effects, Emits> => {
-  validateOperationDefinition(definition);
-  assertUniqueDescriptorIds(definition.emits, `${definition.id} event`);
-  return Object.freeze({
-    descriptorType: "operation",
-    kind: "command",
-    ...definition,
-    permissions: freezeStrings(definition.permissions),
-    effects: freezeRecord(definition.effects),
-    emits: freezeRecord(definition.emits),
-    invariants: Object.freeze([...(definition.invariants ?? [])]),
-  });
-};
+    context: ExecutionContext<Input, Errors, Effects, Emits>,
+  ) => ExecuteResult<Output, Errors>;
+}
 
-type WithoutWriteEffects<Effects extends EffectMap> = {
+// Type-level guard: query effects may not include writes.
+export type WithoutWriteEffects<Effects extends EffectMap> = {
   readonly [Name in keyof Effects]: Effects[Name]["kind"] extends "write"
     ? never
     : Effects[Name];
 };
 
-export const defineQuery = <
-  const Id extends string,
+export interface QueryDefinition<
   Input extends Schema<unknown>,
   Output extends Schema<unknown>,
-  const Errors extends ErrorSchemaMap,
-  const Effects extends EffectMap,
->(definition: CommonOperationDefinition<Id, Input, Output, Errors, Effects> & {
-  readonly effects: Effects & WithoutWriteEffects<Effects>;
-  readonly emits?: never;
+  Errors extends ErrorSpecMap,
+  Effects extends EffectMap,
+> {
+  readonly input: Input;
+  readonly output: Output;
+  readonly errors?: Errors;
+  readonly permissions?: readonly string[];
+  readonly http?: AuthoredHttp;
+  readonly effects?: Effects & WithoutWriteEffects<Effects>;
+  readonly ensures?: AuthoredEnsures<Input, Output>;
   readonly execute: (
-    context: OperationExecutionContext<Input, Effects, Record<never, never>>,
-  ) => MaybePromise<Outcome<Infer<Output>, DeclaredError<Errors>>>;
-}): QueryDescriptor<Id, Input, Output, Errors, Effects> => {
-  validateOperationDefinition(definition);
-  for (const operation of Object.values(definition.effects)) {
-    if (operation.kind === "write") {
-      throw new TypeError(`Query ${definition.id} cannot declare write effect ${operation.id}`);
+    context: ExecutionContext<Input, Errors, Effects, Record<never, never>>,
+  ) => ExecuteResult<Output, Errors>;
+}
+
+interface LooseOperationDefinition {
+  readonly input: Schema<unknown>;
+  readonly output: Schema<unknown>;
+  readonly errors?: ErrorSpecMap;
+  readonly permissions?: readonly string[];
+  readonly http?: AuthoredHttp;
+  readonly effects?: Readonly<Record<string, unknown>>;
+  readonly emits?: Readonly<Record<string, unknown>>;
+  readonly ensures?: Readonly<Record<string, unknown>>;
+  readonly execute: (context: never) => unknown;
+}
+
+export const command = <
+  Input extends Schema<unknown>,
+  Output extends Schema<unknown>,
+  const Errors extends ErrorSpecMap = Record<never, never>,
+  const Effects extends EffectMap = Record<never, never>,
+  const Emits extends EventMap = Record<never, never>,
+>(
+  definition: CommandDefinition<Input, Output, Errors, Effects, Emits>,
+): UnboundOperation<"command", Input, Output, Errors, Effects, Emits> =>
+  buildOperation(
+    "command",
+    definition as unknown as LooseOperationDefinition,
+  ) as unknown as UnboundOperation<"command", Input, Output, Errors, Effects, Emits>;
+
+export const query = <
+  Input extends Schema<unknown>,
+  Output extends Schema<unknown>,
+  const Errors extends ErrorSpecMap = Record<never, never>,
+  const Effects extends EffectMap = Record<never, never>,
+>(
+  definition: QueryDefinition<Input, Output, Errors, Effects>,
+): UnboundOperation<"query", Input, Output, Errors, Effects, Record<never, never>> =>
+  buildOperation(
+    "query",
+    definition as unknown as LooseOperationDefinition,
+  ) as unknown as UnboundOperation<
+    "query",
+    Input,
+    Output,
+    Errors,
+    Effects,
+    Record<never, never>
+  >;
+
+const HTTP_METHODS: ReadonlySet<string> = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
+
+const buildOperation = (
+  kind: "command" | "query",
+  definition: LooseOperationDefinition,
+): AnyUnboundOperation => {
+  if (!isSchema(definition.input) || !isSchema(definition.output)) {
+    throw new TypeError(`${kind}() requires input and output schemas`);
+  }
+  if (typeof definition.execute !== "function") {
+    throw new TypeError(`${kind}() requires an execute function`);
+  }
+
+  const errors = Object.freeze({ ...(definition.errors ?? {}) });
+  // Null prototypes: error codes are caller-controlled lookup keys.
+  const errorDetails: Record<string, Schema<unknown>> = Object.create(null);
+  const errorStatus: Record<string, number> = Object.create(null);
+  const emptyDetailCodes = new Set<string>();
+  for (const code of Object.keys(errors)) {
+    assertStableId(code, "Error code");
+    const spec = errors[code];
+    if (spec === undefined) continue;
+    if (isSchema(spec)) {
+      errorDetails[code] = spec;
+      continue;
+    }
+    if (typeof spec !== "object" || spec === null) {
+      throw new TypeError(
+        `Error ${code} must be a schema or an { http?, details? } declaration`,
+      );
+    }
+    const { http, details } = spec;
+    if (http !== undefined) {
+      if (!Number.isSafeInteger(http) || http < 100 || http > 599) {
+        throw new TypeError(`Error ${code} http status must be an integer in 100..599`);
+      }
+      errorStatus[code] = http;
+    }
+    if (details === undefined) {
+      errorDetails[code] = EMPTY_DETAILS;
+      emptyDetailCodes.add(code);
+    } else if (isSchema(details)) {
+      errorDetails[code] = details;
+    } else if (typeof details === "object" && details !== null) {
+      errorDetails[code] = object(details);
+    } else {
+      throw new TypeError(
+        `Error ${code} details must be a schema or a record of schemas`,
+      );
     }
   }
+
+  const permissions = validatePermissions(definition.permissions ?? []);
+
+  const effects = Object.freeze({ ...(definition.effects ?? {}) });
+  const effectIds = new Set<string>();
+  for (const alias of Object.keys(effects)) {
+    const effect = effects[alias];
+    if (!isBoundPortOperation(effect)) {
+      throw new TypeError(
+        `Effect ${JSON.stringify(alias)} must reference a port operation (Port.opName)`,
+      );
+    }
+    if (effectIds.has(effect.id)) {
+      throw new TypeError(`Duplicate effect id ${JSON.stringify(effect.id)}`);
+    }
+    effectIds.add(effect.id);
+    if (kind === "query" && effect.kind === "write") {
+      throw new TypeError(`Query cannot declare write effect ${effect.id}`);
+    }
+  }
+
+  const emits = Object.freeze({ ...(definition.emits ?? {}) });
+  const eventIds = new Set<string>();
+  for (const alias of Object.keys(emits)) {
+    const emitted = emits[alias];
+    if (!isEventDescriptor(emitted)) {
+      throw new TypeError(`Emit ${JSON.stringify(alias)} must reference an event()`);
+    }
+    if (eventIds.has(emitted.id)) {
+      throw new TypeError(`Duplicate emitted event id ${JSON.stringify(emitted.id)}`);
+    }
+    eventIds.add(emitted.id);
+  }
+
+  const ensures = Object.freeze({ ...(definition.ensures ?? {}) });
+  for (const name of Object.keys(ensures)) {
+    const ensure = ensures[name] as { check?: unknown; evidence?: unknown } | undefined;
+    if (ensure === undefined || typeof ensure !== "object" || typeof ensure.check !== "function") {
+      throw new TypeError(`Ensure ${JSON.stringify(name)} requires a check function`);
+    }
+    if (ensure.evidence !== undefined && !isSchema(ensure.evidence)) {
+      throw new TypeError(`Ensure ${JSON.stringify(name)} evidence must be a schema`);
+    }
+  }
+
+  let http: HttpMetadata | undefined;
+  if (definition.http !== undefined) {
+    const { method, path, status } = definition.http;
+    if (!HTTP_METHODS.has(method)) {
+      throw new TypeError(`http.method must be one of ${[...HTTP_METHODS].join(", ")}`);
+    }
+    if (typeof path !== "string" || !path.startsWith("/")) {
+      throw new TypeError('http.path must be a string starting with "/"');
+    }
+    if (status !== undefined && (!Number.isSafeInteger(status) || status < 100 || status > 599)) {
+      throw new TypeError("http.status must be an integer in 100..599");
+    }
+    http = Object.freeze({
+      method,
+      path,
+      ...(status === undefined ? {} : { status }),
+      errorStatus: Object.freeze(errorStatus),
+    });
+  }
+
+  const fail = (
+    code: string,
+    details?: unknown,
+  ): OperationFailure<Readonly<{ code: string; details: unknown }>> => ({
+    [FAIL_RESULT]: true,
+    ok: false,
+    error: {
+      code,
+      details: details === undefined && emptyDetailCodes.has(code) ? {} : details,
+    },
+  });
+
   return Object.freeze({
     descriptorType: "operation",
-    kind: "query",
-    id: definition.id,
+    kind,
     input: definition.input,
     output: definition.output,
-    errors: freezeRecord(definition.errors),
-    permissions: freezeStrings(definition.permissions),
-    effects: freezeRecord(definition.effects),
-    emits: Object.freeze({}),
-    invariants: Object.freeze([...(definition.invariants ?? [])]),
+    errors,
+    errorDetails: Object.freeze(errorDetails),
+    permissions,
+    ...(http === undefined ? {} : { http }),
+    effects,
+    emits,
+    ensures,
+    fail,
     execute: definition.execute,
-  });
+  }) as unknown as AnyUnboundOperation;
 };
 
-export const command = defineCommand;
-export const query = defineQuery;
-export const event = defineEvent;
-export const invariant = defineInvariant;
+const EMPTY_DETAILS = object({});
+
+/* ------------------------------------------------------------------ */
+/* feature(id, { operations }) -> ids derived `${featureId}.${key}`   */
+/* ------------------------------------------------------------------ */
+
+export type BindOperations<FeatureId extends string, Ops> = {
+  readonly [K in keyof Ops & string]: Ops[K] extends UnboundOperation<
+    infer Kind,
+    infer Input,
+    infer Output,
+    infer Errors,
+    infer Effects,
+    infer Emits
+  >
+    ? BoundOperation<`${FeatureId}.${K}`, Kind, Input, Output, Errors, Effects, Emits>
+    : never;
+};
 
 export interface FeatureDescriptor<
   Id extends string = string,
-  Contract extends FeatureContractDescriptor = FeatureContractDescriptor,
-  Dependencies extends readonly ContractReference[] = readonly ContractReference[],
-  Operations extends readonly AnyOperationDescriptor[] = readonly AnyOperationDescriptor[],
-  Invariants extends readonly InvariantDescriptor[] = readonly InvariantDescriptor[],
+  Ops extends Record<string, AnyBoundOperation> = Record<string, AnyBoundOperation>,
 > {
   readonly descriptorType: "feature";
   readonly id: Id;
-  readonly contract: Contract;
-  readonly dependencies: Dependencies;
-  readonly operations: Operations;
-  readonly invariants: Invariants;
+  readonly operations: Ops;
   readonly events: readonly EventDescriptor[];
-  readonly ports: readonly PortDescriptor[];
 }
 
-export const defineFeature = <
+export type AnyFeature = FeatureDescriptor;
+
+export type ValidOperations<Ops> = {
+  readonly [K in keyof Ops]: Ops[K] extends AnyUnboundOperation
+    ? Ops[K]
+    : AnyUnboundOperation;
+};
+
+const isOperationDescriptor = (value: unknown): value is AnyUnboundOperation =>
+  typeof value === "object" &&
+  value !== null &&
+  (value as { descriptorType?: unknown }).descriptorType === "operation";
+
+export const feature = <
   const Id extends string,
-  Contract extends FeatureContractDescriptor,
-  const Dependencies extends readonly ContractReference[],
-  const Operations extends readonly AnyOperationDescriptor[],
-  const Invariants extends readonly InvariantDescriptor[],
->(definition: {
-  readonly id: Id;
-  readonly contract: Contract;
-  readonly dependencies: Dependencies;
-  readonly operations: Operations;
-  readonly invariants: Invariants;
-  readonly events?: readonly EventDescriptor[];
-  readonly ports?: readonly PortDescriptor[];
-}): FeatureDescriptor<Id, Contract, Dependencies, Operations, Invariants> => {
-  assertStableId(definition.id, "Feature");
-  if (definition.contract.id !== definition.id) {
-    throw new TypeError(
-      `Feature ${definition.id} must use a contract with the same id; received ${definition.contract.id}`,
-    );
+  const Ops extends Readonly<Record<string, unknown>>,
+>(
+  id: Id,
+  definition: {
+    readonly operations: Ops & ValidOperations<Ops>;
+    readonly events?: readonly EventDescriptor[];
+  },
+): FeatureDescriptor<Id, BindOperations<Id, Ops>> => {
+  assertStableId(id, "Feature");
+  const source = definition.operations as Readonly<Record<string, unknown>>;
+  const operations: Record<string, AnyBoundOperation> = {};
+  for (const key of Object.keys(source)) {
+    const operation = source[key];
+    if (!isOperationDescriptor(operation)) {
+      throw new TypeError(
+        `Feature ${id} operation ${JSON.stringify(key)} must be created with command() or query()`,
+      );
+    }
+    assertOperationKey(key, `Feature ${id}`);
+    operations[key] = Object.freeze({
+      ...operation,
+      id: `${id}.${key}`,
+    }) as AnyBoundOperation;
+  }
+  const events = Object.freeze([...(definition.events ?? [])]);
+  for (const emitted of events) {
+    if (!isEventDescriptor(emitted)) {
+      throw new TypeError(`Feature ${id} events must be created with event()`);
+    }
   }
   return Object.freeze({
     descriptorType: "feature",
-    id: definition.id,
-    contract: definition.contract,
-    dependencies: Object.freeze([...definition.dependencies]) as Dependencies,
-    operations: Object.freeze([...definition.operations]) as Operations,
-    invariants: Object.freeze([...definition.invariants]) as Invariants,
-    events: Object.freeze([...(definition.events ?? [])]),
-    ports: Object.freeze([...(definition.ports ?? [])]),
-  });
+    id,
+    operations: Object.freeze(operations),
+    events,
+  }) as unknown as FeatureDescriptor<Id, BindOperations<Id, Ops>>;
 };
 
-export const feature = defineFeature;
+/* ------------------------------------------------------------------ */
+/* Shared validation helpers                                          */
+/* ------------------------------------------------------------------ */
 
-const validateOperationDefinition = (definition: {
-  readonly id: string;
-  readonly permissions: readonly string[];
-  readonly effects: EffectMap;
-  readonly errors: ErrorSchemaMap;
-}): void => {
-  assertStableId(definition.id, "Operation");
-  const permissionSet = new Set<string>();
-  for (const permission of definition.permissions) {
+const validatePermissions = (permissions: readonly string[]): readonly string[] => {
+  const seen = new Set<string>();
+  for (const permission of permissions) {
     assertStableId(permission, "Permission");
-    if (permissionSet.has(permission)) {
+    if (seen.has(permission)) {
       throw new TypeError(`Duplicate permission ${JSON.stringify(permission)}`);
     }
-    permissionSet.add(permission);
+    seen.add(permission);
   }
-  assertUniqueDescriptorIds(definition.effects, `${definition.id} effect`);
-  for (const code of Object.keys(definition.errors)) {
-    assertStableId(code, `${definition.id} error code`);
-  }
-};
-
-const assertUniqueDescriptorIds = (
-  descriptors: Readonly<Record<string, { readonly id: string }>>,
-  label: string,
-): void => {
-  const ids = new Set<string>();
-  for (const descriptor of Object.values(descriptors)) {
-    if (ids.has(descriptor.id)) {
-      throw new TypeError(`Duplicate ${label} id ${JSON.stringify(descriptor.id)}`);
-    }
-    ids.add(descriptor.id);
-  }
+  return Object.freeze([...permissions]);
 };
 
 const assertStableId = (id: string, label: string): void => {
-  if (id.trim().length === 0 || /\s/u.test(id)) {
+  if (typeof id !== "string" || id.trim().length === 0 || /\s/u.test(id)) {
     throw new TypeError(`${label} id must be a non-empty string without whitespace`);
   }
 };
 
-const freezeRecord = <T extends Readonly<Record<string, unknown>>>(value: T): T =>
-  Object.freeze({ ...value }) as T;
-
-const freezeStrings = (value: readonly string[]): readonly string[] =>
-  Object.freeze([...value]);
+const assertOperationKey = (key: string, owner: string): void => {
+  if (key.length === 0 || /[\s.]/u.test(key)) {
+    throw new TypeError(
+      `${owner} operation key ${JSON.stringify(key)} must be non-empty without whitespace or dots`,
+    );
+  }
+};

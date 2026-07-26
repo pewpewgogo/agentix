@@ -1,20 +1,17 @@
 import {
-  type AnyOperationDescriptor,
-  type AnyPortOperationDescriptor,
+  FAIL_RESULT,
+  type AnyBoundOperation,
+  type AnyFeature,
+  type AnyPortOperation,
   type BoundPortAdapter,
   type DeclaredError,
-  type EffectContext,
-  type EffectMap,
   type EventDescriptor,
-  type EventEmitter,
-  type EventMap,
   type FeatureDescriptor,
-  type InvariantDescriptor,
-  type OperationDescriptor,
-  type PortDescriptor,
+  type OperationEnsure,
+  type OperationFailure,
 } from "./descriptors.js";
-import { isOutcome, type Outcome } from "./outcome.js";
-import type { Infer, SchemaIssue } from "./schema.js";
+import type { Outcome } from "./outcome.js";
+import type { Infer, Schema, SchemaIssue } from "./schema.js";
 
 export type RuntimeMode = "production" | "development" | "test";
 
@@ -28,6 +25,48 @@ export const principal = (
   permissions: readonly string[],
 ): Principal => Object.freeze({ id, permissions: Object.freeze([...permissions]) });
 
+/* ------------------------------------------------------------------ */
+/* Authorization: the single permission gate (also used by adapters)  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Default permission-subset check. Operations without permissions accept
+ * anonymous dispatches (amendment A2). HTTP adapters call this BEFORE
+ * reading a request body.
+ */
+export const authorize = (
+  operation: { readonly permissions?: readonly string[] },
+  principal?: Principal,
+): boolean => {
+  const required = operation.permissions;
+  if (required === undefined || required.length === 0) return true;
+  if (principal === undefined) return false;
+  const granted = toPermissionSet(principal.permissions);
+  for (const permission of required) {
+    if (!granted.has(permission)) return false;
+  }
+  return true;
+};
+
+const toPermissionSet = (
+  permissions: readonly string[] | ReadonlySet<string>,
+): ReadonlySet<string> =>
+  permissions instanceof Set ? permissions : new Set(permissions);
+
+const missingPermissionsOf = (
+  operation: { readonly permissions: readonly string[] },
+  principal?: Principal,
+): readonly string[] => {
+  if (operation.permissions.length === 0) return [];
+  if (principal === undefined) return operation.permissions;
+  const granted = toPermissionSet(principal.permissions);
+  return operation.permissions.filter((permission) => !granted.has(permission));
+};
+
+/* ------------------------------------------------------------------ */
+/* Dispatch result model (3-way semantics, unchanged)                 */
+/* ------------------------------------------------------------------ */
+
 export interface EffectTraceEntry {
   readonly type: "effect";
   readonly operationId: string;
@@ -35,7 +74,7 @@ export interface EffectTraceEntry {
   readonly effectId: string;
   readonly input: unknown;
   readonly status: "completed" | "fault";
-  readonly outcome?: Outcome<unknown, unknown>;
+  readonly value?: unknown;
   readonly error?: DispatchFaultError;
 }
 
@@ -66,7 +105,7 @@ export interface UnknownOperationError {
 
 export interface PermissionDeniedError {
   readonly code: "PERMISSION_DENIED";
-  readonly principalId: string;
+  readonly principalId?: string;
   readonly missingPermissions: readonly string[];
 }
 
@@ -82,19 +121,16 @@ export type DispatchRejectionError =
 
 export type DispatchFaultCode =
   | "INPUT_VALIDATION_FAILED"
-  | "INVALID_OPERATION_OUTCOME"
   | "INVALID_OUTPUT"
   | "INVALID_DOMAIN_ERROR"
   | "INVALID_EFFECT_INPUT"
-  | "INVALID_EFFECT_RESULT"
   | "INVALID_EFFECT_OUTPUT"
-  | "INVALID_EFFECT_ERROR"
-  | "EFFECT_EXECUTION_FAILED"
+  | "EFFECT_FAILURE"
   | "INVALID_EVENT_PAYLOAD"
   | "EVENT_OUTSIDE_EXECUTION"
   | "EFFECT_OUTSIDE_EXECUTION"
-  | "UNDECLARED_EFFECT"
   | "OPERATION_DESCRIPTOR_MISMATCH"
+  | "INVARIANT_VIOLATION"
   | "EXECUTION_FAILED";
 
 export interface DispatchFaultError {
@@ -104,6 +140,7 @@ export interface DispatchFaultError {
   readonly issues?: readonly SchemaIssue[];
   readonly effectId?: string;
   readonly eventId?: string;
+  readonly invariant?: string;
 }
 
 export interface CompletedDispatch<T, E> {
@@ -136,65 +173,98 @@ export type DispatchResult<T = unknown, E = unknown> =
 
 export interface DispatchOptions<Input = unknown> {
   readonly input: Input;
-  readonly principal: Principal;
-  /** Overrides the application's trace default for this dispatch. */
+  readonly principal?: Principal;
+  /** Opt-in per dispatch; no trace machinery runs when off. */
   readonly trace?: boolean;
 }
 
-export type DispatchRequest<Input = unknown> = DispatchOptions<Input>;
+export interface CallOptions {
+  readonly principal?: Principal;
+}
 
-type InputOf<Operation extends AnyOperationDescriptor> = Infer<Operation["input"]>;
-type OutputOf<Operation extends AnyOperationDescriptor> = Infer<Operation["output"]>;
-type ErrorOf<Operation extends AnyOperationDescriptor> = DeclaredError<
-  Operation["errors"]
->;
+/** Thrown by app.call() when a dispatch is rejected or faults. */
+export class DispatchError extends Error {
+  readonly kind: "rejected" | "fault";
+  readonly code: string;
+  readonly operationId: string | undefined;
+  readonly detail: DispatchRejectionError | DispatchFaultError;
 
-export interface Application<
-  Operations extends AnyOperationDescriptor = AnyOperationDescriptor,
-> {
-  readonly features: readonly FeatureDescriptor[];
-  readonly operations: readonly Operations[];
+  constructor(result: RejectedDispatch | FaultedDispatch) {
+    super(`Dispatch ${result.kind}: ${result.error.code}`);
+    this.name = "DispatchError";
+    this.kind = result.kind;
+    this.code = result.error.code;
+    this.operationId = result.operationId;
+    this.detail = result.error;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Application typing (verified generic patterns)                     */
+/* ------------------------------------------------------------------ */
+
+export type OpInput<Op> = Op extends AnyBoundOperation ? Infer<Op["input"]> : never;
+export type OpOutput<Op> = Op extends AnyBoundOperation ? Infer<Op["output"]> : never;
+export type OpError<Op> = Op extends AnyBoundOperation
+  ? DeclaredError<Op["errors"]>
+  : never;
+
+export type UnionToIntersection<U> = (
+  U extends unknown ? (x: U) => void : never
+) extends (x: infer I) => void
+  ? I
+  : never;
+
+export type OperationsRecordOf<F> =
+  F extends FeatureDescriptor<infer Id, infer Ops>
+    ? { [K in keyof Ops & string as `${Id}.${K}`]: Ops[K] }
+    : never;
+
+export type ApplicationOperations<Features extends readonly AnyFeature[]> =
+  UnionToIntersection<OperationsRecordOf<Features[number]>>;
+
+export interface Application<Ops> {
   readonly mode: RuntimeMode;
-  getOperation(id: string): Operations | undefined;
-  dispatch<Operation extends Operations>(
+  readonly features: readonly AnyFeature[];
+  /** Operations keyed by derived id, e.g. "notes.create". */
+  readonly operations: Ops;
+  getOperation(id: string): AnyBoundOperation | undefined;
+  dispatch<Id extends keyof Ops & string>(
+    operationId: Id,
+    options: DispatchOptions<OpInput<Ops[Id]>>,
+  ): Promise<DispatchResult<OpOutput<Ops[Id]>, OpError<Ops[Id]>>>;
+  dispatch<Operation extends AnyBoundOperation>(
     operation: Operation,
-    options: DispatchOptions<InputOf<Operation>>,
-  ): Promise<DispatchResult<OutputOf<Operation>, ErrorOf<Operation>>>;
-  dispatch(
-    operationId: string,
-    options: DispatchOptions<unknown>,
-  ): Promise<DispatchResult<unknown, unknown>>;
+    options: DispatchOptions<Infer<Operation["input"]>>,
+  ): Promise<DispatchResult<Infer<Operation["output"]>, DeclaredError<Operation["errors"]>>>;
+  /** Sugar over dispatch: returns the Outcome, throws DispatchError otherwise. */
+  call<Id extends keyof Ops & string>(
+    operationId: Id,
+    input: OpInput<Ops[Id]>,
+    options?: CallOptions,
+  ): Promise<Outcome<OpOutput<Ops[Id]>, OpError<Ops[Id]>>>;
 }
 
-export type AdapterCollection =
-  | readonly BoundPortAdapter[]
-  | Readonly<Record<string, BoundPortAdapter>>;
-
-export interface ApplicationDefinition<
-  Features extends readonly FeatureDescriptor[],
-> {
+export interface ApplicationDefinition<Features extends readonly AnyFeature[]> {
   readonly features: Features;
-  readonly adapters: AdapterCollection;
+  readonly adapters?: readonly BoundPortAdapter[];
+  /** Defaults from NODE_ENV (amendment A6). */
   readonly mode?: RuntimeMode;
-  /** Defaults on in development/test and off in production. */
-  readonly trace?: boolean;
+  /** Optional custom hook; default is the permission-subset authorize(). */
+  readonly authorize?: (
+    principal: Principal | undefined,
+    operation: AnyBoundOperation,
+  ) => boolean;
 }
-
-export type OperationsFromFeatures<
-  Features extends readonly FeatureDescriptor[],
-> = Features[number]["operations"][number];
 
 export type ApplicationDefinitionIssueCode =
   | "DUPLICATE_ID"
-  | "DUPLICATE_DEPENDENCY"
-  | "MISSING_DEPENDENCY"
-  | "SELF_DEPENDENCY"
+  | "DUPLICATE_ADAPTER"
+  | "MISSING_ADAPTER"
+  | "INCOMPLETE_ADAPTER"
   | "QUERY_WRITE_EFFECT"
   | "QUERY_EMITS_EVENT"
-  | "DUPLICATE_ADAPTER"
-  | "ADAPTER_PORT_MISMATCH"
-  | "INCOMPLETE_ADAPTER"
-  | "MISSING_ADAPTER";
+  | "HTTP_ROUTE_CONFLICT";
 
 export interface ApplicationDefinitionIssue {
   readonly code: ApplicationDefinitionIssueCode;
@@ -212,193 +282,469 @@ export class ApplicationDefinitionError extends TypeError {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Runtime                                                            */
+/* ------------------------------------------------------------------ */
+
 interface ExecutionLifecycle {
   active: boolean;
-  boundaryFault?: DispatchFaultError;
+  boundaryFault: DispatchFaultError | undefined;
   readonly pendingEffects: Set<Promise<unknown>>;
   readonly events: EmittedEvent[];
 }
 
-export const createApplication = <
-  const Features extends readonly FeatureDescriptor[],
->(definition: ApplicationDefinition<Features>): Application<OperationsFromFeatures<Features>> => {
+interface CompiledEffect {
+  readonly alias: string;
+  readonly effect: AnyPortOperation;
+  readonly handler: (input: unknown) => unknown;
+}
+
+interface CompiledEmit {
+  readonly alias: string;
+  readonly event: EventDescriptor;
+}
+
+interface CompiledEnsure {
+  readonly name: string;
+  readonly ensure: OperationEnsure;
+}
+
+interface CompiledOperation {
+  readonly operation: AnyBoundOperation;
+  readonly effects: readonly CompiledEffect[];
+  readonly emits: readonly CompiledEmit[];
+  readonly ensures: readonly CompiledEnsure[];
+  readonly errorDetails: Readonly<Record<string, Schema<unknown>>>;
+}
+
+const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
+const EMPTY_EVENTS: readonly EmittedEvent[] = Object.freeze([]);
+
+const detectMode = (): RuntimeMode => {
+  const env = (
+    globalThis as { process?: { env?: Record<string, string | undefined> } }
+  ).process?.env?.["NODE_ENV"];
+  return env === "production" || env === "test" ? env : "development";
+};
+
+export const createApplication = <const Features extends readonly AnyFeature[]>(
+  definition: ApplicationDefinition<Features>,
+): Application<ApplicationOperations<Features>> => {
   const issues: ApplicationDefinitionIssue[] = [];
   const features = Object.freeze([...definition.features]);
-  const operationsById = new Map<string, AnyOperationDescriptor>();
-  const allIds = new Map<
-    string,
-    { readonly kind: string; readonly descriptor: object }
-  >();
-  const featureIds = new Set(features.map((entry) => entry.id));
-  const requiredPorts = new Map<string, PortDescriptor>();
+  const mode = definition.mode ?? detectMode();
+  const devChecks = mode !== "production";
+  const authorizeHook = definition.authorize;
+
+  /* ---------------- startup validation ---------------- */
+
+  const allIds = new Map<string, { readonly kind: string; readonly descriptor: object }>();
+  const operationsById = new Map<string, AnyBoundOperation>();
+  const requiredEffects: AnyPortOperation[] = [];
+  const routes = new Map<string, string>();
 
   for (const feature of features) {
     recordId(allIds, issues, feature.id, "feature", feature);
-    const dependencies = new Set<string>();
-    for (const dependency of feature.dependencies) {
-      if (dependencies.has(dependency.id)) {
-        issues.push(definitionIssue(
-          "DUPLICATE_DEPENDENCY",
-          `Feature ${feature.id} declares dependency ${dependency.id} more than once`,
-          dependency.id,
-        ));
+    for (const key of Object.keys(feature.operations)) {
+      const operation = feature.operations[key];
+      if (operation === undefined) continue;
+      recordId(allIds, issues, operation.id, `${operation.kind} operation`, operation);
+      if (!operationsById.has(operation.id)) {
+        operationsById.set(operation.id, operation);
       }
-      dependencies.add(dependency.id);
-      if (dependency.id === feature.id) {
-        issues.push(definitionIssue(
-          "SELF_DEPENDENCY",
-          `Feature ${feature.id} cannot depend on itself`,
-          feature.id,
-        ));
-      } else if (!featureIds.has(dependency.id)) {
-        issues.push(definitionIssue(
-          "MISSING_DEPENDENCY",
-          `Feature ${feature.id} depends on missing feature ${dependency.id}`,
-          dependency.id,
-        ));
-      }
-    }
 
-    for (const operation of feature.operations) {
-      recordId(
-        allIds,
-        issues,
-        operation.id,
-        `${operation.kind} operation`,
-        operation,
-      );
-      if (!operationsById.has(operation.id)) operationsById.set(operation.id, operation);
-      validateQueryRuntime(operation, issues);
-      for (const effect of Object.values(operation.effects)) {
-        const existing = requiredPorts.get(effect.portId);
-        if (existing === undefined) {
-          requiredPorts.set(effect.portId, syntheticPort(effect));
-        } else {
-          requiredPorts.set(
-            effect.portId,
-            mergeRequiredPort(existing, effect, issues),
-          );
+      if (operation.kind === "query") {
+        for (const effect of Object.values(operation.effects)) {
+          if (effect.kind === "write") {
+            issues.push(definitionIssue(
+              "QUERY_WRITE_EFFECT",
+              `Query ${operation.id} declares write effect ${effect.id}`,
+              operation.id,
+            ));
+          }
         }
+        if (Object.keys(operation.emits).length > 0) {
+          issues.push(definitionIssue(
+            "QUERY_EMITS_EVENT",
+            `Query ${operation.id} declares emitted events`,
+            operation.id,
+          ));
+        }
+      }
+
+      for (const effect of Object.values(operation.effects)) {
         recordId(allIds, issues, effect.id, "port operation", effect, true);
+        requiredEffects.push(effect);
       }
       for (const emitted of Object.values(operation.emits)) {
         recordId(allIds, issues, emitted.id, "event", emitted, true);
       }
-      for (const invariant of operation.invariants) {
-        recordId(allIds, issues, invariant.id, "invariant", invariant, true);
-      }
-    }
 
-    for (const invariant of feature.invariants) {
-      recordId(allIds, issues, invariant.id, "invariant", invariant, true);
+      if (operation.http !== undefined) {
+        const routeKey = `${operation.http.method} ${operation.http.path}`;
+        const existing = routes.get(routeKey);
+        if (existing !== undefined) {
+          issues.push(definitionIssue(
+            "HTTP_ROUTE_CONFLICT",
+            `Operations ${existing} and ${operation.id} both declare ${routeKey}`,
+            operation.id,
+          ));
+        } else {
+          routes.set(routeKey, operation.id);
+        }
+      }
     }
     for (const emitted of feature.events) {
       recordId(allIds, issues, emitted.id, "event", emitted, true);
     }
-    for (const port of feature.ports) {
-      recordId(allIds, issues, port.id, "port", port, true);
-      requiredPorts.set(port.id, port);
-      for (const operation of Object.values(port.operations)) {
-        recordId(
-          allIds,
-          issues,
-          operation.id,
-          "port operation",
-          operation,
-          true,
-        );
-      }
+  }
+
+  const adaptersByPort = new Map<string, BoundPortAdapter>();
+  for (const adapter of definition.adapters ?? []) {
+    if (adaptersByPort.has(adapter.portId)) {
+      issues.push(definitionIssue(
+        "DUPLICATE_ADAPTER",
+        `Port ${adapter.portId} has more than one adapter`,
+        adapter.portId,
+      ));
+    } else {
+      adaptersByPort.set(adapter.portId, adapter);
     }
   }
 
-  const adapters = normalizeAdapters(definition.adapters, issues);
-  validateAdapters(requiredPorts, adapters, issues);
+  const missingPorts = new Set<string>();
+  for (const effect of requiredEffects) {
+    const adapter = adaptersByPort.get(effect.portId);
+    if (adapter === undefined) {
+      if (!missingPorts.has(effect.portId)) {
+        missingPorts.add(effect.portId);
+        issues.push(definitionIssue(
+          "MISSING_ADAPTER",
+          `No adapter is bound for required port ${effect.portId}`,
+          effect.portId,
+        ));
+      }
+      continue;
+    }
+    if (typeof adapter.operations[effect.opKey] !== "function") {
+      issues.push(definitionIssue(
+        "INCOMPLETE_ADAPTER",
+        `Adapter for ${effect.portId} does not implement ${effect.id}`,
+        effect.id,
+      ));
+    }
+  }
 
   if (issues.length > 0) throw new ApplicationDefinitionError(issues);
 
-  const mode = definition.mode ?? "production";
-  const traceByDefault = definition.trace ?? mode !== "production";
-  const operations = Object.freeze([...operationsById.values()]) as readonly OperationsFromFeatures<Features>[];
+  /* ---------------- precomputed per-operation fast path ---------------- */
 
-  const dispatch = async (
-    requested: AnyOperationDescriptor | string,
-    options: DispatchOptions<unknown>,
-  ): Promise<DispatchResult<unknown, unknown>> => {
-    const requestedId = typeof requested === "string" ? requested : requested.id;
-    const operation = operationsById.get(requestedId);
-    const traceEnabled = options.trace ?? traceByDefault;
-    const trace: TraceEntry[] = [];
+  const compiledById = new Map<string, CompiledOperation>();
+  const operationsRecord: Record<string, AnyBoundOperation> = {};
+  for (const operation of operationsById.values()) {
+    operationsRecord[operation.id] = operation;
+    const effects: CompiledEffect[] = [];
+    for (const alias of Object.keys(operation.effects)) {
+      const effect = operation.effects[alias];
+      if (effect === undefined) continue;
+      const adapter = adaptersByPort.get(effect.portId);
+      const handler = adapter?.operations[effect.opKey];
+      if (typeof handler !== "function") continue; // validated above; defensive
+      effects.push({ alias, effect, handler: handler as (input: unknown) => unknown });
+    }
+    const emits: CompiledEmit[] = [];
+    for (const alias of Object.keys(operation.emits)) {
+      const emitted = operation.emits[alias];
+      if (emitted === undefined) continue;
+      emits.push({ alias, event: emitted });
+    }
+    const ensures: CompiledEnsure[] = [];
+    for (const name of Object.keys(operation.ensures)) {
+      const ensure = operation.ensures[name];
+      if (ensure === undefined) continue;
+      ensures.push({ name, ensure });
+    }
+    compiledById.set(operation.id, {
+      operation,
+      effects,
+      emits,
+      ensures,
+      errorDetails: operation.errorDetails,
+    });
+  }
 
-    if (operation === undefined) {
-      return includeTrace(
-        {
-          kind: "rejected",
-          operationId: requestedId,
-          error: Object.freeze({ code: "UNKNOWN_OPERATION", operationId: requestedId }),
-        },
-        traceEnabled,
+  /* ---------------- per-dispatch machinery ---------------- */
+
+  const maybeFreeze = <T extends object>(value: T): T =>
+    devChecks ? Object.freeze(value) : value;
+
+  const finalize = <T extends object>(
+    result: T,
+    trace: TraceEntry[] | null,
+  ): T & { readonly trace?: ExecutionTrace } => {
+    const value =
+      trace === null ? result : { ...result, trace: maybeFreeze(trace) };
+    return maybeFreeze(value);
+  };
+
+  const makeEffectFunction = (
+    operation: AnyBoundOperation,
+    binding: CompiledEffect,
+    lifecycle: ExecutionLifecycle,
+    trace: TraceEntry[] | null,
+  ): ((input: unknown) => Promise<unknown>) => {
+    const { alias, effect, handler } = binding;
+    const run = async (input: unknown): Promise<unknown> => {
+      if (!lifecycle.active) {
+        throw latchBoundaryFault(lifecycle, fault(
+          "EFFECT_OUTSIDE_EXECUTION",
+          `Effect ${effect.id} was invoked outside ${operation.id} execution`,
+          { effectId: effect.id },
+        ));
+      }
+
+      let parsedInput: unknown;
+      try {
+        const parsed = effect.input.safeParse(input);
+        if (!parsed.success) {
+          const boundary = fault(
+            "INVALID_EFFECT_INPUT",
+            `Invalid input for effect ${effect.id}`,
+            { effectId: effect.id, issues: parsed.issues },
+          );
+          trace?.push(effectFaultEntry(operation.id, alias, effect.id, input, boundary));
+          throw latchBoundaryFault(lifecycle, boundary);
+        }
+        parsedInput = parsed.data;
+      } catch (cause) {
+        if (cause instanceof BoundaryFault) throw cause;
+        const boundary = fault(
+          "INVALID_EFFECT_INPUT",
+          `Input schema for effect ${effect.id} threw during validation`,
+          { effectId: effect.id, cause },
+        );
+        trace?.push(effectFaultEntry(operation.id, alias, effect.id, input, boundary));
+        throw latchBoundaryFault(lifecycle, boundary);
+      }
+
+      let value: unknown;
+      try {
+        value = await handler(parsedInput);
+      } catch (cause) {
+        const boundary = fault(
+          "EFFECT_FAILURE",
+          `Adapter for ${effect.id} threw an unexpected exception`,
+          { effectId: effect.id, cause },
+        );
+        trace?.push(effectFaultEntry(operation.id, alias, effect.id, parsedInput, boundary));
+        throw latchBoundaryFault(lifecycle, boundary);
+      }
+
+      // Internal boundary: production skips ONLY this re-parse.
+      if (devChecks) {
+        try {
+          const parsedOutput = effect.output.safeParse(value);
+          if (!parsedOutput.success) {
+            const boundary = fault(
+              "INVALID_EFFECT_OUTPUT",
+              `Adapter for ${effect.id} returned invalid output`,
+              { effectId: effect.id, issues: parsedOutput.issues },
+            );
+            trace?.push(effectFaultEntry(operation.id, alias, effect.id, parsedInput, boundary));
+            throw latchBoundaryFault(lifecycle, boundary);
+          }
+          value = parsedOutput.data;
+        } catch (cause) {
+          if (cause instanceof BoundaryFault) throw cause;
+          const boundary = fault(
+            "INVALID_EFFECT_OUTPUT",
+            `Output schema for effect ${effect.id} threw during validation`,
+            { effectId: effect.id, cause },
+          );
+          trace?.push(effectFaultEntry(operation.id, alias, effect.id, parsedInput, boundary));
+          throw latchBoundaryFault(lifecycle, boundary);
+        }
+      }
+
+      trace?.push({
+        type: "effect",
+        operationId: operation.id,
+        alias,
+        effectId: effect.id,
+        input: parsedInput,
+        status: "completed",
+        value,
+      });
+      return value;
+    };
+
+    return (input: unknown): Promise<unknown> => {
+      const pending = run(input);
+      lifecycle.pendingEffects.add(pending);
+      const remove = (): void => {
+        lifecycle.pendingEffects.delete(pending);
+      };
+      void pending.then(remove, remove);
+      return pending;
+    };
+  };
+
+  const buildEffectsContext = (
+    compiled: CompiledOperation,
+    lifecycle: ExecutionLifecycle,
+    trace: TraceEntry[] | null,
+  ): Record<string, (input: unknown) => Promise<unknown>> => {
+    if (compiled.effects.length === 0) {
+      return EMPTY_RECORD as Record<string, (input: unknown) => Promise<unknown>>;
+    }
+    const context: Record<string, (input: unknown) => Promise<unknown>> = {};
+    for (const binding of compiled.effects) {
+      context[binding.alias] = makeEffectFunction(
+        compiled.operation,
+        binding,
+        lifecycle,
         trace,
       );
     }
+    return devChecks ? Object.freeze(context) : context;
+  };
+
+  const buildEmitContext = (
+    compiled: CompiledOperation,
+    lifecycle: ExecutionLifecycle,
+    trace: TraceEntry[] | null,
+  ): Record<string, (payload: unknown) => void> => {
+    if (compiled.emits.length === 0) {
+      return EMPTY_RECORD as Record<string, (payload: unknown) => void>;
+    }
+    const operation = compiled.operation;
+    const emitter: Record<string, (payload: unknown) => void> = {};
+    for (const { alias, event } of compiled.emits) {
+      emitter[alias] = (payload: unknown): void => {
+        if (!lifecycle.active) {
+          throw latchBoundaryFault(lifecycle, fault(
+            "EVENT_OUTSIDE_EXECUTION",
+            `Event ${event.id} was emitted outside ${operation.id} execution`,
+            { eventId: event.id },
+          ));
+        }
+        let eventPayload: unknown;
+        try {
+          const parsed = event.payload.safeParse(payload);
+          if (!parsed.success) {
+            throw new BoundaryFault(fault(
+              "INVALID_EVENT_PAYLOAD",
+              `Invalid payload for event ${event.id}`,
+              { eventId: event.id, issues: parsed.issues },
+            ));
+          }
+          // Snapshot (structural detach) always; deep freeze only in dev/test.
+          eventPayload = snapshotStructuredValue(parsed.data, devChecks);
+        } catch (cause) {
+          const boundary = cause instanceof BoundaryFault
+            ? cause.fault
+            : fault(
+                "INVALID_EVENT_PAYLOAD",
+                `Could not validate or snapshot payload for event ${event.id}`,
+                { eventId: event.id, cause },
+              );
+          throw latchBoundaryFault(lifecycle, boundary);
+        }
+        const emitted: EmittedEvent = maybeFreeze({
+          operationId: operation.id,
+          alias,
+          eventId: event.id,
+          version: event.version,
+          payload: eventPayload,
+        });
+        lifecycle.events.push(emitted);
+        trace?.push({ type: "event", ...emitted });
+      };
+    }
+    return devChecks ? Object.freeze(emitter) : emitter;
+  };
+
+  /* ---------------- dispatch ---------------- */
+
+  const dispatch = async (
+    requested: AnyBoundOperation | string,
+    options: DispatchOptions<unknown>,
+  ): Promise<DispatchResult<unknown, unknown>> => {
+    const requestedId = typeof requested === "string" ? requested : requested.id;
+    const compiled = compiledById.get(requestedId);
+    const trace: TraceEntry[] | null = options.trace === true ? [] : null;
+
+    if (compiled === undefined) {
+      return finalize(
+        {
+          kind: "rejected" as const,
+          operationId: requestedId,
+          error: maybeFreeze({
+            code: "UNKNOWN_OPERATION" as const,
+            operationId: requestedId,
+          }),
+        },
+        trace,
+      );
+    }
+    const operation = compiled.operation;
 
     if (typeof requested !== "string" && requested !== operation) {
-      return includeTrace(
+      return finalize(
         {
-          kind: "fault",
+          kind: "fault" as const,
           operationId: requestedId,
           error: fault(
             "OPERATION_DESCRIPTOR_MISMATCH",
             `Operation descriptor ${requestedId} is not the registered application descriptor`,
           ),
         },
-        traceEnabled,
         trace,
       );
     }
 
     // Authorization deliberately precedes input parsing and context construction.
-    const granted = new Set(options.principal.permissions);
-    const missingPermissions = operation.permissions.filter(
-      (permission) => !granted.has(permission),
-    );
-    if (missingPermissions.length > 0) {
-      return includeTrace(
+    const allowed = authorizeHook === undefined
+      ? authorize(operation, options.principal)
+      : authorizeHook(options.principal, operation);
+    if (!allowed) {
+      return finalize(
         {
-          kind: "rejected",
+          kind: "rejected" as const,
           operationId: operation.id,
-          error: Object.freeze({
-            code: "PERMISSION_DENIED",
-            principalId: options.principal.id,
-            missingPermissions: Object.freeze(missingPermissions),
+          error: maybeFreeze({
+            code: "PERMISSION_DENIED" as const,
+            ...(options.principal === undefined
+              ? {}
+              : { principalId: options.principal.id }),
+            missingPermissions: missingPermissionsOf(operation, options.principal),
           }),
         },
-        traceEnabled,
         trace,
       );
     }
 
-    let parsedInputData: unknown;
+    let inputData: unknown;
     try {
       const parsedInput = operation.input.safeParse(options.input);
       if (!parsedInput.success) {
-        return includeTrace(
+        return finalize(
           {
-            kind: "rejected",
+            kind: "rejected" as const,
             operationId: operation.id,
-            error: Object.freeze({
-              code: "INVALID_INPUT",
+            error: maybeFreeze({
+              code: "INVALID_INPUT" as const,
               issues: parsedInput.issues,
             }),
           },
-          traceEnabled,
           trace,
         );
       }
-      parsedInputData = parsedInput.data;
+      inputData = parsedInput.data;
     } catch (cause) {
-      return includeTrace(
+      return finalize(
         {
-          kind: "fault",
+          kind: "fault" as const,
           operationId: operation.id,
           error: fault(
             "INPUT_VALIDATION_FAILED",
@@ -406,50 +752,27 @@ export const createApplication = <
             { cause },
           ),
         },
-        traceEnabled,
         trace,
       );
     }
 
     const lifecycle: ExecutionLifecycle = {
       active: true,
+      boundaryFault: undefined,
       pendingEffects: new Set(),
       events: [],
     };
-    const effects = buildEffects(
-      operation,
-      adapters,
-      lifecycle,
-      trace,
-    );
-    const emit = buildEmitter(operation, lifecycle, trace);
+    const context = {
+      input: inputData,
+      effects: buildEffectsContext(compiled, lifecycle, trace),
+      emit: buildEmitContext(compiled, lifecycle, trace),
+      fail: operation.fail,
+    };
+    if (devChecks) Object.freeze(context);
 
+    let raw: unknown;
     try {
-      const rawOutcome = await operation.execute({
-        input: parsedInputData,
-        effects,
-        emit,
-      });
-      lifecycle.active = false;
-      await drainPendingEffects(lifecycle);
-      if (lifecycle.boundaryFault !== undefined) {
-        return includeTrace(
-          { kind: "fault", operationId: operation.id, error: lifecycle.boundaryFault },
-          traceEnabled,
-          trace,
-        );
-      }
-      const outcome = validateOperationOutcome(operation, rawOutcome);
-      return includeTrace(
-        {
-          kind: "completed",
-          operationId: operation.id,
-          outcome,
-          events: Object.freeze([...lifecycle.events]),
-        },
-        traceEnabled,
-        trace,
-      );
+      raw = await (operation.execute as (context: unknown) => unknown)(context);
     } catch (cause) {
       lifecycle.active = false;
       await drainPendingEffects(lifecycle);
@@ -460,233 +783,213 @@ export const createApplication = <
             `Operation ${operation.id} threw an unexpected exception`,
             { cause },
           ));
-      return includeTrace(
-        { kind: "fault", operationId: operation.id, error },
-        traceEnabled,
+      return finalize({ kind: "fault" as const, operationId: operation.id, error }, trace);
+    }
+    lifecycle.active = false;
+    await drainPendingEffects(lifecycle);
+    if (lifecycle.boundaryFault !== undefined) {
+      return finalize(
+        { kind: "fault" as const, operationId: operation.id, error: lifecycle.boundaryFault },
         trace,
       );
     }
+
+    // External boundaries stay validated in ALL modes (incl. production):
+    // operation output parse and declared-error details parse.
+    let failure: { readonly code: unknown; readonly details: unknown } | undefined;
+    try {
+      // Hostile values (throwing `has` traps or getters) must fault, not throw.
+      failure = isFailResult(raw)
+        ? { code: raw.error.code, details: raw.error.details }
+        : undefined;
+    } catch (cause) {
+      return finalize(
+        {
+          kind: "fault" as const,
+          operationId: operation.id,
+          error: fault(
+            "INVALID_OUTPUT",
+            `Operation ${operation.id} returned a value that could not be inspected`,
+            { cause },
+          ),
+        },
+        trace,
+      );
+    }
+    let outcome: Outcome<unknown, unknown>;
+    if (failure !== undefined) {
+      const code = failure.code;
+      const detailsSchema =
+        typeof code === "string" ? compiled.errorDetails[code] : undefined;
+      if (detailsSchema === undefined) {
+        return finalize(
+          {
+            kind: "fault" as const,
+            operationId: operation.id,
+            error: fault(
+              "INVALID_DOMAIN_ERROR",
+              `Operation ${operation.id} failed with undeclared error code ${String(code)}`,
+            ),
+          },
+          trace,
+        );
+      }
+      let parsedDetails: unknown;
+      try {
+        const parsed = detailsSchema.safeParse(failure.details);
+        if (!parsed.success) {
+          return finalize(
+            {
+              kind: "fault" as const,
+              operationId: operation.id,
+              error: fault(
+                "INVALID_DOMAIN_ERROR",
+                `Operation ${operation.id} returned invalid details for error ${code}`,
+                { issues: parsed.issues },
+              ),
+            },
+            trace,
+          );
+        }
+        parsedDetails = parsed.data;
+      } catch (cause) {
+        return finalize(
+          {
+            kind: "fault" as const,
+            operationId: operation.id,
+            error: fault(
+              "INVALID_DOMAIN_ERROR",
+              `Details schema for error ${code} threw during validation`,
+              { cause },
+            ),
+          },
+          trace,
+        );
+      }
+      outcome = maybeFreeze({
+        ok: false as const,
+        error: maybeFreeze({ code, details: parsedDetails }),
+      });
+    } else {
+      try {
+        const parsedOutput = operation.output.safeParse(raw);
+        if (!parsedOutput.success) {
+          return finalize(
+            {
+              kind: "fault" as const,
+              operationId: operation.id,
+              error: fault(
+                "INVALID_OUTPUT",
+                `Operation ${operation.id} returned invalid output`,
+                { issues: parsedOutput.issues },
+              ),
+            },
+            trace,
+          );
+        }
+        outcome = maybeFreeze({ ok: true as const, value: parsedOutput.data });
+      } catch (cause) {
+        return finalize(
+          {
+            kind: "fault" as const,
+            operationId: operation.id,
+            error: fault(
+              "INVALID_OUTPUT",
+              `Output schema for operation ${operation.id} threw during validation`,
+              { cause },
+            ),
+          },
+          trace,
+        );
+      }
+    }
+
+    // Invariants run post-completion in dev/test only.
+    if (devChecks && outcome.ok && compiled.ensures.length > 0) {
+      for (const { name, ensure } of compiled.ensures) {
+        let passed: boolean;
+        try {
+          passed = ensure.check({ input: inputData, output: outcome.value });
+        } catch (cause) {
+          return finalize(
+            {
+              kind: "fault" as const,
+              operationId: operation.id,
+              error: fault(
+                "INVARIANT_VIOLATION",
+                `Invariant ${name} threw for ${operation.id}`,
+                { invariant: name, cause },
+              ),
+            },
+            trace,
+          );
+        }
+        if (!passed) {
+          return finalize(
+            {
+              kind: "fault" as const,
+              operationId: operation.id,
+              error: fault(
+                "INVARIANT_VIOLATION",
+                `Invariant ${name} violated by ${operation.id}`,
+                { invariant: name },
+              ),
+            },
+            trace,
+          );
+        }
+      }
+    }
+
+    const events = lifecycle.events.length === 0
+      ? EMPTY_EVENTS
+      : (maybeFreeze(lifecycle.events) as readonly EmittedEvent[]);
+    return finalize(
+      { kind: "completed" as const, operationId: operation.id, outcome, events },
+      trace,
+    );
+  };
+
+  const call = async (
+    operationId: string,
+    input: unknown,
+    options?: CallOptions,
+  ): Promise<Outcome<unknown, unknown>> => {
+    const result = await dispatch(operationId, {
+      input,
+      ...(options?.principal === undefined ? {} : { principal: options.principal }),
+    });
+    if (result.kind === "completed") return result.outcome;
+    throw new DispatchError(result);
   };
 
   return Object.freeze({
-    features,
-    operations,
     mode,
-    getOperation(id: string) {
-      return operationsById.get(id) as OperationsFromFeatures<Features> | undefined;
+    features,
+    operations: Object.freeze(operationsRecord),
+    getOperation(id: string): AnyBoundOperation | undefined {
+      return operationsById.get(id);
     },
     dispatch,
-  }) as unknown as Application<OperationsFromFeatures<Features>>;
+    call,
+  }) as unknown as Application<ApplicationOperations<Features>>;
 };
 
-const buildEffects = (
-  operation: AnyOperationDescriptor,
-  adapters: ReadonlyMap<string, BoundPortAdapter>,
-  lifecycle: ExecutionLifecycle,
-  trace: TraceEntry[],
-): EffectContext<EffectMap> => {
-  const context: Record<
-    string,
-    (input: unknown) => Promise<Outcome<unknown, unknown>>
-  > = {};
-  const declaredIds = new Set(
-    Object.values(operation.effects).map((effect) => effect.id),
-  );
+/* ------------------------------------------------------------------ */
+/* Internals                                                          */
+/* ------------------------------------------------------------------ */
 
-  for (const alias of Object.keys(operation.effects).sort()) {
-    const effect = operation.effects[alias];
-    if (effect === undefined) continue;
-    const executeEffect = async (input: unknown): Promise<Outcome<unknown, unknown>> => {
-      if (!lifecycle.active) {
-        throw latchBoundaryFault(lifecycle, fault(
-          "EFFECT_OUTSIDE_EXECUTION",
-          `Effect ${effect.id} was invoked outside ${operation.id} execution`,
-          { effectId: effect.id },
-        ));
-      }
-      if (!declaredIds.has(effect.id)) {
-        throw latchBoundaryFault(lifecycle, fault(
-          "UNDECLARED_EFFECT",
-          `Effect ${effect.id} is not declared by ${operation.id}`,
-          { effectId: effect.id },
-        ));
-      }
-
-      let parsedInputData: unknown;
-      try {
-        const parsedInput = effect.input.safeParse(input);
-        if (!parsedInput.success) {
-          const boundary = fault(
-            "INVALID_EFFECT_INPUT",
-            `Invalid input for effect ${effect.id}`,
-            { effectId: effect.id, issues: parsedInput.issues },
-          );
-          trace.push(effectFaultTrace(operation.id, alias, effect.id, input, boundary));
-          throw latchBoundaryFault(lifecycle, boundary);
-        }
-        parsedInputData = parsedInput.data;
-      } catch (cause) {
-        if (cause instanceof BoundaryFault) throw cause;
-        const boundary = fault(
-          "INVALID_EFFECT_INPUT",
-          `Input schema for effect ${effect.id} threw during validation`,
-          { effectId: effect.id, cause },
-        );
-        trace.push(effectFaultTrace(operation.id, alias, effect.id, input, boundary));
-        throw latchBoundaryFault(lifecycle, boundary);
-      }
-
-      const adapter = adapters.get(effect.portId);
-      const handler = adapter?.operations[effect.operationKey] as
-        | ((value: unknown) => unknown)
-        | undefined;
-      // Completeness is checked at construction; this protects hostile casts/mutation.
-      if (handler === undefined) {
-        const boundary = fault(
-          "EFFECT_EXECUTION_FAILED",
-          `No adapter handler is bound for ${effect.id}`,
-          { effectId: effect.id },
-        );
-        trace.push(effectFaultTrace(operation.id, alias, effect.id, input, boundary));
-        throw latchBoundaryFault(lifecycle, boundary);
-      }
-
-      let raw: unknown;
-      try {
-        raw = await handler(parsedInputData);
-      } catch (cause) {
-        const boundary = fault(
-          "EFFECT_EXECUTION_FAILED",
-          `Adapter for ${effect.id} threw an unexpected exception`,
-          { effectId: effect.id, cause },
-        );
-        trace.push(effectFaultTrace(operation.id, alias, effect.id, input, boundary));
-        throw latchBoundaryFault(lifecycle, boundary);
-      }
-
-      let inspectedOutcome: Outcome<unknown, unknown> | undefined;
-      try {
-        if (isOutcome(raw)) inspectedOutcome = raw;
-      } catch (cause) {
-        const boundary = fault(
-          "INVALID_EFFECT_RESULT",
-          `Could not inspect adapter result for ${effect.id}`,
-          { effectId: effect.id, cause },
-        );
-        trace.push(effectFaultTrace(operation.id, alias, effect.id, input, boundary));
-        throw latchBoundaryFault(lifecycle, boundary);
-      }
-      if (inspectedOutcome === undefined) {
-        const boundary = fault(
-          "INVALID_EFFECT_RESULT",
-          `Adapter for ${effect.id} did not return an Outcome`,
-          { effectId: effect.id },
-        );
-        trace.push(effectFaultTrace(operation.id, alias, effect.id, input, boundary));
-        throw latchBoundaryFault(lifecycle, boundary);
-      }
-
-      let validated: Outcome<unknown, unknown>;
-      try {
-        validated = validateEffectOutcome(effect, inspectedOutcome);
-      } catch (cause) {
-        const boundary = cause instanceof BoundaryFault
-          ? cause.fault
-          : fault(
-              "INVALID_EFFECT_RESULT",
-              `Could not validate adapter result for ${effect.id}`,
-              { effectId: effect.id, cause },
-            );
-        trace.push(effectFaultTrace(operation.id, alias, effect.id, input, boundary));
-        throw cause instanceof BoundaryFault
-          ? latchBoundaryFault(lifecycle, cause.fault)
-          : latchBoundaryFault(lifecycle, boundary);
-      }
-      trace.push(Object.freeze({
-        type: "effect",
-        operationId: operation.id,
-        alias,
-        effectId: effect.id,
-        input: parsedInputData,
-        status: "completed",
-        outcome: validated,
-      }));
-      return validated;
-    };
-    context[alias] = (input: unknown): Promise<Outcome<unknown, unknown>> => {
-      const pending = executeEffect(input);
-      lifecycle.pendingEffects.add(pending);
-      void pending.then(
-        () => lifecycle.pendingEffects.delete(pending),
-        () => lifecycle.pendingEffects.delete(pending),
-      );
-      return pending;
-    };
-  }
-  return Object.freeze(context) as EffectContext<EffectMap>;
-};
-
-const buildEmitter = (
-  operation: AnyOperationDescriptor,
-  lifecycle: ExecutionLifecycle,
-  trace: TraceEntry[],
-): EventEmitter<EventMap> => {
-  const emitter: Record<string, (payload: unknown) => void> = {};
-  for (const alias of Object.keys(operation.emits).sort()) {
-    const emitted = operation.emits[alias];
-    if (emitted === undefined) continue;
-    emitter[alias] = (payload: unknown): void => {
-      if (!lifecycle.active) {
-        throw latchBoundaryFault(lifecycle, fault(
-          "EVENT_OUTSIDE_EXECUTION",
-          `Event ${emitted.id} was emitted outside ${operation.id} execution`,
-          { eventId: emitted.id },
-        ));
-      }
-      let eventPayload: unknown;
-      try {
-        const parsed = emitted.payload.safeParse(payload);
-        if (!parsed.success) {
-          throw new BoundaryFault(fault(
-            "INVALID_EVENT_PAYLOAD",
-            `Invalid payload for event ${emitted.id}`,
-            { eventId: emitted.id, issues: parsed.issues },
-          ));
-        }
-        eventPayload = snapshotStructuredValue(parsed.data);
-      } catch (cause) {
-        const boundary = cause instanceof BoundaryFault
-          ? cause.fault
-          : fault(
-              "INVALID_EVENT_PAYLOAD",
-              `Could not validate or snapshot payload for event ${emitted.id}`,
-              { eventId: emitted.id, cause },
-            );
-        throw latchBoundaryFault(lifecycle, boundary);
-      }
-      const event: EmittedEvent = Object.freeze({
-        operationId: operation.id,
-        alias,
-        eventId: emitted.id,
-        version: emitted.version,
-        payload: eventPayload,
-      });
-      lifecycle.events.push(event);
-      trace.push(Object.freeze({
-        type: "event",
-        ...event,
-      }));
-    };
-  }
-  return Object.freeze(emitter) as EventEmitter<EventMap>;
-};
+const isFailResult = (
+  value: unknown,
+): value is OperationFailure<{ readonly code: unknown; readonly details: unknown }> =>
+  typeof value === "object" && value !== null && FAIL_RESULT in value;
 
 /**
- * Detach and deeply freeze the structured values produced by built-in schemas.
- * The iterative walk preserves cycles and shared references without risking
- * unbounded recursive calls. Non-plain objects are opaque schema values.
+ * Detach the structured values produced by built-in schemas (always) and
+ * deep-freeze them (dev/test only). The iterative walk preserves cycles and
+ * shared references without unbounded recursion.
  */
-const snapshotStructuredValue = (value: unknown): unknown => {
+const snapshotStructuredValue = (value: unknown, freeze: boolean): unknown => {
   if (!isStructuredContainer(value)) return value;
 
   const root = createStructuredContainer(value);
@@ -728,9 +1031,11 @@ const snapshotStructuredValue = (value: unknown): unknown => {
     }
   }
 
-  for (let index = created.length - 1; index >= 0; index -= 1) {
-    const container = created[index];
-    if (container !== undefined) Object.freeze(container);
+  if (freeze) {
+    for (let index = created.length - 1; index >= 0; index -= 1) {
+      const container = created[index];
+      if (container !== undefined) Object.freeze(container);
+    }
   }
   return root;
 };
@@ -745,203 +1050,7 @@ const isStructuredContainer = (value: unknown): value is object => {
 const createStructuredContainer = (source: object): object =>
   Array.isArray(source)
     ? new Array<unknown>(source.length)
-    : Object.create(Object.getPrototypeOf(source) as object | null) as object;
-
-const validateOperationOutcome = (
-  operation: AnyOperationDescriptor,
-  value: unknown,
-): Outcome<unknown, unknown> => {
-  if (!isOutcome(value)) {
-    throw new BoundaryFault(fault(
-      "INVALID_OPERATION_OUTCOME",
-      `Operation ${operation.id} did not return an Outcome`,
-    ));
-  }
-  if (value.ok) {
-    const parsed = operation.output.safeParse(value.value);
-    if (!parsed.success) {
-      throw new BoundaryFault(fault(
-        "INVALID_OUTPUT",
-        `Operation ${operation.id} returned invalid output`,
-        { issues: parsed.issues },
-      ));
-    }
-    return Object.freeze({ ok: true, value: parsed.data });
-  }
-  return validateDeclaredError(operation.errors, value.error, operation.id);
-};
-
-const validateEffectOutcome = (
-  effect: AnyPortOperationDescriptor,
-  value: Outcome<unknown, unknown>,
-): Outcome<unknown, unknown> => {
-  if (value.ok) {
-    const parsed = effect.output.safeParse(value.value);
-    if (!parsed.success) {
-      throw new BoundaryFault(fault(
-        "INVALID_EFFECT_OUTPUT",
-        `Adapter for ${effect.id} returned invalid output`,
-        { effectId: effect.id, issues: parsed.issues },
-      ));
-    }
-    return Object.freeze({ ok: true, value: parsed.data });
-  }
-  return validateDeclaredError(effect.errors, value.error, effect.id, true);
-};
-
-const validateDeclaredError = (
-  schemas: Readonly<Record<string, { safeParse(value: unknown): { success: boolean; data?: unknown; issues?: readonly SchemaIssue[] } }>>,
-  value: unknown,
-  ownerId: string,
-  effect = false,
-): Outcome<never, unknown> => {
-  if (typeof value !== "object" || value === null) {
-    throw new BoundaryFault(fault(
-      effect ? "INVALID_EFFECT_ERROR" : "INVALID_DOMAIN_ERROR",
-      `${ownerId} returned an invalid declared error`,
-      effect ? { effectId: ownerId } : {},
-    ));
-  }
-  const candidate = value as Record<string, unknown>;
-  const code = candidate["code"];
-  if (typeof code !== "string" || !(code in schemas)) {
-    throw new BoundaryFault(fault(
-      effect ? "INVALID_EFFECT_ERROR" : "INVALID_DOMAIN_ERROR",
-      `${ownerId} returned undeclared error code ${String(code)}`,
-      effect ? { effectId: ownerId } : {},
-    ));
-  }
-  const parsed = schemas[code]?.safeParse(candidate["details"]);
-  if (parsed === undefined || !parsed.success) {
-    throw new BoundaryFault(fault(
-      effect ? "INVALID_EFFECT_ERROR" : "INVALID_DOMAIN_ERROR",
-      `${ownerId} returned invalid details for error ${code}`,
-      {
-        ...(effect ? { effectId: ownerId } : {}),
-        ...(parsed?.issues === undefined ? {} : { issues: parsed.issues }),
-      },
-    ));
-  }
-  return Object.freeze({
-    ok: false,
-    error: Object.freeze({ code, details: parsed.data }),
-  });
-};
-
-const normalizeAdapters = (
-  collection: AdapterCollection,
-  issues: ApplicationDefinitionIssue[],
-): ReadonlyMap<string, BoundPortAdapter> => {
-  const values: readonly (BoundPortAdapter | undefined)[] = Array.isArray(collection)
-    ? collection
-    : Object.keys(collection).sort().map(
-        (key) => (collection as Readonly<Record<string, BoundPortAdapter>>)[key],
-      );
-  const adapters = new Map<string, BoundPortAdapter>();
-  for (const adapter of values) {
-    if (adapter === undefined) continue;
-    if (adapters.has(adapter.port.id)) {
-      issues.push(definitionIssue(
-        "DUPLICATE_ADAPTER",
-        `Port ${adapter.port.id} has more than one adapter`,
-        adapter.port.id,
-      ));
-    } else {
-      adapters.set(adapter.port.id, adapter);
-    }
-  }
-  return adapters;
-};
-
-const validateAdapters = (
-  required: ReadonlyMap<string, PortDescriptor>,
-  adapters: ReadonlyMap<string, BoundPortAdapter>,
-  issues: ApplicationDefinitionIssue[],
-): void => {
-  for (const [portId, port] of required) {
-    const adapter = adapters.get(portId);
-    if (adapter === undefined) {
-      issues.push(definitionIssue(
-        "MISSING_ADAPTER",
-        `No adapter is bound for required port ${portId}`,
-        portId,
-      ));
-      continue;
-    }
-    for (const [key, operation] of Object.entries(port.operations)) {
-      const adapterOperation = adapter.port.operations[key];
-      if (adapterOperation !== operation) {
-        issues.push(definitionIssue(
-          "ADAPTER_PORT_MISMATCH",
-          `Adapter for ${portId} does not describe operation ${operation.id} at key ${key}`,
-          operation.id,
-        ));
-      }
-      if (typeof adapter.operations[key] !== "function") {
-        issues.push(definitionIssue(
-          "INCOMPLETE_ADAPTER",
-          `Adapter for ${portId} does not implement ${operation.id}`,
-          operation.id,
-        ));
-      }
-    }
-  }
-};
-
-const syntheticPort = (effect: AnyPortOperationDescriptor): PortDescriptor =>
-  Object.freeze({
-    descriptorType: "port",
-    id: effect.portId,
-    operations: Object.freeze({ [effect.operationKey]: effect }),
-  });
-
-const mergeRequiredPort = (
-  current: PortDescriptor,
-  effect: AnyPortOperationDescriptor,
-  issues: ApplicationDefinitionIssue[],
-): PortDescriptor => {
-  const existing = current.operations[effect.operationKey];
-  if (existing !== undefined && existing.id !== effect.id) {
-    issues.push(definitionIssue(
-      "ADAPTER_PORT_MISMATCH",
-      `Port ${effect.portId} uses key ${effect.operationKey} for both ${existing.id} and ${effect.id}`,
-      effect.portId,
-    ));
-    return current;
-  }
-  if (existing !== undefined) return current;
-  return Object.freeze({
-    descriptorType: "port",
-    id: current.id,
-    operations: Object.freeze({
-      ...current.operations,
-      [effect.operationKey]: effect,
-    }),
-  });
-};
-
-const validateQueryRuntime = (
-  operation: AnyOperationDescriptor,
-  issues: ApplicationDefinitionIssue[],
-): void => {
-  if (operation.kind !== "query") return;
-  for (const effect of Object.values(operation.effects)) {
-    if (effect.kind === "write") {
-      issues.push(definitionIssue(
-        "QUERY_WRITE_EFFECT",
-        `Query ${operation.id} declares write effect ${effect.id}`,
-        operation.id,
-      ));
-    }
-  }
-  if (Object.keys(operation.emits).length > 0) {
-    issues.push(definitionIssue(
-      "QUERY_EMITS_EVENT",
-      `Query ${operation.id} declares emitted events`,
-      operation.id,
-    ));
-  }
-};
+    : (Object.create(Object.getPrototypeOf(source) as object | null) as object);
 
 const recordId = (
   ids: Map<string, { readonly kind: string; readonly descriptor: object }>,
@@ -967,15 +1076,14 @@ const definitionIssue = (
   code: ApplicationDefinitionIssueCode,
   message: string,
   id?: string,
-): ApplicationDefinitionIssue => Object.freeze(
-  id === undefined ? { code, message } : { code, message, id },
-);
+): ApplicationDefinitionIssue =>
+  Object.freeze(id === undefined ? { code, message } : { code, message, id });
 
 const fault = (
   code: DispatchFaultCode,
   message: string,
   extras: Omit<DispatchFaultError, "code" | "message"> = {},
-): DispatchFaultError => Object.freeze({ code, message, ...extras });
+): DispatchFaultError => ({ code, message, ...extras });
 
 class BoundaryFault extends Error {
   readonly fault: DispatchFaultError;
@@ -995,21 +1103,19 @@ const latchBoundaryFault = (
   return new BoundaryFault(boundary);
 };
 
-const drainPendingEffects = async (
-  lifecycle: ExecutionLifecycle,
-): Promise<void> => {
+const drainPendingEffects = async (lifecycle: ExecutionLifecycle): Promise<void> => {
   while (lifecycle.pendingEffects.size > 0) {
     await Promise.allSettled([...lifecycle.pendingEffects]);
   }
 };
 
-const effectFaultTrace = (
+const effectFaultEntry = (
   operationId: string,
   alias: string,
   effectId: string,
   input: unknown,
   error: DispatchFaultError,
-): EffectTraceEntry => Object.freeze({
+): EffectTraceEntry => ({
   type: "effect",
   operationId,
   alias,
@@ -1018,18 +1124,3 @@ const effectFaultTrace = (
   status: "fault",
   error,
 });
-
-const includeTrace = <T extends object>(
-  result: T,
-  enabled: boolean,
-  trace: TraceEntry[],
-): T & { readonly trace?: ExecutionTrace } => Object.freeze(
-  enabled
-    ? { ...result, trace: Object.freeze([...trace]) }
-    : result,
-);
-
-// These references make public descriptor relationships explicit to declaration tools.
-export type ApplicationEventDescriptor = EventDescriptor;
-export type ApplicationInvariantDescriptor = InvariantDescriptor;
-export type ApplicationOperationDescriptor = OperationDescriptor;

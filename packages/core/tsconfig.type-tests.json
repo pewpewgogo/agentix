@@ -10,5 +10,5 @@
     "lib": ["ES2024", "DOM"],
     "types": ["node", "vitest/globals"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "include": ["src/**/*.ts", "test/*.ts"]
 }

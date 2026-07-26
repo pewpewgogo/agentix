@@ -1,95 +1,328 @@
+/**
+ * Type-level tests for the v2 authoring surface. Compiled by
+ * tsconfig.type-tests.json; never executed. Mirrors the verified-d1 probe:
+ * template-literal ids, guarded helper conditionals, fail() typing, effect
+ * inference, and type-level query purity.
+ */
 import {
-  bindPort,
-  defineCommand,
-  defineEvent,
-  definePort,
-  defineQuery,
+  command,
+  createApplication,
+  event,
+  feature,
   ok,
-  portOperation,
-  schema,
+  port,
+  query,
+  s,
+  type BoundPortAdapter,
   type BrandedId,
-  type Infer,
+  type DeclaredError,
+  type EffectContext,
+  type OpError,
+  type OpInput,
+  type OpOutput,
 } from "../src/index.js";
 
-const UserId = schema.id("user");
-type UserId = Infer<typeof UserId>;
-const validId: UserId = UserId.parse("user-1");
-const branded: BrandedId<"user"> = validId;
-void branded;
-// @ts-expect-error Plain strings do not silently acquire an ID brand.
-const invalidId: UserId = "user-1";
+const Note = s.object({
+  id: s.id("NoteId"),
+  title: s.string({ min: 1, max: 200 }),
+  body: s.string(),
+});
+type Note = s.Infer<typeof Note>;
+
+/* --- s.Infer and branded ids ---------------------------------------- */
+
+const validId: Note["id"] = s.id("NoteId").parse("n1");
+const brandedAlias: BrandedId<"NoteId"> = validId;
+void brandedAlias;
+// @ts-expect-error - plain strings do not silently acquire an ID brand
+const invalidId: Note["id"] = "n1";
 void invalidId;
 
-const Port = definePort({
-  id: "types.port",
+/* --- ports: derived template-literal op ids -------------------------- */
+
+const NoteStorage = port("noteStorage", {
+  save: port.write({ input: Note, output: Note }),
+  get: port.read({ input: s.id("NoteId"), output: s.optional(Note) }),
+});
+
+const saveId: "noteStorage.save" = NoteStorage.save.id;
+const saveViaOperations: "noteStorage.save" = NoteStorage.operations.save.id;
+void saveId;
+void saveViaOperations;
+// @ts-expect-error - id is the exact template literal, not widened
+const wrongSaveId: "noteStorage.get" = NoteStorage.save.id;
+void wrongSaveId;
+
+// @ts-expect-error - port operations must come from port.read/write/...
+port("bogus", { nope: "not-an-operation" });
+
+/* --- port.store: preset ops share the template-literal scheme -------- */
+
+const NoteStore = port.store("noteStore", Note);
+const storeGetId: "noteStore.get" = NoteStore.get.id;
+const storeSaveId: "noteStore.save" = NoteStore.operations.save.id;
+void storeGetId;
+void storeSaveId;
+type StoreGetInput = s.Infer<(typeof NoteStore)["get"]["input"]>;
+const storeGetInput: StoreGetInput = validId;
+void storeGetInput;
+// @ts-expect-error - store get takes the branded id, not the record
+const badStoreGetInput: StoreGetInput = { id: validId, title: "t", body: "b" };
+void badStoreGetInput;
+const storeMemory: BoundPortAdapter = NoteStore.memory();
+void storeMemory;
+
+/* --- adapters: typed implementations, non-generic bound adapter ------ */
+
+const adapter: BoundPortAdapter = NoteStorage.adapter({
+  save: (note) => {
+    // adapter impl param inferred as Note
+    const title: string = note.title;
+    void title;
+    return note;
+  },
+  get: (id) => {
+    const branded: BrandedId<"NoteId"> = id;
+    void branded;
+    return undefined;
+  },
+});
+
+// @ts-expect-error - adapters must implement the complete port contract
+NoteStorage.adapter({ save: (note) => note });
+
+NoteStorage.adapter({
+  save: (note) => note,
+  // @ts-expect-error - adapter outputs are typed by the port op output schema
+  get: () => 42,
+});
+
+/* --- effect handler surface (Q2): plain values in, plain values out -- */
+
+type SaveHandler = EffectContext<{ save: (typeof NoteStorage)["save"] }>["save"];
+type SaveInput = Parameters<SaveHandler>[0];
+const saveInputCheck1: SaveInput extends Note ? true : never = true;
+const saveInputCheck2: Note extends SaveInput ? true : never = true;
+void saveInputCheck1;
+void saveInputCheck2;
+type SaveOutput = Awaited<ReturnType<SaveHandler>>;
+const saveOutputCheck: SaveOutput extends Note
+  ? Note extends SaveOutput
+    ? true
+    : never
+  : never = true;
+void saveOutputCheck;
+
+/* --- operations: unified errors, fail typing, emits, effects --------- */
+
+const noteCreated = event("notes.created", 1, Note);
+const eventId: "notes.created" = noteCreated.id;
+const eventVersion: 1 = noteCreated.version;
+void eventId;
+void eventVersion;
+
+const notes = feature("notes", {
   operations: {
-    read: portOperation({
-      id: "types.port.read",
-      kind: "read",
-      input: schema.object({ id: UserId }),
-      output: schema.string(),
-      errors: {},
+    create: command({
+      input: s.object({ title: Note.shape.title, body: Note.shape.body }),
+      output: Note,
+      errors: {
+        NOTE_EXISTS: { http: 409, details: { id: s.id("NoteId") } },
+        VAULT_SEALED: { http: 423 },
+        BAD_TITLE: s.object({ reason: s.string() }),
+      },
+      permissions: ["notes:create"],
+      http: { method: "POST", path: "/notes", status: 201 },
+      effects: { save: NoteStorage.save, load: NoteStorage.get },
+      emits: { created: noteCreated },
+      async execute({ input, effects, emit, fail }) {
+        const existing = await effects.load(validId);
+        // effect handlers return plain (validated) values, not Outcomes
+        const plain: Note | undefined = existing;
+        void plain;
+        const saved = await effects.save({
+          id: validId,
+          title: input.title,
+          body: input.body,
+        });
+        const savedTitle: string = saved.title;
+        void savedTitle;
+        emit.created(saved);
+        // @ts-expect-error - "createdd" is not a declared emit alias
+        emit.createdd;
+        // @ts-expect-error - event payloads are schema-inferred
+        emit.created({ nope: true });
+        if (input.title === "dupe") return fail("NOTE_EXISTS", { id: saved.id });
+        if (input.title === "sealed") return fail("VAULT_SEALED");
+        if (input.title === "bad") return fail("BAD_TITLE", { reason: "bad" });
+        // @ts-expect-error - fail rejects unknown error codes
+        void fail("TYPO_CODE");
+        // @ts-expect-error - fail details are typed per error code
+        void fail("NOTE_EXISTS", { id: 5 });
+        // @ts-expect-error - details are required when the error declares them
+        void fail("NOTE_EXISTS");
+        // @ts-expect-error - detail-less errors accept no extra detail keys
+        void fail("VAULT_SEALED", { nope: true });
+        return saved;
+      },
     }),
-    write: portOperation({
-      id: "types.port.write",
-      kind: "write",
-      input: schema.object({ id: UserId, value: schema.string() }),
-      output: schema.literal(true),
-      errors: {},
+    get: query({
+      input: s.id("NoteId"),
+      output: s.optional(Note),
+      permissions: ["notes:read"],
+      effects: { load: NoteStorage.get },
+      async execute({ input, effects }) {
+        const branded: BrandedId<"NoteId"> = input;
+        void branded;
+        return effects.load(input);
+      },
     }),
   },
 });
 
-const Changed = defineEvent({
-  id: "types.changed",
-  version: 1,
-  payload: schema.object({ id: UserId }),
-});
+/* --- execute must return plain output, not ok()/err() outcomes ------- */
 
-defineCommand({
-  id: "types.command",
-  input: schema.object({ id: UserId }),
-  output: schema.string(),
-  errors: {},
-  permissions: [],
-  effects: { load: Port.operations.read },
-  emits: { changed: Changed },
-  async execute({ input, effects, emit }) {
-    const value = await effects.load({ id: input.id });
-    emit.changed({ id: input.id });
-    // @ts-expect-error The context exposes only declared effect aliases.
-    await effects.write({ id: input.id, value: "hidden" });
-    // @ts-expect-error Event payloads are schema-inferred.
-    emit.changed({ id: "not-branded" });
-    return value;
+const outcomeReturn = () =>
+  command({
+    input: s.object({}),
+    output: s.boolean(),
+    // @ts-expect-error - v1-style Outcome wrapping is rejected at the type level
+    async execute() {
+      return ok(true);
+    },
+  });
+void outcomeReturn;
+
+/* --- queries reject write effects at the type level ------------------ */
+
+const writeQuery = () =>
+  query({
+    input: s.object({}),
+    output: Note,
+    // @ts-expect-error - write effects are rejected on queries
+    effects: { save: NoteStorage.save },
+    async execute() {
+      return { id: validId, title: "t", body: "b" };
+    },
+  });
+void writeQuery;
+
+/* --- feature: derived operation ids as literal types ------------------ */
+
+const createId: "notes.create" = notes.operations.create.id;
+const getId: "notes.get" = notes.operations.get.id;
+void createId;
+void getId;
+// @ts-expect-error - id is the exact template literal, not widened
+const wrongId: "notes.remove" = notes.operations.create.id;
+void wrongId;
+
+// @ts-expect-error - operations must be command()/query() descriptors
+feature("bogus", { operations: { nope: 42 } });
+
+/* --- OpInput/OpOutput/OpError narrowing ------------------------------- */
+
+type CreateOp = (typeof notes)["operations"]["create"];
+const opInput: OpInput<CreateOp> = { title: "t", body: "b" };
+void opInput;
+// @ts-expect-error - body is required
+const badOpInput: OpInput<CreateOp> = { title: "t" };
+void badOpInput;
+const opOutput: OpOutput<CreateOp> = { id: validId, title: "t", body: "b" };
+void opOutput;
+const opError: OpError<CreateOp> = {
+  code: "NOTE_EXISTS",
+  details: { id: validId },
+};
+void opError;
+const emptyDetailsError: OpError<CreateOp> = { code: "VAULT_SEALED", details: {} };
+void emptyDetailsError;
+// @ts-expect-error - unknown error codes are not part of the union
+const badOpError: OpError<CreateOp> = { code: "NOTE_EXIST", details: { id: validId } };
+void badOpError;
+
+/* --- omitted optional maps default to empty, not the wide constraint -- */
+
+const tags = feature("tags", {
+  operations: {
+    list: query({
+      input: s.object({}),
+      output: s.object({ count: s.number() }),
+      async execute() {
+        return { count: 0 };
+      },
+    }),
   },
 });
 
-defineQuery({
-  id: "types.query",
-  input: schema.object({ id: UserId }),
-  output: schema.string(),
-  errors: {},
-  permissions: [],
-  effects: { load: Port.operations.read },
-  execute: async ({ input, effects }) => effects.load({ id: input.id }),
+type TagsListErr = DeclaredError<(typeof tags)["operations"]["list"]["errors"]>;
+const tagsErrIsNever: [TagsListErr] extends [never] ? true : never = true;
+void tagsErrIsNever;
+
+/* --- application: dispatch/call typed by template-literal id ---------- */
+
+const app = createApplication({
+  features: [notes, tags],
+  adapters: [adapter],
+  mode: "test",
 });
 
-defineQuery({
-  id: "types.invalid-query",
-  input: schema.object({ id: UserId }),
-  output: schema.literal(true),
-  errors: {},
-  permissions: [],
-  // @ts-expect-error Queries cannot declare write effects.
-  effects: { save: Port.operations.write },
-  execute: async () => ok(true as const),
-});
+const run = async (): Promise<void> => {
+  const result = await app.dispatch("notes.create", {
+    input: { title: "hello", body: "world" },
+  });
+  if (result.kind === "completed" && result.outcome.ok) {
+    const title: string = result.outcome.value.title;
+    void title;
+  }
+  if (result.kind === "completed" && !result.outcome.ok) {
+    const code: "NOTE_EXISTS" | "VAULT_SEALED" | "BAD_TITLE" =
+      result.outcome.error.code;
+    void code;
+    if (result.outcome.error.code === "NOTE_EXISTS") {
+      const detailsId: Note["id"] = result.outcome.error.details.id;
+      void detailsId;
+    }
+  }
 
-bindPort(Port, {
-  read: () => ok("value"),
-  write: () => ok(true as const),
-});
+  // query dispatch with branded input
+  const got = await app.dispatch("notes.get", { input: validId });
+  void got;
 
-// @ts-expect-error A bound adapter must implement the complete port contract.
-bindPort(Port, { read: () => ok("value") });
+  // @ts-expect-error - "notes.remove" is not a known operation id
+  await app.dispatch("notes.remove", { input: {} });
+  // @ts-expect-error - missing body
+  await app.dispatch("notes.create", { input: { title: "x" } });
+  // @ts-expect-error - plain string not assignable to branded NoteId
+  await app.dispatch("notes.get", { input: "raw-string" });
+  // @ts-expect-error - cross-feature id mixup rejected
+  await app.dispatch("tags.create", { input: { title: "x", body: "y" } });
+
+  // dispatch by descriptor is equally typed
+  const byDescriptor = await app.dispatch(notes.operations.get, { input: validId });
+  void byDescriptor;
+
+  // multi-feature: an operation with no declared errors narrows to never
+  const listed = await app.dispatch("tags.list", { input: {} });
+  if (listed.kind === "completed" && !listed.outcome.ok) {
+    const impossible: never = listed.outcome.error;
+    void impossible;
+  }
+
+  // call(): typed outcome sugar
+  const outcome = await app.call("notes.create", { title: "t", body: "b" });
+  if (outcome.ok) {
+    const created: Note = outcome.value;
+    void created;
+  } else {
+    const code: "NOTE_EXISTS" | "VAULT_SEALED" | "BAD_TITLE" = outcome.error.code;
+    void code;
+  }
+  // @ts-expect-error - call input is typed by the operation id
+  await app.call("notes.create", { title: 1, body: "b" });
+  // @ts-expect-error - unknown operation ids are rejected on call
+  await app.call("notes.remove", {});
+};
+void run;
+
+export {};
