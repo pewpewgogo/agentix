@@ -117,26 +117,28 @@ Method changes from v1, all recorded in each report's `methodology` block:
 - New seed `agentix-http-frameworks-exploratory-v2-2026-07-26`; report
   `schemaVersion` 2 with per-sample workload/condition labels.
 
-Both records were produced from clean committed tree
-`65ac5375baf2930805253ba7ab3b3b1f9ec5f3e2` (`dirty: false`), Node v24.16.0,
-Apple M4 Max, express 5.2.1, @nestjs/core 11.1.28, zod 4.4.3; 10 warmups,
-300 measured iterations per workload.
+The current records (`-r2`) were produced from clean committed tree
+`7a36e80a4` (`dirty: false`) after the final-review fixes (which restored
+production-mode effect-output re-parsing), Node v24.16.0, Apple M4 Max,
+express 5.2.1, @nestjs/core 11.1.28, zod 4.4.3; 10 warmups, 300 measured
+iterations per workload. The initial v2 records from pre-fix tree `65ac537`
+are retained below as superseded linked records.
 
-Isolated-mode medians (microseconds; agentix / express / nestjs):
+Isolated-mode medians, r2 (microseconds; agentix / express / nestjs):
 
 | Workload | default | validated |
 | --- | --- | --- |
-| echo-valid | 113.0 / 126.8 / 139.4 | 100.8 / 117.9 / 127.7 |
-| echo-invalid | 84.9 / 95.5 / 111.7 | 83.5 / 106.3 / 120.3 |
-| param-get | 63.8 / 67.1 / 78.5 | 61.2 / 67.4 / 80.4 |
-| echo-batch (8 in-flight) | 269.1 / 318.7 / 346.3 | 261.2 / 311.3 / 348.7 |
+| echo-valid | 115.7 / 130.2 / 140.4 | 101.7 / 121.3 / 130.0 |
+| echo-invalid | 87.8 / 96.9 / 114.9 | 85.9 / 111.0 / 123.0 |
+| param-get | 65.5 / 68.9 / 81.0 | 62.1 / 69.6 / 81.9 |
+| echo-batch (8 in-flight) | 280.7 / 333.2 / 361.8 | 264.1 / 317.3 / 346.5 |
 
 Process metrics (isolated mode, default condition): cold-ready median
-36.6 ms / 71.1 ms / 146.2 ms; ready RSS median 61.4 MiB / 79.6 MiB / 97.0 MiB.
+37.9 ms / 74.8 ms / 150.7 ms; ready RSS median 61.6 MiB / 79.7 MiB / 99.5 MiB.
 
 In-process-mode medians follow the same ordering in every cell (for example
-echo-valid default 77.2 / 82.8 / 91.6). Under equal validation work
-(`validated`), Agentix's echo-valid median is 14.5% below Express and 21.1%
+echo-valid default 80.6 / 85.3 / 94.5). Under equal validation work
+(`validated`), Agentix's echo-valid median is 16.2% below Express and 21.8%
 below NestJS in isolated mode.
 
 Observations, subject to the same interpretation limits as v1: Agentix's
@@ -147,11 +149,16 @@ framework ranking.
 
 Raw evidence (append-only; the v1 files above are unchanged):
 
-- [`http-frameworks-exploratory-v2-isolated-2026-07-26.json`](../benchmarks/results/http-frameworks-exploratory-v2-isolated-2026-07-26.json)
-  — SHA-256 `aa3fabd63b9c886cf5486c0901baaf750905505a3205e0a66283c79acfdef30b`
-- [`http-frameworks-exploratory-v2-inprocess-2026-07-26.json`](../benchmarks/results/http-frameworks-exploratory-v2-inprocess-2026-07-26.json)
-  — SHA-256 `26b8e9a0d1bb3905299d4e377d5c2f6c950dbd9c2ad4fbda09c5ac5c721ed9a5`
+- CURRENT: [`http-frameworks-exploratory-v2-isolated-2026-07-26-r2.json`](../benchmarks/results/http-frameworks-exploratory-v2-isolated-2026-07-26-r2.json)
+  — SHA-256 `1f609dd4bd0a39ecaef6996fcb9d7cbac87103b73b27c97611289c3ea945513e`
+- CURRENT: [`http-frameworks-exploratory-v2-inprocess-2026-07-26-r2.json`](../benchmarks/results/http-frameworks-exploratory-v2-inprocess-2026-07-26-r2.json)
+  — SHA-256 `d4f382d812d0e1e9df352ae3c85d1fe62dcf0b0ae9a58d10f05c4e7c3844147b`
   (fresh-process probes skipped via `--no-process`, recorded as unavailable)
+- superseded by r2 (pre-fix tree `65ac537`):
+  [`http-frameworks-exploratory-v2-isolated-2026-07-26.json`](../benchmarks/results/http-frameworks-exploratory-v2-isolated-2026-07-26.json)
+  — SHA-256 `aa3fabd63b9c886cf5486c0901baaf750905505a3205e0a66283c79acfdef30b`;
+  [`http-frameworks-exploratory-v2-inprocess-2026-07-26.json`](../benchmarks/results/http-frameworks-exploratory-v2-inprocess-2026-07-26.json)
+  — SHA-256 `26b8e9a0d1bb3905299d4e377d5c2f6c950dbd9c2ad4fbda09c5ac5c721ed9a5`
 - measurement-plan SHA-256
   `9d293e9015be4258984fe27e8e03ed19b7e004a9ce41672846d0e84fdbf45e71`
 - comparison-source SHA-256
