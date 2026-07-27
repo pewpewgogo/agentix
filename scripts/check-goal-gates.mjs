@@ -22,8 +22,12 @@
 //   not noise; each measurement runs twice and the better run is judged):
 //     GOAL_GATE_DISPATCH_MEAN_US_MAX    default 5     framework command-dispatch mean (steady state; actual ~1us)
 //     GOAL_GATE_ECHO_MEDIAN_RATIO_MAX   default 1.25  agentix / express echo-valid median, in-process, default condition
-//     GOAL_GATE_DISPATCH_WARMUPS        default 100   in-process dispatch warmup iterations
-//     GOAL_GATE_DISPATCH_MEASURED       default 60    in-process dispatch measured iterations
+//     GOAL_GATE_DISPATCH_WARMUPS        default 5000  in-process dispatch warmup iterations
+//       (steady state: at ~100 warmups V8 still runs the interpreter tier,
+//       where added-but-guarded branches read as a 2x "regression" that
+//       vanishes once optimized — observed 2.4us -> 5.1us at 60 samples vs
+//       0.57us at 50k; a few thousand dispatches cost only milliseconds)
+//     GOAL_GATE_DISPATCH_MEASURED       default 2000  in-process dispatch measured iterations
 //     GOAL_GATE_HTTP_WARMUPS            default 20    http-comparison warmup blocks per stack
 //     GOAL_GATE_HTTP_MEASURED           default 60    http-comparison measured blocks per stack
 //     GOAL_GATE_PERF_RUNS               default 2     independent runs; the best one is judged
@@ -169,29 +173,49 @@ const runTokenGate = async () => {
 
 const mean = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
 
+// Self-contained steady-state probe against the built core. The runtime
+// benchmark harness interleaves heavy metrics (index generation ~100ms per
+// iteration) with dispatch, so steady-state dispatch iteration counts are
+// unreachable through it; this probe pins one fixed shape (2-effect command
+// over a port.store memory adapter, production mode) and measures ONLY
+// dispatch, in milliseconds of total wall time.
 const dispatchMeanNanoseconds = async (warmups, measured) => {
-  const { runRuntimeBenchmark } = await import(
-    pathToFileURL(resolve(root, "benchmarks/runtime/dist/index.js")).href
+  const core = await import(
+    pathToFileURL(resolve(root, "packages/core/dist/index.js")).href
   );
-  const report = await runRuntimeBenchmark({
-    repositoryRoot: root,
-    mode: "smoke",
-    warmupIterations: warmups,
-    measuredIterations: measured,
-    includeProcessMetrics: false,
-    includeToolchainMetrics: false,
+  const { command, createApplication, feature, port, s } = core;
+  const Echo = s.object({ id: s.string({ min: 1 }), payload: s.number() });
+  const Store = port.store("gateStore", Echo);
+  const gate = feature("gate", {
+    operations: {
+      echo: command({
+        input: Echo,
+        output: Echo,
+        effects: { load: Store.get, save: Store.save },
+        async execute({ input, effects }) {
+          await effects.load(input.id);
+          return effects.save(input);
+        },
+      }),
+    },
   });
-  const samples = report.samples
-    .filter((sample) =>
-      sample.metric === "command-dispatch" &&
-      sample.implementation === "framework" &&
-      sample.phase === "measured"
-    )
-    .map((sample) => sample.value);
-  if (samples.length === 0) {
-    throw new TypeError("The runtime smoke produced no measured framework dispatch samples.");
-  }
-  return mean(samples);
+  const app = createApplication({
+    features: [gate],
+    adapters: [Store.memory()],
+    mode: "production",
+  });
+  const input = { id: "gate-1", payload: 1 };
+  const dispatchOnce = async () => {
+    const result = await app.dispatch("gate.echo", { input });
+    if (result.kind !== "completed") {
+      throw new TypeError(`Gate dispatch ${result.kind}: ${result.error.code}`);
+    }
+  };
+  for (let i = 0; i < warmups; i += 1) await dispatchOnce();
+  const started = process.hrtime.bigint();
+  for (let i = 0; i < measured; i += 1) await dispatchOnce();
+  const elapsed = process.hrtime.bigint() - started;
+  return Number(elapsed) / measured;
 };
 
 const httpEchoMedians = async (warmups, measured) => {
@@ -225,8 +249,8 @@ const httpEchoMedians = async (warmups, measured) => {
 const runPerfGate = async () => {
   const dispatchMax = numberOverride("GOAL_GATE_DISPATCH_MEAN_US_MAX", 5);
   const echoRatioMax = numberOverride("GOAL_GATE_ECHO_MEDIAN_RATIO_MAX", 1.25);
-  const dispatchWarmups = numberOverride("GOAL_GATE_DISPATCH_WARMUPS", 100).value;
-  const dispatchMeasured = numberOverride("GOAL_GATE_DISPATCH_MEASURED", 60).value;
+  const dispatchWarmups = numberOverride("GOAL_GATE_DISPATCH_WARMUPS", 5000).value;
+  const dispatchMeasured = numberOverride("GOAL_GATE_DISPATCH_MEASURED", 2000).value;
   const httpWarmups = numberOverride("GOAL_GATE_HTTP_WARMUPS", 20).value;
   const httpMeasured = numberOverride("GOAL_GATE_HTTP_MEASURED", 60).value;
   const runs = numberOverride("GOAL_GATE_PERF_RUNS", 2).value;
