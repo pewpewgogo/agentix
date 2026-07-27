@@ -1,0 +1,50 @@
+name: Goal gates
+
+# Hard-fail regression gates for the framework's two headline claims:
+# 1. Token gate (deterministic): the agent context cost of the notes sandbox
+#    stays at or below the Express arm, writes stay at <= 2 files, and the
+#    `agentix affected` pack stays tiny.
+# 2. Perf gate (generous margins, best of two runs): steady-state command
+#    dispatch stays within 5us and the in-process echo-valid HTTP median stays
+#    within 1.25x of Express. These margins catch order-of-magnitude
+#    regressions, not benchmark noise.
+# Thresholds live in scripts/check-goal-gates.mjs (GOAL_GATE_* env overrides).
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goal-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  goal-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build workspaces
+        run: npm run build
+
+      - name: "Token gate: agent context cost vs Express (deterministic)"
+        run: node scripts/check-goal-gates.mjs token
+
+      - name: "Perf gate: dispatch mean and echo-valid HTTP median (best of two runs)"
+        run: node scripts/check-goal-gates.mjs perf

@@ -5,8 +5,10 @@ changes in the Agentix monorepo.
 
 ## Toolchain and setup
 
-The repository supports Node.js 24 and npm 11. The root package declares the
-accepted ranges and pins the npm release used to create the lockfile.
+The repository supports Node.js `>=22.12.0 <25` (Node.js 22.12+ or 24) with
+npm 11. The root package declares the accepted ranges and pins the npm release
+used to create the lockfile. CI verifies every change on both Node.js 22 and
+24; releases are built and published on Node.js 24.
 
 ```sh
 git clone git@github.com:pewpewgogo/agentix.git

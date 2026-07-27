@@ -57,7 +57,7 @@ for (const [expectedName, directory] of packages) {
   if (manifest.license !== "MIT") {
     errors.push(`${expectedName}: license must be MIT`);
   }
-  if (manifest.engines?.node !== ">=24.0.0 <25") {
+  if (manifest.engines?.node !== ">=22.12.0 <25") {
     errors.push(`${expectedName}: Node.js engine must match the release contract`);
   }
   if (

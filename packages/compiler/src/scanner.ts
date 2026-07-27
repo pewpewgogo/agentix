@@ -1,6 +1,5 @@
 import { dirname, extname, resolve } from "node:path";
 
-import { API, SymbolFlags, type Checker, type Symbol as TypeScriptSymbol } from "typescript/unstable/sync";
 import * as ts from "typescript/unstable/ast";
 
 import {
@@ -10,6 +9,7 @@ import {
   featureSegmentOf,
   repositoryPath,
 } from "./files.js";
+import { API, SymbolFlags, type Checker, type TypeScriptSymbol } from "./ts.js";
 import {
   COMPILER_VERSION,
   INDEX_SCHEMA_VERSION,

@@ -6,7 +6,7 @@ file.
 
 ## Install
 
-Requirements: Node.js `>=24 <25`, npm `>=11 <12`, TypeScript with NodeNext
+Requirements: Node.js `>=22.12.0 <25`, npm `>=11 <12`, TypeScript with NodeNext
 module resolution (relative imports use `.js` suffixes).
 
 ```sh

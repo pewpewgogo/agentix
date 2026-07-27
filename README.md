@@ -74,7 +74,8 @@ does this operation touch and what is safe to verify" in one ≤8 KiB artifact.
 
 ## Install
 
-Agentix requires Node.js 24. Install only what the application needs:
+Agentix requires Node.js `>=22.12.0 <25` (Node.js 22.12+ or 24). Install only
+what the application needs:
 
 ```sh
 npm install @agentix/core @agentix/adapters-http

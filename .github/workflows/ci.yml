@@ -15,16 +15,23 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Verify across the supported engines range (>=22.12.0 <25).
+        # Node.js 24 stays the canonical version for releases and every
+        # other workflow; only this verify job runs the matrix.
+        node-version: [22, 24]
     steps:
       - name: Check out repository history
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Use Node.js 24
+      - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: ${{ matrix.node-version }}
           cache: npm
 
       - name: Use the pinned npm release
