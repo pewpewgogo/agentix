@@ -98,6 +98,8 @@ export interface PortOperationDescriptor<
   readonly id: Id;
   readonly portId: string;
   readonly opKey: string;
+  /** Set for ops minted by a port preset (port.store) so tooling can detect them exactly. */
+  readonly preset?: "store";
 }
 
 export type AnyPortOperation = PortOperationDescriptor;
@@ -247,6 +249,7 @@ const bindPortOperation = (
   kind: EffectKind,
   input: Schema<unknown>,
   output: Schema<unknown>,
+  preset?: "store",
 ): AnyPortOperation =>
   Object.freeze({
     descriptorType: "port-operation",
@@ -256,6 +259,7 @@ const bindPortOperation = (
     output,
     portId,
     opKey,
+    ...(preset === undefined ? {} : { preset }),
   });
 
 const createAdapter = (
@@ -355,10 +359,10 @@ const storeFunction = (
     );
   }
   const operations: Record<string, AnyPortOperation> = {
-    get: bindPortOperation(id, "get", "read", idSchema, optional(schema)),
-    save: bindPortOperation(id, "save", "write", schema, schema),
-    delete: bindPortOperation(id, "delete", "write", idSchema, boolean()),
-    list: bindPortOperation(id, "list", "read", object({}), array(schema)),
+    get: bindPortOperation(id, "get", "read", idSchema, optional(schema), "store"),
+    save: bindPortOperation(id, "save", "write", schema, schema, "store"),
+    delete: bindPortOperation(id, "delete", "write", idSchema, boolean(), "store"),
+    list: bindPortOperation(id, "list", "read", object({}), array(schema), "store"),
   };
   const descriptor = createPortObject(id, operations);
   descriptor["memory"] = (): BoundPortAdapter => {
