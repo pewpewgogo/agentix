@@ -87,6 +87,12 @@ export interface UnboundPortOperation<
   readonly kind: Kind;
   readonly input: Input;
   readonly output: Output;
+  /**
+   * Optional per-call budget. An effect call exceeding it faults the dispatch
+   * with EFFECT_TIMEOUT and aborts the signal handed to the adapter. A timer
+   * is armed per effect call ONLY when this is set.
+   */
+  readonly timeoutMs?: number;
 }
 
 export interface PortOperationDescriptor<
@@ -122,9 +128,21 @@ export type EffectHandler<Operation extends AnyPortOperation> = (
   input: Infer<Operation["input"]>,
 ) => Promise<Infer<Operation["output"]>>;
 
+/**
+ * Second argument of every adapter handler invocation. `signal` aborts when
+ * the effect's `timeoutMs` elapses or the dispatch signal aborts; without
+ * either it is a shared never-aborted singleton. The framework always passes
+ * it, so handlers may destructure `{ signal }` without undefined checks —
+ * and single-argument handlers keep working (extra args are ignored).
+ */
+export interface AdapterCallOptions {
+  readonly signal: AbortSignal;
+}
+
 /** Adapter implementations return plain values or throw (no Outcome wrapping). */
 export type AdapterHandler<Operation extends AnyPortOperation> = (
   input: Infer<Operation["input"]>,
+  options: AdapterCallOptions,
 ) => MaybePromise<Infer<Operation["output"]>>;
 
 // The conditional guard is load-bearing: it keeps specific instantiations
@@ -135,12 +153,25 @@ export type PortImplementation<Ops extends Record<string, AnyPortOperation>> = {
     : never;
 };
 
+/**
+ * Optional adapter lifecycle hooks. `app.start()` runs every `init` in
+ * adapter registration order; `app.close()` runs every `dispose` in reverse
+ * registration order. Both hooks may be async.
+ */
+export interface AdapterHooks {
+  readonly init?: () => MaybePromise<void>;
+  readonly dispose?: () => MaybePromise<void>;
+}
+
 // Non-generic on purpose: keeps PortDescriptor.Ops covariant. The runtime
 // carries the specific handlers; the type system treats them opaquely.
 export interface BoundPortAdapter {
   readonly descriptorType: "port-adapter";
   readonly portId: string;
   readonly operations: Readonly<Record<string, (input: never) => unknown>>;
+  /** Lifecycle hooks (optional, non-generic); see AdapterHooks. */
+  readonly init?: () => MaybePromise<void>;
+  readonly dispose?: () => MaybePromise<void>;
 }
 
 export interface PortDescriptor<
@@ -150,7 +181,7 @@ export interface PortDescriptor<
   readonly descriptorType: "port";
   readonly id: Id;
   readonly operations: Ops;
-  adapter(implementation: PortImplementation<Ops>): BoundPortAdapter;
+  adapter(implementation: PortImplementation<Ops>, hooks?: AdapterHooks): BoundPortAdapter;
 }
 
 export type AnyPort = PortDescriptor;
@@ -168,6 +199,7 @@ export interface PortOperationFactory<Kind extends EffectKind> {
   <Input extends Schema<unknown>, Output extends Schema<unknown>>(definition: {
     readonly input: Input;
     readonly output: Output;
+    readonly timeoutMs?: number;
   }): UnboundPortOperation<Kind, Input, Output>;
 }
 
@@ -220,7 +252,13 @@ export interface PortFactory {
   store<const Id extends string, Shape extends StoreShape>(
     id: Id,
     schema: ObjectSchema<Shape>,
+    options?: StorePortOptions,
   ): StorePort<Id, Shape>;
+}
+
+export interface StorePortOptions {
+  /** Applied to all four store operations (get/save/delete/list). */
+  readonly timeoutMs?: number;
 }
 
 const isSchema = (value: unknown): value is Schema<unknown> =>
@@ -243,6 +281,13 @@ const isBoundPortOperation = (value: unknown): value is AnyPortOperation =>
   typeof (value as { portId?: unknown }).portId === "string" &&
   typeof (value as { opKey?: unknown }).opKey === "string";
 
+const assertTimeoutMs = (timeoutMs: number | undefined, label: string): void => {
+  if (timeoutMs === undefined) return;
+  if (typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new TypeError(`${label} timeoutMs must be a positive finite number`);
+  }
+};
+
 const bindPortOperation = (
   portId: string,
   opKey: string,
@@ -250,6 +295,7 @@ const bindPortOperation = (
   input: Schema<unknown>,
   output: Schema<unknown>,
   preset?: "store",
+  timeoutMs?: number,
 ): AnyPortOperation =>
   Object.freeze({
     descriptorType: "port-operation",
@@ -260,12 +306,14 @@ const bindPortOperation = (
     portId,
     opKey,
     ...(preset === undefined ? {} : { preset }),
+    ...(timeoutMs === undefined ? {} : { timeoutMs }),
   });
 
 const createAdapter = (
   portId: string,
   operations: Readonly<Record<string, AnyPortOperation>>,
   implementation: Readonly<Record<string, unknown>>,
+  hooks?: AdapterHooks,
 ): BoundPortAdapter => {
   const handlers: Record<string, (input: never) => unknown> = {};
   for (const key of Object.keys(operations)) {
@@ -277,10 +325,20 @@ const createAdapter = (
     }
     handlers[key] = handler as (input: never) => unknown;
   }
+  if (hooks !== undefined) {
+    if (hooks.init !== undefined && typeof hooks.init !== "function") {
+      throw new TypeError(`Adapter init hook for port ${portId} must be a function`);
+    }
+    if (hooks.dispose !== undefined && typeof hooks.dispose !== "function") {
+      throw new TypeError(`Adapter dispose hook for port ${portId} must be a function`);
+    }
+  }
   return Object.freeze({
     descriptorType: "port-adapter",
     portId,
     operations: Object.freeze(handlers),
+    ...(hooks?.init === undefined ? {} : { init: hooks.init }),
+    ...(hooks?.dispose === undefined ? {} : { dispose: hooks.dispose }),
   });
 };
 
@@ -297,8 +355,8 @@ const createPortObject = (
     descriptorType: "port",
     id,
     operations: frozenOperations,
-    adapter: (implementation: Readonly<Record<string, unknown>>) =>
-      createAdapter(id, frozenOperations, implementation),
+    adapter: (implementation: Readonly<Record<string, unknown>>, hooks?: AdapterHooks) =>
+      createAdapter(id, frozenOperations, implementation, hooks),
   };
   for (const key of Object.keys(frozenOperations)) {
     if (key in descriptor) {
@@ -325,28 +383,43 @@ const portFunction = (
       );
     }
     assertOperationKey(key, `Port ${id}`);
-    bound[key] = bindPortOperation(id, key, operation.kind, operation.input, operation.output);
+    bound[key] = bindPortOperation(
+      id,
+      key,
+      operation.kind,
+      operation.input,
+      operation.output,
+      undefined,
+      operation.timeoutMs,
+    );
   }
   return Object.freeze(createPortObject(id, bound));
 };
 
 const portOperationFactory =
   (kind: EffectKind) =>
-  (definition: { readonly input: Schema<unknown>; readonly output: Schema<unknown> }): UnboundPortOperation => {
+  (definition: {
+    readonly input: Schema<unknown>;
+    readonly output: Schema<unknown>;
+    readonly timeoutMs?: number;
+  }): UnboundPortOperation => {
     if (!isSchema(definition.input) || !isSchema(definition.output)) {
       throw new TypeError(`Port operation (${kind}) requires input and output schemas`);
     }
+    assertTimeoutMs(definition.timeoutMs, `Port operation (${kind})`);
     return Object.freeze({
       descriptorType: "port-operation",
       kind,
       input: definition.input,
       output: definition.output,
+      ...(definition.timeoutMs === undefined ? {} : { timeoutMs: definition.timeoutMs }),
     });
   };
 
 const storeFunction = (
   id: string,
   schema: ObjectSchema<SchemaShape>,
+  options?: StorePortOptions,
 ): Record<string, unknown> => {
   assertStableId(id, "Port");
   if (!isSchema(schema) || !("shape" in schema)) {
@@ -358,11 +431,13 @@ const storeFunction = (
       `port.store(${JSON.stringify(id)}) requires an object schema with an "id" field`,
     );
   }
+  const timeoutMs = options?.timeoutMs;
+  assertTimeoutMs(timeoutMs, `port.store(${JSON.stringify(id)})`);
   const operations: Record<string, AnyPortOperation> = {
-    get: bindPortOperation(id, "get", "read", idSchema, optional(schema), "store"),
-    save: bindPortOperation(id, "save", "write", schema, schema, "store"),
-    delete: bindPortOperation(id, "delete", "write", idSchema, boolean(), "store"),
-    list: bindPortOperation(id, "list", "read", object({}), array(schema), "store"),
+    get: bindPortOperation(id, "get", "read", idSchema, optional(schema), "store", timeoutMs),
+    save: bindPortOperation(id, "save", "write", schema, schema, "store", timeoutMs),
+    delete: bindPortOperation(id, "delete", "write", idSchema, boolean(), "store", timeoutMs),
+    list: bindPortOperation(id, "list", "read", object({}), array(schema), "store", timeoutMs),
   };
   const descriptor = createPortObject(id, operations);
   descriptor["memory"] = (): BoundPortAdapter => {
@@ -435,6 +510,52 @@ const isEventDescriptor = (value: unknown): value is EventDescriptor =>
   (value as { descriptorType?: unknown }).descriptorType === "event";
 
 /* ------------------------------------------------------------------ */
+/* Event subscriptions (in-process projection semantics)              */
+/* ------------------------------------------------------------------ */
+
+export interface SubscriptionContext {
+  readonly operationId: string;
+}
+
+export interface Subscription<Payload = unknown> {
+  readonly descriptorType: "subscription";
+  readonly event: EventDescriptor;
+  // Method syntax on purpose: bivariant, so typed handlers stay assignable
+  // to the erased Subscription element type of `subscribers`.
+  handler(payload: Payload, context: SubscriptionContext): MaybePromise<void>;
+}
+
+/**
+ * Binds a handler to an event. Registered via
+ * `createApplication({ subscribers: [...] })`; handlers run AFTER the
+ * operation completes, sequentially, awaited before dispatch resolves.
+ * Handler errors never fault the completed dispatch.
+ */
+export const subscription = <Payload extends Schema<unknown>>(
+  eventDescriptor: EventDescriptor<string, number, Payload>,
+  handler: (payload: Infer<Payload>, context: SubscriptionContext) => MaybePromise<void>,
+): Subscription<Infer<Payload>> => {
+  if (!isEventDescriptor(eventDescriptor)) {
+    throw new TypeError("subscription() requires an event() descriptor");
+  }
+  if (typeof handler !== "function") {
+    throw new TypeError(
+      `subscription(${JSON.stringify(eventDescriptor.id)}) requires a handler function`,
+    );
+  }
+  return Object.freeze({
+    descriptorType: "subscription",
+    event: eventDescriptor,
+    handler,
+  });
+};
+
+export const isSubscription = (value: unknown): value is Subscription =>
+  typeof value === "object" &&
+  value !== null &&
+  (value as { descriptorType?: unknown }).descriptorType === "subscription";
+
+/* ------------------------------------------------------------------ */
 /* Operations: command/query (unbound), bound by feature()            */
 /* ------------------------------------------------------------------ */
 
@@ -467,6 +588,11 @@ export interface ExecutionContext<
   readonly effects: EffectContext<Effects>;
   readonly emit: EventEmitter<Emits>;
   readonly fail: FailFn<Errors>;
+  /**
+   * The dispatch's AbortSignal, or a shared never-aborted singleton when the
+   * dispatch was not given one (no per-call allocation).
+   */
+  readonly signal: AbortSignal;
 }
 
 /** Execute returns a plain output value, or a `fail(...)` result. */

@@ -1,5 +1,7 @@
 import {
   FAIL_RESULT,
+  isSubscription,
+  type AdapterCallOptions,
   type AnyBoundOperation,
   type AnyFeature,
   type AnyPortOperation,
@@ -9,6 +11,7 @@ import {
   type FeatureDescriptor,
   type OperationEnsure,
   type OperationFailure,
+  type Subscription,
 } from "./descriptors.js";
 import type { Outcome } from "./outcome.js";
 import type { Infer, Schema, SchemaIssue } from "./schema.js";
@@ -127,12 +130,15 @@ export type DispatchFaultCode =
   | "INVALID_EFFECT_INPUT"
   | "INVALID_EFFECT_OUTPUT"
   | "EFFECT_FAILURE"
+  | "EFFECT_TIMEOUT"
   | "INVALID_EVENT_PAYLOAD"
   | "EVENT_OUTSIDE_EXECUTION"
   | "EFFECT_OUTSIDE_EXECUTION"
   | "OPERATION_DESCRIPTOR_MISMATCH"
   | "INVARIANT_VIOLATION"
-  | "EXECUTION_FAILED";
+  | "EXECUTION_FAILED"
+  | "DISPATCH_ABORTED"
+  | "APPLICATION_CLOSED";
 
 export interface DispatchFaultError {
   readonly code: DispatchFaultCode;
@@ -177,6 +183,63 @@ export interface DispatchOptions<Input = unknown> {
   readonly principal?: Principal;
   /** Opt-in per dispatch; no trace machinery runs when off. */
   readonly trace?: boolean;
+  /**
+   * Opaque correlation value (e.g. `{ requestId }`); handed unchanged to
+   * observer callbacks. Never inspected by the framework.
+   */
+  readonly meta?: unknown;
+  /**
+   * Cooperative cancellation. Observed before input parse, before each
+   * effect call, and after execution settles (before ensures); an observed
+   * abort faults the dispatch with DISPATCH_ABORTED. An adapter that fails
+   * while this signal is aborted (i.e. it honored the signal it was handed)
+   * also faults DISPATCH_ABORTED, not EFFECT_FAILURE. Aborting after the
+   * dispatch completed is ignored.
+   */
+  readonly signal?: AbortSignal;
+}
+
+/* ------------------------------------------------------------------ */
+/* Observer: opt-in dispatch instrumentation                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Opt-in instrumentation hooks. Every callback is wrapped in try/catch — a
+ * throwing observer NEVER affects dispatch results (errors are logged with
+ * console.error in development mode only). When no observer is configured,
+ * dispatch performs no timing reads and no observer allocations.
+ */
+export interface DispatchObserver {
+  /** Return value becomes the `token` passed to every later callback (e.g. an OTel span). */
+  dispatchStarted?(ctx: {
+    operationId: string;
+    principalId?: string;
+    meta?: unknown;
+  }): unknown;
+  dispatchSettled?(ctx: {
+    operationId: string;
+    kind: "completed" | "rejected" | "fault";
+    /** Outcome error code, rejection code, or fault code; absent on ok completions. */
+    code?: string;
+    durationNs: bigint;
+    meta?: unknown;
+    token: unknown;
+  }): void;
+  effectSettled?(ctx: {
+    operationId: string;
+    alias: string;
+    effectId: string;
+    ok: boolean;
+    durationNs: bigint;
+    token: unknown;
+  }): void;
+  eventEmitted?(ctx: { operationId: string; eventId: string; token: unknown }): void;
+  subscriberFailed?(ctx: {
+    operationId: string;
+    eventId: string;
+    error: unknown;
+    token: unknown;
+  }): void;
 }
 
 export interface CallOptions {
@@ -252,6 +315,23 @@ export interface Application<Ops> {
     input: OpInput<Ops[Id]>,
     options?: CallOptions,
   ): Promise<Outcome<OpOutput<Ops[Id]>, OpError<Ops[Id]>>>;
+  /**
+   * Runs every adapter `init` hook in registration order and returns the
+   * app. Idempotent: a successful start never re-runs; a failed start may be
+   * retried. createApplication does NOT auto-start — hosts opt in.
+   */
+  start(): Promise<Application<Ops>>;
+  /**
+   * Runs every adapter `dispose` hook in reverse registration order (whether
+   * or not start() ran). Idempotent. An in-flight start() is awaited first
+   * so dispose never runs concurrently with init. Any dispatch after close()
+   * faults with APPLICATION_CLOSED; start() after close() rejects (including
+   * a start() that was in flight when close() was called). close() does NOT
+   * drain in-flight dispatches — dispose hooks run while effects may still be
+   * mid-flight, so hosts must drain first (serveNode's graceful shutdown +
+   * closeApplication does this).
+   */
+  close(): Promise<void>;
 }
 
 export interface ApplicationDefinition<Features extends readonly AnyFeature[]> {
@@ -264,6 +344,14 @@ export interface ApplicationDefinition<Features extends readonly AnyFeature[]> {
     principal: Principal | undefined,
     operation: AnyBoundOperation,
   ) => boolean;
+  /** Opt-in instrumentation; zero dispatch overhead when omitted. */
+  readonly observer?: DispatchObserver;
+  /**
+   * In-process event subscribers created with subscription(event, handler).
+   * Delivered AFTER the operation completes, sequentially, awaited before
+   * dispatch resolves; handler errors never fault the completed dispatch.
+   */
+  readonly subscribers?: readonly Subscription[];
 }
 
 export type ApplicationDefinitionIssueCode =
@@ -305,7 +393,9 @@ interface ExecutionLifecycle {
 interface CompiledEffect {
   readonly alias: string;
   readonly effect: AnyPortOperation;
-  readonly handler: (input: unknown) => unknown;
+  readonly handler: (input: unknown, options: AdapterCallOptions) => unknown;
+  /** Precompiled from the port operation; a timer is armed per call only when set. */
+  readonly timeoutMs: number | undefined;
 }
 
 interface CompiledEmit {
@@ -329,6 +419,35 @@ interface CompiledOperation {
 const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
 const EMPTY_EVENTS: readonly EmittedEvent[] = Object.freeze([]);
 
+/**
+ * Shared never-aborted signal: `context.signal` (and the adapter call
+ * options) when a dispatch carries no signal — never allocated per call.
+ */
+const NEVER_ABORTED_SIGNAL: AbortSignal = new AbortController().signal;
+
+const DEFAULT_CALL_OPTIONS: AdapterCallOptions = Object.freeze({
+  signal: NEVER_ABORTED_SIGNAL,
+});
+
+/**
+ * Framework-internal monotonic clock (domain code still bans ambient time —
+ * framework plumbing is exempt, as snapshotting already is). Resolved via
+ * globalThis so core keeps zero hard Node coupling; the bigint property is
+ * read on EVERY call so test seams (vi.spyOn(process.hrtime, "bigint")) can
+ * prove that unobserved dispatches never read the clock.
+ */
+const resolveMonotonicNow = (): (() => bigint) => {
+  const hrtime = (
+    globalThis as { process?: { hrtime?: { bigint?: () => bigint } } }
+  ).process?.hrtime;
+  if (hrtime !== undefined && typeof hrtime.bigint === "function") {
+    return () => hrtime.bigint!();
+  }
+  return () => BigInt(Date.now()) * 1_000_000n;
+};
+
+const nowNs = resolveMonotonicNow();
+
 const detectMode = (): RuntimeMode => {
   const env = (
     globalThis as { process?: { env?: Record<string, string | undefined> } }
@@ -344,6 +463,50 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
   const mode = definition.mode ?? detectMode();
   const devChecks = mode !== "production";
   const authorizeHook = definition.authorize;
+
+  /* ---------------- observer + subscribers (opt-in machinery) ---------------- */
+
+  const observer = definition.observer;
+  // Narrowed once; called via .call(observer, ...) so `this` is preserved.
+  const dispatchStartedFn = observer?.dispatchStarted;
+  const dispatchSettledFn = observer?.dispatchSettled;
+  const effectSettledFn = observer?.effectSettled;
+  const eventEmittedFn = observer?.eventEmitted;
+  const subscriberFailedFn = observer?.subscriberFailed;
+
+  /** A throwing observer NEVER affects dispatch results. */
+  const reportObserverError = (cause: unknown): void => {
+    if (mode === "development") {
+      console.error("[agentix] dispatch observer callback threw", cause);
+    }
+  };
+
+  const subscriptionsByEvent: ReadonlyMap<string, readonly Subscription[]> | null =
+    (() => {
+      const list = definition.subscribers;
+      if (list === undefined || list.length === 0) return null;
+      const byEvent = new Map<string, Subscription[]>();
+      for (const entry of list) {
+        if (!isSubscription(entry)) {
+          throw new TypeError(
+            "createApplication subscribers must be created with subscription(event, handler)",
+          );
+        }
+        const bucket = byEvent.get(entry.event.id);
+        if (bucket === undefined) byEvent.set(entry.event.id, [entry]);
+        else bucket.push(entry);
+      }
+      return byEvent;
+    })();
+
+  /* ---------------- lifecycle state (start/close) ---------------- */
+
+  const adapterList: readonly BoundPortAdapter[] = Object.freeze([
+    ...(definition.adapters ?? []),
+  ]);
+  let startPromise: Promise<void> | undefined;
+  let closePromise: Promise<void> | undefined;
+  let closed = false;
 
   /** Effective gate: custom hook when provided, else the default subset check. */
   const effectiveAuthorize = (
@@ -468,7 +631,15 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
       const adapter = adaptersByPort.get(effect.portId);
       const handler = adapter?.operations[effect.opKey];
       if (typeof handler !== "function") continue; // validated above; defensive
-      effects.push({ alias, effect, handler: handler as (input: unknown) => unknown });
+      effects.push({
+        alias,
+        effect,
+        handler: handler as unknown as (
+          input: unknown,
+          options: AdapterCallOptions,
+        ) => unknown,
+        timeoutMs: effect.timeoutMs,
+      });
     }
     const emits: CompiledEmit[] = [];
     for (const alias of Object.keys(operation.emits)) {
@@ -510,8 +681,11 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
     binding: CompiledEffect,
     lifecycle: ExecutionLifecycle,
     trace: TraceEntry[] | null,
+    signal: AbortSignal | undefined,
+    callOptions: AdapterCallOptions,
+    token: unknown,
   ): ((input: unknown) => Promise<unknown>) => {
-    const { alias, effect, handler } = binding;
+    const { alias, effect, handler, timeoutMs } = binding;
     const run = async (input: unknown): Promise<unknown> => {
       if (!lifecycle.active) {
         throw latchBoundaryFault(lifecycle, fault(
@@ -519,6 +693,11 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
           `Effect ${effect.id} was invoked outside ${operation.id} execution`,
           { effectId: effect.id },
         ));
+      }
+      if (signal !== undefined && signal.aborted) {
+        const boundary = abortedFault(operation.id);
+        trace?.push(effectFaultEntry(operation.id, alias, effect.id, input, boundary));
+        throw latchBoundaryFault(lifecycle, boundary);
       }
 
       let parsedInput: unknown;
@@ -547,13 +726,28 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
 
       let value: unknown;
       try {
-        value = await handler(parsedInput);
+        value = timeoutMs === undefined
+          ? await handler(parsedInput, callOptions)
+          : await callWithTimeout(handler, parsedInput, timeoutMs, signal);
       } catch (cause) {
-        const boundary = fault(
-          "EFFECT_FAILURE",
-          `Adapter for ${effect.id} threw an unexpected exception`,
-          { effectId: effect.id, cause },
-        );
+        // An adapter failure while the dispatch signal is aborted is the
+        // adapter cooperating with cancellation, not an application defect:
+        // it maps to DISPATCH_ABORTED, never EFFECT_FAILURE. Timeouts are
+        // matched first — the timeout controller aborting is not a dispatch
+        // abort.
+        const boundary = cause === EFFECT_TIMED_OUT
+          ? fault(
+              "EFFECT_TIMEOUT",
+              `Adapter for ${effect.id} exceeded its ${timeoutMs}ms timeout`,
+              { effectId: effect.id },
+            )
+          : signal !== undefined && signal.aborted
+            ? abortedFault(operation.id)
+            : fault(
+                "EFFECT_FAILURE",
+                `Adapter for ${effect.id} threw an unexpected exception`,
+                { effectId: effect.id, cause },
+              );
         trace?.push(effectFaultEntry(operation.id, alias, effect.id, parsedInput, boundary));
         throw latchBoundaryFault(lifecycle, boundary);
       }
@@ -598,8 +792,7 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
       return value;
     };
 
-    return (input: unknown): Promise<unknown> => {
-      const pending = run(input);
+    const track = (pending: Promise<unknown>): Promise<unknown> => {
       lifecycle.pendingEffects.add(pending);
       const remove = (): void => {
         lifecycle.pendingEffects.delete(pending);
@@ -607,12 +800,42 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
       void pending.then(remove, remove);
       return pending;
     };
+
+    if (effectSettledFn === undefined) {
+      return (input: unknown): Promise<unknown> => track(run(input));
+    }
+    return (input: unknown): Promise<unknown> => {
+      const startedAt = nowNs();
+      const pending = run(input);
+      const settle = (ok: boolean): void => {
+        try {
+          effectSettledFn.call(observer, {
+            operationId: operation.id,
+            alias,
+            effectId: effect.id,
+            ok,
+            durationNs: nowNs() - startedAt,
+            token,
+          });
+        } catch (cause) {
+          reportObserverError(cause);
+        }
+      };
+      void pending.then(
+        () => settle(true),
+        () => settle(false),
+      );
+      return track(pending);
+    };
   };
 
   const buildEffectsContext = (
     compiled: CompiledOperation,
     lifecycle: ExecutionLifecycle,
     trace: TraceEntry[] | null,
+    signal: AbortSignal | undefined,
+    callOptions: AdapterCallOptions,
+    token: unknown,
   ): Record<string, (input: unknown) => Promise<unknown>> => {
     if (compiled.effects.length === 0) {
       return EMPTY_RECORD as Record<string, (input: unknown) => Promise<unknown>>;
@@ -624,6 +847,9 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
         binding,
         lifecycle,
         trace,
+        signal,
+        callOptions,
+        token,
       );
     }
     return devChecks ? Object.freeze(context) : context;
@@ -633,6 +859,7 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
     compiled: CompiledOperation,
     lifecycle: ExecutionLifecycle,
     trace: TraceEntry[] | null,
+    token: unknown,
   ): Record<string, (payload: unknown) => void> => {
     if (compiled.emits.length === 0) {
       return EMPTY_RECORD as Record<string, (payload: unknown) => void>;
@@ -686,20 +913,83 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
         });
         lifecycle.events.push(emitted);
         trace?.push({ type: "event", ...emitted });
+        if (eventEmittedFn !== undefined) {
+          try {
+            eventEmittedFn.call(observer, {
+              operationId: operation.id,
+              eventId: event.id,
+              token,
+            });
+          } catch (cause) {
+            reportObserverError(cause);
+          }
+        }
       };
     }
     return devChecks ? Object.freeze(emitter) : emitter;
   };
 
+  /* ---------------- subscriber delivery (post-completion) ---------------- */
+
+  const deliverSubscriptions = async (
+    operationId: string,
+    events: readonly EmittedEvent[],
+    token: unknown,
+  ): Promise<void> => {
+    const context = maybeFreeze({ operationId });
+    for (const emitted of events) {
+      const subscriptions = subscriptionsByEvent?.get(emitted.eventId);
+      if (subscriptions === undefined) continue;
+      for (const entry of subscriptions) {
+        try {
+          await entry.handler(emitted.payload, context);
+        } catch (error) {
+          if (subscriberFailedFn !== undefined) {
+            try {
+              subscriberFailedFn.call(observer, {
+                operationId,
+                eventId: emitted.eventId,
+                error,
+                token,
+              });
+            } catch (cause) {
+              reportObserverError(cause);
+            }
+          } else if (mode === "development") {
+            console.error(
+              `[agentix] subscriber for event ${emitted.eventId} threw`,
+              error,
+            );
+          }
+        }
+      }
+    }
+  };
+
   /* ---------------- dispatch ---------------- */
 
-  const dispatch = async (
+  const dispatchCore = async (
     requested: AnyBoundOperation | string,
     options: DispatchOptions<unknown>,
+    token: unknown,
   ): Promise<DispatchResult<unknown, unknown>> => {
     const requestedId = typeof requested === "string" ? requested : requested.id;
     const compiled = compiledById.get(requestedId);
     const trace: TraceEntry[] | null = options.trace === true ? [] : null;
+
+    if (closed) {
+      return finalize(
+        {
+          kind: "fault" as const,
+          operationId: requestedId,
+          error: fault(
+            "APPLICATION_CLOSED",
+            `Application is closed; dispatch of ${requestedId} was refused`,
+          ),
+        },
+        trace,
+      );
+    }
 
     if (compiled === undefined) {
       return finalize(
@@ -766,6 +1056,19 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
       );
     }
 
+    // Abort checkpoint 1 of 3: before input parse.
+    const signal = options.signal;
+    if (signal !== undefined && signal.aborted) {
+      return finalize(
+        {
+          kind: "fault" as const,
+          operationId: operation.id,
+          error: abortedFault(operation.id),
+        },
+        trace,
+      );
+    }
+
     let inputData: unknown;
     try {
       const parsedInput = operation.input.safeParse(options.input);
@@ -804,11 +1107,16 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
       pendingEffects: new Set(),
       events: [],
     };
+    // One shared options object per dispatch WITH a signal; the frozen
+    // module-level singleton otherwise (no per-call allocation).
+    const callOptions: AdapterCallOptions =
+      signal === undefined ? DEFAULT_CALL_OPTIONS : maybeFreeze({ signal });
     const context = {
       input: inputData,
-      effects: buildEffectsContext(compiled, lifecycle, trace),
-      emit: buildEmitContext(compiled, lifecycle, trace),
+      effects: buildEffectsContext(compiled, lifecycle, trace, signal, callOptions, token),
+      emit: buildEmitContext(compiled, lifecycle, trace, token),
       fail: operation.fail,
+      signal: signal ?? NEVER_ABORTED_SIGNAL,
     };
     if (devChecks) Object.freeze(context);
 
@@ -832,6 +1140,20 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
     if (lifecycle.boundaryFault !== undefined) {
       return finalize(
         { kind: "fault" as const, operationId: operation.id, error: lifecycle.boundaryFault },
+        trace,
+      );
+    }
+
+    // Abort checkpoint 3 of 3: after execution settles, before output
+    // validation and ensures. Aborting later (once the dispatch result
+    // exists — e.g. during subscriber delivery) is ignored.
+    if (signal !== undefined && signal.aborted) {
+      return finalize(
+        {
+          kind: "fault" as const,
+          operationId: operation.id,
+          error: abortedFault(operation.id),
+        },
         trace,
       );
     }
@@ -986,11 +1308,63 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
     const events = lifecycle.events.length === 0
       ? EMPTY_EVENTS
       : (maybeFreeze(lifecycle.events) as readonly EmittedEvent[]);
-    return finalize(
+    const completed = finalize(
       { kind: "completed" as const, operationId: operation.id, outcome, events },
       trace,
     );
+    if (subscriptionsByEvent !== null && events.length > 0) {
+      await deliverSubscriptions(operation.id, events, token);
+    }
+    return completed;
   };
+
+  const dispatchObserved = async (
+    requested: AnyBoundOperation | string,
+    options: DispatchOptions<unknown>,
+  ): Promise<DispatchResult<unknown, unknown>> => {
+    const requestedId = typeof requested === "string" ? requested : requested.id;
+    let token: unknown;
+    if (dispatchStartedFn !== undefined) {
+      try {
+        token = dispatchStartedFn.call(observer, {
+          operationId: requestedId,
+          ...(options.principal === undefined
+            ? {}
+            : { principalId: options.principal.id }),
+          meta: options.meta,
+        });
+      } catch (cause) {
+        reportObserverError(cause);
+      }
+    }
+    if (dispatchSettledFn === undefined) {
+      return dispatchCore(requested, options, token);
+    }
+    const startedAt = nowNs();
+    const result = await dispatchCore(requested, options, token);
+    const code = settledCode(result);
+    try {
+      dispatchSettledFn.call(observer, {
+        operationId: requestedId,
+        kind: result.kind,
+        ...(code === undefined ? {} : { code }),
+        durationNs: nowNs() - startedAt,
+        meta: options.meta,
+        token,
+      });
+    } catch (cause) {
+      reportObserverError(cause);
+    }
+    return result;
+  };
+
+  const dispatch = (
+    requested: AnyBoundOperation | string,
+    options: DispatchOptions<unknown>,
+  ): Promise<DispatchResult<unknown, unknown>> =>
+    observer === undefined
+      ? dispatchCore(requested, options, undefined)
+      : dispatchObserved(requested, options);
 
   const call = async (
     operationId: string,
@@ -1005,7 +1379,80 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
     throw new DispatchError(result);
   };
 
-  return Object.freeze({
+  /* ---------------- lifecycle: start/close ---------------- */
+
+  const runInits = async (): Promise<void> => {
+    for (const adapter of adapterList) {
+      if (adapter.init !== undefined) await adapter.init();
+    }
+  };
+
+  const runDisposes = async (): Promise<void> => {
+    const errors: unknown[] = [];
+    for (let index = adapterList.length - 1; index >= 0; index -= 1) {
+      const adapter = adapterList[index];
+      if (adapter?.dispose === undefined) continue;
+      try {
+        await adapter.dispose();
+      } catch (cause) {
+        errors.push(cause); // best-effort: every dispose still runs
+      }
+    }
+    if (errors.length > 0) {
+      throw new AggregateError(errors, "Adapter dispose hook(s) threw during close()");
+    }
+  };
+
+  let self: Application<ApplicationOperations<Features>>;
+
+  const start = async (): Promise<Application<ApplicationOperations<Features>>> => {
+    if (closed) {
+      throw new Error("Application has been closed; start() is no longer available");
+    }
+    if (startPromise === undefined) {
+      const pending = runInits();
+      startPromise = pending;
+      try {
+        await pending;
+      } catch (cause) {
+        // A failed start may be retried; a successful one never re-runs.
+        if (startPromise === pending) startPromise = undefined;
+        throw cause;
+      }
+    } else {
+      await startPromise;
+    }
+    // close() may have raced the awaited init: an in-flight start() must not
+    // resolve successfully on a closed app ("start() after close() rejects"
+    // covers the in-flight case too).
+    if (closed) {
+      throw new Error("Application has been closed; start() is no longer available");
+    }
+    return self;
+  };
+
+  const close = (): Promise<void> => {
+    if (closePromise === undefined) {
+      closed = true; // dispatch faults APPLICATION_CLOSED from this point on
+      const pendingStart = startPromise;
+      closePromise = (async () => {
+        // Never run dispose hooks concurrently with an in-flight init: await
+        // the pending start first, swallowing its rejection — a failed init
+        // still gets disposed and the rejection belongs to the start() caller.
+        if (pendingStart !== undefined) {
+          try {
+            await pendingStart;
+          } catch {
+            /* failed init still gets disposed */
+          }
+        }
+        await runDisposes();
+      })();
+    }
+    return closePromise;
+  };
+
+  self = Object.freeze({
     mode,
     features,
     operations: Object.freeze(operationsRecord),
@@ -1015,7 +1462,10 @@ export const createApplication = <const Features extends readonly AnyFeature[]>(
     authorize: effectiveAuthorize,
     dispatch,
     call,
+    start,
+    close,
   }) as unknown as Application<ApplicationOperations<Features>>;
+  return self;
 };
 
 /* ------------------------------------------------------------------ */
@@ -1127,6 +1577,60 @@ const fault = (
   message: string,
   extras: Omit<DispatchFaultError, "code" | "message"> = {},
 ): DispatchFaultError => ({ code, message, ...extras });
+
+const abortedFault = (operationId: string): DispatchFaultError =>
+  fault("DISPATCH_ABORTED", `Dispatch of ${operationId} was aborted`);
+
+/** Outcome error code, rejection code, or fault code; undefined for ok completions. */
+const settledCode = (result: DispatchResult<unknown, unknown>): string | undefined => {
+  if (result.kind === "completed") {
+    return result.outcome.ok
+      ? undefined
+      : String((result.outcome.error as { readonly code: unknown }).code);
+  }
+  return result.error.code;
+};
+
+/** Sentinel thrown by the timeout race; mapped to EFFECT_TIMEOUT, never escapes dispatch. */
+const EFFECT_TIMED_OUT: unique symbol = Symbol("agentix.effect-timed-out");
+
+/**
+ * One timer per effect call, armed ONLY when the port operation declares
+ * timeoutMs. The adapter receives a linked signal that aborts on timeout or
+ * dispatch abort; on timeout the effect faults while the abandoned adapter
+ * promise is silenced so its eventual rejection stays handled.
+ */
+const callWithTimeout = async (
+  handler: (input: unknown, options: AdapterCallOptions) => unknown,
+  input: unknown,
+  timeoutMs: number,
+  dispatchSignal: AbortSignal | undefined,
+): Promise<unknown> => {
+  const controller = new AbortController();
+  const forwardAbort = (): void => {
+    controller.abort();
+  };
+  dispatchSignal?.addEventListener("abort", forwardAbort, { once: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const timedOut = new Promise<typeof EFFECT_TIMED_OUT>((resolve) => {
+      timer = setTimeout(() => {
+        controller.abort();
+        resolve(EFFECT_TIMED_OUT);
+      }, timeoutMs);
+    });
+    const invocation = (async () => handler(input, { signal: controller.signal }))();
+    const raced = await Promise.race([invocation, timedOut]);
+    if (raced === EFFECT_TIMED_OUT) {
+      void invocation.catch(() => undefined);
+      throw EFFECT_TIMED_OUT;
+    }
+    return raced;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+    dispatchSignal?.removeEventListener("abort", forwardAbort);
+  }
+};
 
 class BoundaryFault extends Error {
   readonly fault: DispatchFaultError;

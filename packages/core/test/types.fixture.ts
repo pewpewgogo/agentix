@@ -13,13 +13,18 @@ import {
   port,
   query,
   s,
+  subscription,
+  type AdapterCallOptions,
   type BoundPortAdapter,
   type BrandedId,
   type DeclaredError,
+  type DispatchFaultCode,
+  type DispatchObserver,
   type EffectContext,
   type OpError,
   type OpInput,
   type OpOutput,
+  type Subscription,
 } from "../src/index.js";
 
 const Note = s.object({
@@ -322,7 +327,151 @@ const run = async (): Promise<void> => {
   await app.call("notes.create", { title: 1, body: "b" });
   // @ts-expect-error - unknown operation ids are rejected on call
   await app.call("notes.remove", {});
+
+  // dispatch options: meta is opaque, signal is a real AbortSignal
+  await app.dispatch("notes.get", {
+    input: validId,
+    meta: { requestId: "req-1" },
+    signal: new AbortController().signal,
+  });
+  // @ts-expect-error - signal must be an AbortSignal, not a boolean
+  await app.dispatch("notes.get", { input: validId, signal: true });
+
+  // lifecycle: start() resolves to the same typed app; close() is void
+  const startedApp = await app.start();
+  const startedResult = await startedApp.dispatch("notes.get", { input: validId });
+  void startedResult;
+  const closed: void = await app.close();
+  void closed;
 };
 void run;
+
+/* --- new dispatch fault codes are part of the union ------------------- */
+
+const abortedCode: DispatchFaultCode = "DISPATCH_ABORTED";
+const timeoutCode: DispatchFaultCode = "EFFECT_TIMEOUT";
+const closedCode: DispatchFaultCode = "APPLICATION_CLOSED";
+void abortedCode;
+void timeoutCode;
+void closedCode;
+// @ts-expect-error - unknown fault codes stay rejected
+const bogusCode: DispatchFaultCode = "DISPATCH_CANCELLED";
+void bogusCode;
+
+/* --- execute context exposes the dispatch signal ---------------------- */
+
+const signalled = command({
+  input: s.object({}),
+  output: s.boolean(),
+  async execute({ signal }) {
+    const live: AbortSignal = signal;
+    void live;
+    return !signal.aborted;
+  },
+});
+void signalled;
+
+/* --- adapters: single-arg and (input, { signal }) both typecheck ------- */
+
+const dualAdapter: BoundPortAdapter = NoteStorage.adapter({
+  save: (note, options) => {
+    const opts: AdapterCallOptions = options;
+    const signal: AbortSignal = opts.signal;
+    void signal;
+    return note;
+  },
+  get: (id) => {
+    void id;
+    return undefined;
+  },
+});
+void dualAdapter;
+
+NoteStorage.adapter(
+  { save: (note) => note, get: () => undefined },
+  { init: async () => {}, dispose: () => {} },
+);
+NoteStorage.adapter(
+  { save: (note) => note, get: () => undefined },
+  // @ts-expect-error - hooks must be functions
+  { init: "connect" },
+);
+
+/* --- port operations accept timeoutMs; port.store takes options -------- */
+
+const TimedPort = port("timedPort", {
+  fetch: port.external({ input: s.object({}), output: s.string(), timeoutMs: 250 }),
+});
+const timedMs: number | undefined = TimedPort.fetch.timeoutMs;
+void timedMs;
+port.store("timedStore", Note, { timeoutMs: 100 });
+// @ts-expect-error - timeoutMs is a number
+port.store("badTimedStore", Note, { timeoutMs: "fast" });
+
+/* --- subscriptions: payload inferred from the event descriptor --------- */
+
+const typedSubscription = subscription(noteCreated, async (payload, context) => {
+  const title: string = payload.title;
+  const operationId: string = context.operationId;
+  void title;
+  void operationId;
+});
+const erased: Subscription = typedSubscription;
+void erased;
+subscription(noteCreated, (payload) => {
+  // @ts-expect-error - payload is a Note, not a string
+  const wrong: string = payload;
+  void wrong;
+});
+// @ts-expect-error - only event() descriptors are subscribable
+subscription({ id: "nope" }, async () => {});
+
+/* --- observer: partial implementations are fine; ctx shapes typed ------ */
+
+const observer: DispatchObserver = {
+  dispatchStarted(ctx) {
+    const id: string = ctx.operationId;
+    const principalId: string | undefined = ctx.principalId;
+    void id;
+    void principalId;
+    return { spanId: "s1" };
+  },
+  dispatchSettled(ctx) {
+    const kind: "completed" | "rejected" | "fault" = ctx.kind;
+    const duration: bigint = ctx.durationNs;
+    void kind;
+    void duration;
+  },
+};
+void observer;
+
+createApplication({
+  features: [notes, tags],
+  adapters: [adapter],
+  mode: "test",
+  observer: { effectSettled: () => {} },
+  subscribers: [typedSubscription],
+});
+
+/* --- s.record and s.tuple ---------------------------------------------- */
+
+const Counts = s.record(s.number({ int: true }));
+type Counts = s.Infer<typeof Counts>;
+const countsValue: Counts = { a: 1, b: 2 };
+void countsValue;
+// @ts-expect-error - record values are typed by the value schema
+const badCounts: Counts = { a: "one" };
+void badCounts;
+
+const Pair = s.tuple([s.string(), s.number()]);
+type Pair = s.Infer<typeof Pair>;
+const pairValue: Pair = ["a", 1];
+void pairValue;
+// @ts-expect-error - tuple element order is enforced
+const swappedPair: Pair = [1, "a"];
+void swappedPair;
+// @ts-expect-error - tuple length is fixed
+const shortPair: Pair = ["a"];
+void shortPair;
 
 export {};

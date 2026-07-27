@@ -24,11 +24,22 @@ export type {
   SchemaPathSegment,
   SchemaShape,
   StringOptions,
+  TupleOutput,
 } from "./schema.js";
 
-export { command, event, feature, port, FAIL_RESULT, query } from "./descriptors.js";
+export {
+  command,
+  event,
+  feature,
+  port,
+  FAIL_RESULT,
+  query,
+  subscription,
+} from "./descriptors.js";
 export type {
+  AdapterCallOptions,
   AdapterHandler,
+  AdapterHooks,
   AnyBoundOperation,
   AnyFeature,
   AnyPort,
@@ -71,7 +82,10 @@ export type {
   QueryDefinition,
   StoreOperations,
   StorePort,
+  StorePortOptions,
   StoreShape,
+  Subscription,
+  SubscriptionContext,
   UnboundOperation,
   UnboundPortOperation,
   ValidOperations,
@@ -96,6 +110,7 @@ export type {
   CompletedDispatch,
   DispatchFaultCode,
   DispatchFaultError,
+  DispatchObserver,
   DispatchOptions,
   DispatchRejectionError,
   DispatchResult,

@@ -369,3 +369,124 @@ describe("issue accumulation cap", () => {
     }
   });
 });
+
+describe("record schema", () => {
+  it("parses string-keyed maps and validates every value", () => {
+    const Counts = s.record(s.number({ int: true }));
+    expect(Counts.parse({})).toEqual({});
+    expect(Counts.parse({ a: 1, b: 2 })).toEqual({ a: 1, b: 2 });
+    expectTypeOf(Counts.parse({ a: 1 })).toEqualTypeOf<Record<string, number>>();
+
+    // The parse product is detached from the input.
+    const source = { a: 1 };
+    const parsed = Counts.parse(source);
+    expect(parsed).not.toBe(source);
+  });
+
+  it("rejects non-objects, arrays, and invalid values with key-prefixed paths", () => {
+    const Counts = s.record(s.number());
+    expect(Counts.safeParse("nope")).toMatchObject({
+      success: false,
+      issues: [{ code: "invalid_type", path: [] }],
+    });
+    expect(Counts.safeParse([1, 2])).toMatchObject({
+      success: false,
+      issues: [{ code: "invalid_type", path: [] }],
+    });
+    expect(Counts.safeParse(null)).toMatchObject({
+      success: false,
+      issues: [{ code: "invalid_type", path: [] }],
+    });
+    expect(Counts.safeParse({ good: 1, bad: "x", worse: true })).toMatchObject({
+      success: false,
+      issues: [
+        { code: "invalid_type", path: ["bad"] },
+        { code: "invalid_type", path: ["worse"] },
+      ],
+    });
+  });
+
+  it("keeps hostile keys as own data properties instead of mutating prototypes", () => {
+    const Anything = s.record(s.number());
+    const hostile = JSON.parse('{"__proto__": 1, "constructor": 2}') as unknown;
+    const result = Anything.safeParse(hostile);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(Object.getPrototypeOf(result.data)).toBe(Object.prototype);
+    expect(Object.getOwnPropertyDescriptor(result.data, "__proto__")?.value).toBe(1);
+    expect(Object.getOwnPropertyDescriptor(result.data, "constructor")?.value).toBe(2);
+    expect(({} as Record<string, unknown>)["__proto__"]).toBe(Object.prototype);
+  });
+
+  it("describes itself for introspection", () => {
+    const Flags = s.record(s.boolean());
+    expect(Flags.description).toEqual({
+      type: "record",
+      value: { type: "boolean" },
+    });
+  });
+});
+
+describe("tuple schema", () => {
+  it("parses fixed-length tuples element by element", () => {
+    const Pair = s.tuple([s.string(), s.number({ int: true })]);
+    expect(Pair.parse(["a", 1])).toEqual(["a", 1]);
+    expectTypeOf(Pair.parse(["a", 1])).toEqualTypeOf<readonly [string, number]>();
+
+    const source = ["a", 1];
+    expect(Pair.parse(source)).not.toBe(source); // detached parse product
+  });
+
+  it("rejects non-arrays, wrong lengths, and invalid elements with index paths", () => {
+    const Pair = s.tuple([s.string(), s.number()]);
+    expect(Pair.safeParse("nope")).toMatchObject({
+      success: false,
+      issues: [{ code: "invalid_type", path: [] }],
+    });
+    expect(Pair.safeParse(["a"])).toMatchObject({
+      success: false,
+      issues: [
+        {
+          code: "invalid_type",
+          path: [],
+          message: "Expected a tuple of 2 element(s), received 1",
+        },
+      ],
+    });
+    expect(Pair.safeParse(["a", 1, true])).toMatchObject({
+      success: false,
+      issues: [{ code: "invalid_type", path: [] }],
+    });
+    expect(Pair.safeParse([1, "b"])).toMatchObject({
+      success: false,
+      issues: [
+        { code: "invalid_type", path: [0] },
+        { code: "invalid_type", path: [1] },
+      ],
+    });
+  });
+
+  it("requires at least one element schema", () => {
+    expect(() => s.tuple([] as never)).toThrow(TypeError);
+  });
+
+  it("describes itself for introspection and composes with other schemas", () => {
+    const Pair = s.tuple([s.string(), s.optional(s.number())]);
+    expect(Pair.description).toEqual({
+      type: "tuple",
+      items: [
+        { type: "string" },
+        { type: "optional", inner: { type: "number" } },
+      ],
+    });
+    expect(Pair.parse(["a", undefined])).toEqual(["a", undefined]);
+
+    const Nested = s.object({ pairs: s.array(s.tuple([s.string(), s.number()])) });
+    expect(Nested.parse({ pairs: [["a", 1]] })).toEqual({ pairs: [["a", 1]] });
+    const bad = Nested.safeParse({ pairs: [["a", "b"]] });
+    expect(bad).toMatchObject({
+      success: false,
+      issues: [{ path: ["pairs", 0, 1] }],
+    });
+  });
+});

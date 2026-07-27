@@ -15,6 +15,8 @@ ships this reference offline as `API.md`.
 - `s.literal(value): Schema<value>` — string/number/boolean/null literal.
 - `s.object(shape): ObjectSchema<shape>` — strict (unknown keys rejected); exposes `.shape`.
 - `s.array(item): Schema<Item[]>`
+- `s.record(valueSchema): Schema<Record<string, V>>` — open string-keyed map; every value validated (no unknown-key policy; HTTP param coercion never applies).
+- `s.tuple([a, b, ...]): Schema<[A, B, ...]>` — fixed-length tuple; element-wise validation (no coercion).
 - `s.optional(schema): OptionalSchema<T>` — accepts `undefined`.
 - `s.union([a, b, ...]): Schema<A | B>` — first matching member wins.
 - `s.refine(base, predicate, {id, message} | id): Schema<T>` — custom predicate on top of `base`.
@@ -26,7 +28,7 @@ ships this reference offline as `API.md`.
   `ObjectOutput<Shape>`, `StringOptions`, `NumberOptions`, `RefinementOptions`,
   `LiteralValue`, `BrandedId<Brand>`, `ParseSuccess<T>`, `ParseFailure`,
   `ParseResult<T>`, `SchemaIssue`, `SchemaIssueCode`, `SchemaPathSegment`,
-  `SchemaDescription`.
+  `SchemaDescription`, `TupleOutput<Schemas>`.
 
 ### Outcomes
 
@@ -40,9 +42,11 @@ ships this reference offline as `API.md`.
 - `command({input, output, errors?, permissions?, http?, effects?, emits?, ensures?, execute}): UnboundOperation<"command", ...>`
 - `query({...same minus emits; write effects rejected}): UnboundOperation<"query", ...>`
 - `feature(id, {operations, events?}): FeatureDescriptor` — binds operation ids `${id}.${key}`.
-- `port(id, {opName: port.read|write|time|random|external({input, output})})` — port with ops addressable as `Port.opName`; `Port.adapter(impl)` binds plain-value handlers.
-- `port.store(id, objectSchema): StorePort` — CRUD preset (`get/save/delete/list`) + `.memory()` Map adapter; schema must have `id`.
+- `port(id, {opName: port.read|write|time|random|external({input, output, timeoutMs?})})` — port with ops addressable as `Port.opName`; `timeoutMs` faults over-budget effect calls with `EFFECT_TIMEOUT`.
+- `Port.adapter(impl, hooks?: {init?, dispose?})` — binds plain-value handlers; handlers optionally take `(input, {signal})` (signal aborts on timeout/dispatch abort); hooks run on `app.start()`/`app.close()`.
+- `port.store(id, objectSchema, {timeoutMs?}?): StorePort` — CRUD preset (`get/save/delete/list`) + `.memory()` Map adapter; schema must have `id`; `timeoutMs` applies to all four ops.
 - `event(id, version, payloadSchema): EventDescriptor`
+- `subscription(event, handler): Subscription` — typed in-process subscriber `(payload, {operationId}) => void|Promise<void>`; registered via `createApplication({subscribers})`.
 - `FAIL_RESULT` — symbol branding `fail(...)` results.
 - Error declaration: `errors: { CODE: { http?, details? } | Schema }`; `fail(code, details)` is injected into `execute` and RETURNS the declared failure.
 - Types: `UnboundOperation`, `BoundOperation`, `AnyUnboundOperation`,
@@ -53,18 +57,23 @@ ships this reference offline as `API.md`.
   `PortDescriptor`, `AnyPort`, `PortFactory`, `PortOperationFactory`,
   `PortOperationDescriptor`, `UnboundPortOperation`, `AnyPortOperation`,
   `BoundPortOperations`, `ValidPortOps`, `PortImplementation`,
-  `BoundPortAdapter`, `AdapterHandler`, `EffectHandler`, `EffectContext`,
-  `EffectKind`, `EffectMap`, `StorePort`, `StoreOperations`, `StoreShape`,
+  `BoundPortAdapter`, `AdapterHandler`, `AdapterCallOptions`, `AdapterHooks`,
+  `EffectHandler`, `EffectContext`,
+  `EffectKind`, `EffectMap`, `StorePort`, `StoreOperations`,
+  `StorePortOptions`, `StoreShape`, `Subscription`, `SubscriptionContext`,
   `EventDescriptor`, `EventEmitter`, `EventMap`, `EnsuresMap`,
   `OperationEnsure`, `EnsureContext`, `AuthoredHttp`, `HttpMetadata`,
   `HttpMethod`, `WithoutWriteEffects`, `MaybePromise`.
 
 ### Application
 
-- `createApplication({features, adapters?, mode?, authorize?}): Application` — validates ids, adapter coverage, query purity, route conflicts; `mode` defaults from `NODE_ENV`.
-- `app.dispatch(idOrDescriptor, {input, principal?, trace?}): Promise<DispatchResult>` — three-way `completed | rejected | fault`.
+- `createApplication({features, adapters?, mode?, authorize?, observer?, subscribers?}): Application` — validates ids, adapter coverage, query purity, route conflicts; `mode` defaults from `NODE_ENV`; does NOT auto-start.
+- `app.dispatch(idOrDescriptor, {input, principal?, trace?, meta?, signal?}): Promise<DispatchResult>` — three-way `completed | rejected | fault`; `meta` is an opaque observer passthrough; `signal` cancels cooperatively (fault `DISPATCH_ABORTED`).
 - `app.call(id, input, {principal?}?): Promise<Outcome>` — returns the outcome; throws `DispatchError` on rejected/fault.
+- `app.start(): Promise<Application>` — runs adapter `init` hooks in registration order; idempotent (failed starts may retry); rejects after `close()`.
+- `app.close(): Promise<void>` — runs adapter `dispose` hooks in reverse order; idempotent; awaits an in-flight `start()` first (that `start()` then rejects); does NOT drain in-flight dispatches (hosts drain first); later dispatches fault `APPLICATION_CLOSED`; dispose errors surface as `AggregateError`.
 - `app.getOperation(id): AnyBoundOperation | undefined`; `app.operations`, `app.features`, `app.mode`.
+- `DispatchObserver` — optional `dispatchStarted` (returns the `token` handed to later callbacks) / `dispatchSettled` / `effectSettled` / `eventEmitted` / `subscriberFailed`; throwing observers never affect results; zero overhead when unconfigured.
 - `app.authorize(operation, principal?): boolean` — the EFFECTIVE gate: the custom `authorize` hook when provided, else the default subset check; HTTP adapters call it before reading a request body. A throwing hook faults dispatch with `AUTHORIZE_FAILED` (HTTP 500 + `onError`).
 - `authorize(operation, principal?): boolean` — the default permission gate (subset check; no permissions ⇒ anonymous OK).
 - `principal(id, permissions): Principal`
@@ -74,6 +83,7 @@ ships this reference offline as `API.md`.
   `OperationsRecordOf`, `OpInput`, `OpOutput`, `OpError`,
   `UnionToIntersection`, `DispatchOptions`, `CallOptions`, `DispatchResult`,
   `CompletedDispatch`, `RejectedDispatch`, `FaultedDispatch`,
+  `DispatchObserver`,
   `DispatchRejectionError`, `DispatchFaultError`, `DispatchFaultCode`,
   `UnknownOperationError`, `PermissionDeniedError`, `InvalidInputError`,
   `EmittedEvent`, `ExecutionTrace`, `TraceEntry`, `EffectTraceEntry`,

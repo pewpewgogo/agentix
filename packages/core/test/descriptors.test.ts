@@ -8,6 +8,7 @@ import {
   port,
   query,
   s,
+  subscription,
   type BoundPortAdapter,
   type DeclaredError,
   type Schema,
@@ -647,5 +648,112 @@ describe("reserved (prototype-polluting) identifiers", () => {
         }),
       ).toThrow(/reserved/);
     }
+  });
+});
+
+describe("port operation timeoutMs", () => {
+  it("stores timeoutMs on bound port operations", () => {
+    const Slow = port("slow", {
+      fetch: port.external({
+        input: s.object({}),
+        output: s.string(),
+        timeoutMs: 250,
+      }),
+      plain: port.read({ input: s.object({}), output: s.string() }),
+    });
+    expect(Slow.fetch.timeoutMs).toBe(250);
+    expect(Slow.plain.timeoutMs).toBeUndefined();
+  });
+
+  it("rejects non-positive or non-finite timeoutMs", () => {
+    for (const timeoutMs of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() =>
+        port.read({ input: s.object({}), output: s.string(), timeoutMs }),
+      ).toThrow(TypeError);
+    }
+  });
+
+  it("applies a port.store timeoutMs option to all four operations", () => {
+    const Timed = port.store("timedNotes", Note, { timeoutMs: 100 });
+    expect(Timed.get.timeoutMs).toBe(100);
+    expect(Timed.save.timeoutMs).toBe(100);
+    expect(Timed.delete.timeoutMs).toBe(100);
+    expect(Timed.list.timeoutMs).toBe(100);
+
+    const Untimed = port.store("untimedNotes", Note);
+    expect(Untimed.get.timeoutMs).toBeUndefined();
+
+    expect(() => port.store("badNotes", Note, { timeoutMs: 0 })).toThrow(TypeError);
+  });
+});
+
+describe("adapter lifecycle hooks", () => {
+  const Hooked = port("hooked", {
+    ping: port.read({ input: s.object({}), output: s.literal(true) }),
+  });
+
+  it("stores init and dispose hooks on the bound adapter", () => {
+    const init = async (): Promise<void> => {};
+    const dispose = (): void => {};
+    const adapter = Hooked.adapter({ ping: () => true }, { init, dispose });
+    expect(adapter.init).toBe(init);
+    expect(adapter.dispose).toBe(dispose);
+
+    const bare = Hooked.adapter({ ping: () => true });
+    expect(bare.init).toBeUndefined();
+    expect(bare.dispose).toBeUndefined();
+
+    const initOnly = Hooked.adapter({ ping: () => true }, { init });
+    expect(initOnly.init).toBe(init);
+    expect(initOnly.dispose).toBeUndefined();
+  });
+
+  it("rejects non-function hooks", () => {
+    expect(() =>
+      Hooked.adapter({ ping: () => true }, { init: "nope" as never }),
+    ).toThrow(TypeError);
+    expect(() =>
+      Hooked.adapter({ ping: () => true }, { dispose: 42 as never }),
+    ).toThrow(TypeError);
+  });
+
+  it("accepts single-argument and (input, { signal }) adapter handlers alike", async () => {
+    const Dual = port("dual", {
+      one: port.read({ input: s.string(), output: s.string() }),
+      two: port.read({ input: s.string(), output: s.string() }),
+    });
+    const adapter = Dual.adapter({
+      one: (input) => input,
+      two: (input, { signal }) => {
+        expect(signal.aborted).toBe(false);
+        return input;
+      },
+    });
+    expect(typeof adapter.operations["one"]).toBe("function");
+    expect(typeof adapter.operations["two"]).toBe("function");
+  });
+});
+
+describe("subscription descriptors", () => {
+  const Created = event("descriptor.created", 1, s.object({ id: s.string() }));
+
+  it("binds a typed handler to an event descriptor", () => {
+    const handler = async (
+      payload: { id: string },
+      context: { operationId: string },
+    ): Promise<void> => {
+      void payload;
+      void context;
+    };
+    const sub = subscription(Created, handler);
+    expect(sub.descriptorType).toBe("subscription");
+    expect(sub.event).toBe(Created);
+    expect(sub.handler).toBe(handler);
+    expect(Object.isFrozen(sub)).toBe(true);
+  });
+
+  it("rejects non-events and non-function handlers", () => {
+    expect(() => subscription({} as never, async () => {})).toThrow(TypeError);
+    expect(() => subscription(Created, "nope" as never)).toThrow(TypeError);
   });
 });

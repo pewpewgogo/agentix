@@ -42,6 +42,8 @@ export type SchemaDescription =
       readonly type: "object";
       readonly fields: Readonly<Record<string, SchemaDescription>>;
     }
+  | { readonly type: "record"; readonly value: SchemaDescription }
+  | { readonly type: "tuple"; readonly items: readonly SchemaDescription[] }
   | { readonly type: "optional"; readonly inner: SchemaDescription }
   | {
       readonly type: "union";
@@ -469,6 +471,95 @@ export const optional = <S extends Schema<unknown>>(
       return inner.parse(value) as Infer<S>;
     },
   });
+
+/**
+ * Open string-keyed map: every own enumerable string key is kept and its
+ * value is validated against `value`. There is no unknown-key policy —
+ * arbitrary keys are the point (values are what gets validated).
+ */
+export const record = <S extends Schema<unknown>>(
+  value: S,
+): Schema<Record<string, Infer<S>>> =>
+  createSchema<Record<string, Infer<S>>>(
+    Object.freeze({ type: "record", value: value.description }),
+    (input) => {
+      if (typeof input !== "object" || input === null || Array.isArray(input)) {
+        return failure(
+          issue("invalid_type", `Expected object, received ${describeValue(input)}`),
+        );
+      }
+      const source = input as Record<string, unknown>;
+      const parsed: Record<string, unknown> = {};
+      let issues: SchemaIssue[] | undefined;
+      for (const key of Object.keys(source)) {
+        const result = value.safeParse(source[key]);
+        if (result.success) {
+          // defineProperty: keys are caller-controlled, so "__proto__" must
+          // become an own data property, never a prototype mutation.
+          Object.defineProperty(parsed, key, {
+            configurable: true,
+            enumerable: true,
+            value: result.data,
+            writable: true,
+          });
+        } else if (!pushPrefixedIssuesCapped((issues ??= []), key, result.issues)) {
+          break; // capped: the parse already failed, stop collecting
+        }
+      }
+      return issues === undefined
+        ? success(parsed as Record<string, Infer<S>>)
+        : { success: false, issues };
+    },
+  );
+
+export type TupleOutput<S extends readonly Schema<unknown>[]> = {
+  [K in keyof S]: S[K] extends Schema<infer T> ? T : never;
+};
+
+/** Fixed-length tuple: the value must be an array of exactly `items.length`. */
+export const tuple = <const S extends readonly [Schema<unknown>, ...Schema<unknown>[]]>(
+  items: S,
+): Schema<TupleOutput<S>> => {
+  const itemsSnapshot = Object.freeze([...items]) as unknown as S;
+  if (itemsSnapshot.length === 0) {
+    throw new TypeError("tuple requires at least one element schema");
+  }
+  return createSchema<TupleOutput<S>>(
+    Object.freeze({
+      type: "tuple",
+      items: Object.freeze(itemsSnapshot.map((item) => item.description)),
+    }),
+    (value) => {
+      if (!Array.isArray(value)) {
+        return failure(
+          issue("invalid_type", `Expected array, received ${describeValue(value)}`),
+        );
+      }
+      if (value.length !== itemsSnapshot.length) {
+        return failure(
+          issue(
+            "invalid_type",
+            `Expected a tuple of ${itemsSnapshot.length} element(s), received ${value.length}`,
+          ),
+        );
+      }
+      const parsed = new Array<unknown>(itemsSnapshot.length);
+      let issues: SchemaIssue[] | undefined;
+      for (let index = 0; index < itemsSnapshot.length; index += 1) {
+        const item = itemsSnapshot[index];
+        if (item === undefined) continue; // noUncheckedIndexedAccess; unreachable
+        const result = item.safeParse(value[index]);
+        if (result.success) parsed[index] = result.data;
+        else if (!pushPrefixedIssuesCapped((issues ??= []), index, result.issues)) {
+          break; // capped
+        }
+      }
+      return issues === undefined
+        ? success(parsed as unknown as TupleOutput<S>)
+        : { success: false, issues };
+    },
+  );
+};
 
 export const union = <const S extends readonly [Schema<unknown>, ...Schema<unknown>[]]>(
   options: S,

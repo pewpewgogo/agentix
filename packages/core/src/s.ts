@@ -10,8 +10,10 @@ export {
   number,
   object,
   optional,
+  record,
   refine,
   string,
+  tuple,
   union,
 } from "./schema.js";
 export type {
@@ -25,4 +27,5 @@ export type {
   Schema,
   SchemaShape,
   StringOptions,
+  TupleOutput,
 } from "./schema.js";
