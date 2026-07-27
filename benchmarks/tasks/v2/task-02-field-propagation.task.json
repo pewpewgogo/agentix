@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "id": "task-02-field-propagation",
+  "version": 1,
+  "category": "field-propagation",
+  "userRequest": "Products need an optional description. Accept it during product creation, preserve a trimmed non-empty value in storage, and return it from both creation and lookup without changing clients that omit it.",
+  "publicAcceptanceCriteria": [
+    "A product created with a description returns the trimmed description from POST and GET and retains it in the application snapshot.",
+    "Omitting description remains valid and does not invent an ambient or nondeterministic value.",
+    "Blank descriptions and non-string descriptions are rejected with the standard validation response.",
+    "Existing order price, stock, payment, and event behavior remains unchanged."
+  ],
+  "expectedPublicSurfaces": [
+    {
+      "kind": "http",
+      "identifier": "POST /products",
+      "behavior": "Accept the optional description field."
+    },
+    {
+      "kind": "http",
+      "identifier": "GET /products/:id",
+      "behavior": "Return the persisted description when present."
+    }
+  ],
+  "fixture": {
+    "framework": {
+      "manifest": "benchmarks/fixtures/v2/task-02-field-propagation/framework.fixture.json",
+      "sha256": "3b4f4981b72a659df0df6ef8ade51259d88c72d04d8b8fa1e5c5f2d3d39cfcd8"
+    },
+    "plain": {
+      "manifest": "benchmarks/fixtures/v2/task-02-field-propagation/plain.fixture.json",
+      "sha256": "fa374647078e71cca8f9e45cb6aaf3599d5ca7a829018006b25a1efdec12f656"
+    }
+  },
+  "evaluator": {
+    "kind": "workspace",
+    "commandByImplementation": {
+      "framework": [
+        "npm",
+        "--workspace",
+        "@agentix/framework-app",
+        "test"
+      ],
+      "plain": [
+        "npm",
+        "--workspace",
+        "@agentix/plain-app",
+        "test"
+      ]
+    },
+    "hiddenManifest": "benchmarks/evaluator/hidden/v2/task-02-field-propagation.hidden.json",
+    "hiddenManifestSha256": "27917f58e3ec0a2d89f64c5da1fa8d7deb8337f234bf0f74a9acc93eee270f12"
+  },
+  "maximumSeconds": 1800,
+  "prohibitedShortcuts": [
+    "hard-code-evaluator-output",
+    "modify-evaluator-or-harness",
+    "delete-or-disable-tests",
+    "bypass-public-api",
+    "network-or-prior-solution-access",
+    "cross-arm-source-access",
+    "fixture-specific-production-branch"
+  ],
+  "networkPolicy": "disabled"
+}

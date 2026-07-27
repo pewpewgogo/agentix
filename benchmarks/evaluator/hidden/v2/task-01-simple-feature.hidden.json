@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "taskId": "task-01-simple-feature",
+  "taskVersion": 1,
+  "evaluatorVersion": 1,
+  "checks": [
+    {
+      "id": "promotion-lifecycle",
+      "kind": "black-box",
+      "implementations": [
+        "framework",
+        "plain"
+      ],
+      "driver": "commerce-http",
+      "scenario": "Create a mixed-case promotion, read it through another casing, then attempt a duplicate.",
+      "assertions": [
+        "The stored code is uppercase.",
+        "The deterministic timestamp is preserved.",
+        "The duplicate returns 409 and creates no second record."
+      ]
+    },
+    {
+      "id": "promotion-boundaries-and-auth",
+      "kind": "black-box",
+      "implementations": [
+        "framework",
+        "plain"
+      ],
+      "driver": "commerce-http",
+      "scenario": "Exercise percentage boundaries, malformed input, missing records, and each promotion permission independently.",
+      "assertions": [
+        "Percentages 1 and 90 succeed while 0, 91, and non-integers fail.",
+        "Unauthorized malformed input returns 403 before validation.",
+        "Existing commerce snapshots are not changed."
+      ]
+    },
+    {
+      "id": "full-regression",
+      "kind": "regression-command",
+      "implementations": [
+        "framework",
+        "plain"
+      ],
+      "commandByImplementation": {
+        "framework": [
+          "npm",
+          "--workspace",
+          "@agentix/framework-app",
+          "test"
+        ],
+        "plain": [
+          "npm",
+          "--workspace",
+          "@agentix/plain-app",
+          "test"
+        ]
+      },
+      "expectedExitCode": 0
+    }
+  ],
+  "shortcutPolicy": {
+    "forbiddenModifiedPrefixes": [
+      "benchmarks/evaluator",
+      "benchmarks/harness",
+      "benchmarks/results"
+    ],
+    "rejectDeletedTests": true,
+    "rejectFocusedOrSkippedTests": true,
+    "rejectNetworkUse": true,
+    "rejectCrossArmSources": true
+  }
+}

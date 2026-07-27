@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "products": [
+    {
+      "id": "product-desk",
+      "name": "Standing Desk",
+      "unitPrice": "1299.95",
+      "stock": 4
+    },
+    {
+      "id": "product-cable",
+      "name": "USB-C Cable",
+      "unitPrice": "12.30",
+      "stock": 25
+    },
+    {
+      "id": "product-sticker",
+      "name": "Logo Sticker",
+      "unitPrice": "0.05",
+      "stock": 1000
+    }
+  ]
+}

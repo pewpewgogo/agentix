@@ -38,7 +38,8 @@ export default defineConfig({
       "**/dist/**",
       "packages/**/test/fixtures/**",
       "packages/**/test/_v1/**",
-      "benchmarks/fixtures/**"
+      "benchmarks/fixtures/**",
+      "benchmarks/.workspaces/**"
     ],
     environment: "node",
     restoreMocks: true,

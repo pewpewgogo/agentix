@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "task-07-authorization-change",
+  "version": 1,
+  "category": "authorization-change",
+  "userRequest": "Creating products now requires the catalog:write permission. The former products:create permission must no longer authorize that operation. Product lookup and every non-product permission remain unchanged.",
+  "publicAcceptanceCriteria": [
+    "POST /products succeeds for a principal with catalog:write and otherwise-valid input.",
+    "POST /products returns the standard 403 response for a principal that has only products:create.",
+    "Authorization is decided before parsing a missing or malformed request body.",
+    "GET /products/:id and customer and order authorization rules remain unchanged."
+  ],
+  "expectedPublicSurfaces": [
+    {
+      "kind": "http",
+      "identifier": "POST /products",
+      "behavior": "Require catalog:write."
+    }
+  ],
+  "fixture": {
+    "framework": {
+      "manifest": "benchmarks/fixtures/v2/task-07-authorization-change/framework.fixture.json",
+      "sha256": "fd84e3a6abb7254e08a7492b05e480c517c0d433dd2274dd7baf5cd94e2632a8"
+    },
+    "plain": {
+      "manifest": "benchmarks/fixtures/v2/task-07-authorization-change/plain.fixture.json",
+      "sha256": "37b97c1bf5524e8792901bf2182c6b04456b7f7519c29928eeaf457768016dc3"
+    }
+  },
+  "evaluator": {
+    "kind": "workspace",
+    "commandByImplementation": {
+      "framework": [
+        "npm",
+        "--workspace",
+        "@agentix/framework-app",
+        "test"
+      ],
+      "plain": [
+        "npm",
+        "--workspace",
+        "@agentix/plain-app",
+        "test"
+      ]
+    },
+    "hiddenManifest": "benchmarks/evaluator/hidden/v2/task-07-authorization-change.hidden.json",
+    "hiddenManifestSha256": "7b008519465158e76f2e205424b5988821d3ac7ccf3091acae0f53428e7705ed"
+  },
+  "maximumSeconds": 1800,
+  "prohibitedShortcuts": [
+    "hard-code-evaluator-output",
+    "modify-evaluator-or-harness",
+    "delete-or-disable-tests",
+    "bypass-public-api",
+    "network-or-prior-solution-access",
+    "cross-arm-source-access",
+    "fixture-specific-production-branch"
+  ],
+  "networkPolicy": "disabled"
+}

@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "taskId": "task-03-cross-feature-rule",
+  "taskVersion": 1,
+  "fixtureVersion": 1,
+  "implementation": "plain",
+  "applicationSubdirectory": "examples/plain-app",
+  "baseInventory": {
+    "manifest": "benchmarks/fixtures/v2/base.repository.json",
+    "sha256": "7f846ee97df99aa3c9da3418870e4b99177da324cf7945267e3e8190d25f9bb6"
+  },
+  "overlay": {
+    "edits": [],
+    "files": [
+      {
+        "source": "benchmarks/fixtures/v2/profiles/plain/README.md",
+        "target": "README.md",
+        "sha256": "2094056ef1e81418ecab9d5aa3c3c5bc6b594b3fde625c8584ae5f005328103b",
+        "executable": false
+      },
+      {
+        "source": "benchmarks/fixtures/v2/profiles/plain/package.json",
+        "target": "package.json",
+        "sha256": "0b416067024aa65f2893399f5b6d9add909e44556121ecb797fe8cb50db7ef7f",
+        "executable": false
+      },
+      {
+        "source": "benchmarks/fixtures/v2/profiles/plain/tsconfig.json",
+        "target": "tsconfig.json",
+        "sha256": "7b844d6a9770636c6a0a8e4e9a79f4a9dfa30cd48d5d5e667efcc420c52b6bfc",
+        "executable": false
+      },
+      {
+        "source": "benchmarks/fixtures/v2/profiles/shared/package-lock.json",
+        "target": "package-lock.json",
+        "sha256": "8b9a77de6658ece368202eb7b3ec838126c77f522096f2050ab9faae069febe5",
+        "executable": false
+      }
+    ]
+  },
+  "preflight": [
+    {
+      "command": [
+        "npm",
+        "install",
+        "--offline",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund"
+      ],
+      "expectedExitCode": 0,
+      "purpose": "Install exactly locked dependencies without network access or lifecycle scripts."
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "expectedExitCode": 0,
+      "purpose": "Prove the selected clean arm type-checks before the task."
+    },
+    {
+      "command": [
+        "npm",
+        "--workspace",
+        "@agentix/plain-app",
+        "test"
+      ],
+      "expectedExitCode": 0,
+      "purpose": "Prove existing regression behavior is green before the task."
+    }
+  ],
+  "evaluationCommands": {
+    "typecheck": [
+      "npm",
+      "run",
+      "typecheck"
+    ],
+    "regression": [
+      "npm",
+      "--workspace",
+      "@agentix/plain-app",
+      "test"
+    ],
+    "architecture": null
+  },
+  "equivalence": {
+    "contractId": "commerce-http-v2",
+    "counterpartManifest": "benchmarks/fixtures/v2/task-03-cross-feature-rule/framework.fixture.json",
+    "scenarioIds": [
+      "base-commerce-acceptance-v2",
+      "repeat-purchases-currently-allowed-v2"
+    ]
+  },
+  "agentWorkspace": {
+    "excludedPrefixes": [
+      "benchmarks/tasks",
+      "benchmarks/fixtures",
+      "benchmarks/evaluator",
+      "benchmarks/harness",
+      "benchmarks/results",
+      "benchmarks/reports"
+    ]
+  }
+}

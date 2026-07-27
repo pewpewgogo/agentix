@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "taskId": "task-05-localized-defect",
+  "taskVersion": 1,
+  "evaluatorVersion": 1,
+  "checks": [
+    {
+      "id": "product-name-boundaries",
+      "kind": "black-box",
+      "implementations": [
+        "framework",
+        "plain"
+      ],
+      "driver": "commerce-http",
+      "scenario": "Create products with 79, 80, and 81 ASCII characters after surrounding whitespace is removed.",
+      "assertions": [
+        "Lengths 79 and 80 succeed.",
+        "Length 81 returns the standard validation error.",
+        "Only successful products are persisted."
+      ]
+    },
+    {
+      "id": "product-name-regression",
+      "kind": "black-box",
+      "implementations": [
+        "framework",
+        "plain"
+      ],
+      "driver": "commerce-http",
+      "scenario": "Submit blank and ordinary names, then create and retrieve an order for the ordinary product.",
+      "assertions": [
+        "Blank remains invalid.",
+        "Ordinary products and orders retain their existing behavior."
+      ]
+    },
+    {
+      "id": "full-regression",
+      "kind": "regression-command",
+      "implementations": [
+        "framework",
+        "plain"
+      ],
+      "commandByImplementation": {
+        "framework": [
+          "npm",
+          "--workspace",
+          "@agentix/framework-app",
+          "test"
+        ],
+        "plain": [
+          "npm",
+          "--workspace",
+          "@agentix/plain-app",
+          "test"
+        ]
+      },
+      "expectedExitCode": 0
+    }
+  ],
+  "shortcutPolicy": {
+    "forbiddenModifiedPrefixes": [
+      "benchmarks/evaluator",
+      "benchmarks/harness",
+      "benchmarks/results"
+    ],
+    "rejectDeletedTests": true,
+    "rejectFocusedOrSkippedTests": true,
+    "rejectNetworkUse": true,
+    "rejectCrossArmSources": true
+  }
+}

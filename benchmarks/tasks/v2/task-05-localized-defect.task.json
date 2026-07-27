@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "task-05-localized-defect",
+  "version": 1,
+  "category": "localized-defect",
+  "userRequest": "Product names may contain up to 80 characters. A name containing exactly 80 ASCII characters is currently rejected even though shorter names work. Fix that boundary while continuing to reject blank names and names longer than 80 characters.",
+  "publicAcceptanceCriteria": [
+    "Creating a product whose trimmed name is exactly 80 ASCII characters succeeds.",
+    "A product name of 81 ASCII characters is rejected with the standard validation response.",
+    "Blank-name validation and all existing product behavior remain unchanged."
+  ],
+  "expectedPublicSurfaces": [
+    {
+      "kind": "http",
+      "identifier": "POST /products",
+      "behavior": "Accept the documented 80-character boundary."
+    }
+  ],
+  "fixture": {
+    "framework": {
+      "manifest": "benchmarks/fixtures/v2/task-05-localized-defect/framework.fixture.json",
+      "sha256": "d5ce3214beb09c4cf68eeb82407674b57ce370b9abefb860c4b98b20e62fbe9d"
+    },
+    "plain": {
+      "manifest": "benchmarks/fixtures/v2/task-05-localized-defect/plain.fixture.json",
+      "sha256": "c3da9581c8f63ad23b80f2888ea14966fe13c471a6d4e22a2ba44a1c0b6d4670"
+    }
+  },
+  "evaluator": {
+    "kind": "workspace",
+    "commandByImplementation": {
+      "framework": [
+        "npm",
+        "--workspace",
+        "@agentix/framework-app",
+        "test"
+      ],
+      "plain": [
+        "npm",
+        "--workspace",
+        "@agentix/plain-app",
+        "test"
+      ]
+    },
+    "hiddenManifest": "benchmarks/evaluator/hidden/v2/task-05-localized-defect.hidden.json",
+    "hiddenManifestSha256": "da008072932dc8b495e5b496d6736bed560c2e17bd449e88a146ebd7e46f16f0"
+  },
+  "maximumSeconds": 1800,
+  "prohibitedShortcuts": [
+    "hard-code-evaluator-output",
+    "modify-evaluator-or-harness",
+    "delete-or-disable-tests",
+    "bypass-public-api",
+    "network-or-prior-solution-access",
+    "cross-arm-source-access",
+    "fixture-specific-production-branch"
+  ],
+  "networkPolicy": "disabled"
+}

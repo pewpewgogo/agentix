@@ -3,6 +3,55 @@ import { isAbsolute, posix } from "node:path";
 import { z } from "zod";
 
 export const IMPLEMENTATIONS = ["framework", "plain"] as const;
+export const CORPUS_VERSIONS = ["v1", "v2"] as const;
+export type CorpusVersion = (typeof CORPUS_VERSIONS)[number];
+
+export const CORPUS_IDS = [
+  "agentix-commerce-maintenance-v1",
+  "agentix-commerce-maintenance-v2",
+] as const;
+export const CONTRACT_IDS = ["commerce-http-v1", "commerce-http-v2"] as const;
+
+export interface CorpusConfiguration {
+  readonly version: CorpusVersion;
+  readonly corpusId: (typeof CORPUS_IDS)[number];
+  readonly corpusVersion: 1 | 2;
+  readonly taskDirectory: string;
+  readonly lockPath: string;
+  readonly fixturesPrefix: string;
+  readonly hiddenPrefix: string;
+  readonly contractId: (typeof CONTRACT_IDS)[number];
+}
+
+/**
+ * v1 is the frozen two-arm record and stays the default everywhere. v2 is the
+ * additive corpus targeting the current single-file framework layout.
+ */
+export const CORPUS_CONFIGURATIONS: Readonly<
+  Record<CorpusVersion, CorpusConfiguration>
+> = {
+  v1: {
+    version: "v1",
+    corpusId: "agentix-commerce-maintenance-v1",
+    corpusVersion: 1,
+    taskDirectory: "benchmarks/tasks/v1",
+    lockPath: "benchmarks/tasks/corpus.lock.json",
+    fixturesPrefix: "benchmarks/fixtures/v1/",
+    hiddenPrefix: "benchmarks/evaluator/hidden/v1/",
+    contractId: "commerce-http-v1",
+  },
+  v2: {
+    version: "v2",
+    corpusId: "agentix-commerce-maintenance-v2",
+    corpusVersion: 2,
+    taskDirectory: "benchmarks/tasks/v2",
+    lockPath: "benchmarks/tasks/corpus-v2.lock.json",
+    fixturesPrefix: "benchmarks/fixtures/v2/",
+    hiddenPrefix: "benchmarks/evaluator/hidden/v2/",
+    contractId: "commerce-http-v2",
+  },
+};
+
 export const TASK_CATEGORIES = [
   "simple-feature",
   "field-propagation",
@@ -168,7 +217,7 @@ export const FixtureManifestSchema = z.strictObject({
   ).min(1),
   evaluationCommands: EvaluationCommandsSchema,
   equivalence: z.strictObject({
-    contractId: z.literal("commerce-http-v1"),
+    contractId: z.enum(CONTRACT_IDS),
     counterpartManifest: RepositoryPathSchema,
     scenarioIds: z.array(z.string().min(1)).min(1),
   }),
@@ -235,8 +284,8 @@ export type HiddenEvaluatorManifest = z.infer<
 
 export const CorpusLockSchema = z.strictObject({
   schemaVersion: z.literal(1),
-  corpusId: z.literal("agentix-commerce-maintenance-v1"),
-  corpusVersion: z.literal(1),
+  corpusId: z.enum(CORPUS_IDS),
+  corpusVersion: z.union([z.literal(1), z.literal(2)]),
   hashAlgorithm: z.literal("sha256"),
   files: z.array(z.strictObject({
     path: RepositoryPathSchema,

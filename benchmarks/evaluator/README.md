@@ -51,7 +51,15 @@ and `production_hidden_evaluator_unavailable`.
 npm --workspace @agentix/benchmark-evaluator run typecheck
 npm --workspace @agentix/benchmark-evaluator test
 npm --workspace @agentix/benchmark-evaluator run freeze:check
+npm --workspace @agentix/benchmark-evaluator run freeze:check:v2
+npm --workspace @agentix/benchmark-evaluator run dryrun:v2
 ```
+
+`loadCorpus` defaults to the frozen v1 corpus; pass `"v2"` (or
+`freeze.ts --corpus v2`) to select `agentix-commerce-maintenance-v2`.
+`dryrun:v2` is the no-provider corpus v2 dry-run described in
+`../THREE_ARM_RUNBOOK.md`; its output is smoke engineering validation and never
+confirmatory evidence.
 
 `freeze:check` is read-only. It validates the corpus lock, task-to-fixture and
 task-to-hidden-manifest hashes, every base source hash, paired-equivalence

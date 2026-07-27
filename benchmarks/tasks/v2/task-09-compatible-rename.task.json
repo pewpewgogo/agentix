@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "id": "task-09-compatible-rename",
+  "version": 1,
+  "category": "compatible-operation-rename",
+  "userRequest": "Rename the public order-placement operation from POST /orders to POST /purchases. Existing consumers of POST /orders must remain compatible as a deprecated alias with identical authorization, validation, status, response, and side effects.",
+  "publicAcceptanceCriteria": [
+    "POST /purchases creates an order with exactly the same observable behavior as the current order-placement operation.",
+    "POST /orders remains supported as a compatibility alias and does not create duplicate payments or events.",
+    "Both paths require the same permission and return identical domain and validation errors.",
+    "Order lookup and event-feed paths remain unchanged."
+  ],
+  "expectedPublicSurfaces": [
+    {
+      "kind": "http",
+      "identifier": "POST /purchases",
+      "behavior": "Primary order-placement operation."
+    },
+    {
+      "kind": "http",
+      "identifier": "POST /orders",
+      "behavior": "Deprecated compatible alias."
+    }
+  ],
+  "fixture": {
+    "framework": {
+      "manifest": "benchmarks/fixtures/v2/task-09-compatible-rename/framework.fixture.json",
+      "sha256": "92c90c3ff2be540524cf94d1d2c2ee2bc3d9215ff13c20912d528ebdfdc7b3f6"
+    },
+    "plain": {
+      "manifest": "benchmarks/fixtures/v2/task-09-compatible-rename/plain.fixture.json",
+      "sha256": "8b3a939906eeeae686049f32cb7099a85079be2ff7443bf9a0b46c3cafd2841b"
+    }
+  },
+  "evaluator": {
+    "kind": "workspace",
+    "commandByImplementation": {
+      "framework": [
+        "npm",
+        "--workspace",
+        "@agentix/framework-app",
+        "test"
+      ],
+      "plain": [
+        "npm",
+        "--workspace",
+        "@agentix/plain-app",
+        "test"
+      ]
+    },
+    "hiddenManifest": "benchmarks/evaluator/hidden/v2/task-09-compatible-rename.hidden.json",
+    "hiddenManifestSha256": "c8cd4c1fb0f0cdb43589bbccfed11e1731c5fed097d429e7dde83a50ac532a1b"
+  },
+  "maximumSeconds": 1800,
+  "prohibitedShortcuts": [
+    "hard-code-evaluator-output",
+    "modify-evaluator-or-harness",
+    "delete-or-disable-tests",
+    "bypass-public-api",
+    "network-or-prior-solution-access",
+    "cross-arm-source-access",
+    "fixture-specific-production-branch"
+  ],
+  "networkPolicy": "disabled"
+}

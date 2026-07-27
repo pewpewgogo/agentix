@@ -1,0 +1,1109 @@
+{
+  "schemaVersion": 1,
+  "seed": "agentix-commerce-v2-2026-07-27",
+  "repetitions": 5,
+  "taskCount": 10,
+  "runs": [
+    {
+      "ordinal": 1,
+      "blockId": "task-07-authorization-change@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-07-authorization-change",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 3
+    },
+    {
+      "ordinal": 2,
+      "blockId": "task-07-authorization-change@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-07-authorization-change",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 3
+    },
+    {
+      "ordinal": 3,
+      "blockId": "task-05-localized-defect@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-05-localized-defect",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 4
+    },
+    {
+      "ordinal": 4,
+      "blockId": "task-05-localized-defect@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-05-localized-defect",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 4
+    },
+    {
+      "ordinal": 5,
+      "blockId": "task-06-misleading-symptom@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-06-misleading-symptom",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 3
+    },
+    {
+      "ordinal": 6,
+      "blockId": "task-06-misleading-symptom@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-06-misleading-symptom",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 3
+    },
+    {
+      "ordinal": 7,
+      "blockId": "task-05-localized-defect@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-05-localized-defect",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 5
+    },
+    {
+      "ordinal": 8,
+      "blockId": "task-05-localized-defect@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-05-localized-defect",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 5
+    },
+    {
+      "ordinal": 9,
+      "blockId": "task-08-schema-migration@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-08-schema-migration",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 1
+    },
+    {
+      "ordinal": 10,
+      "blockId": "task-08-schema-migration@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-08-schema-migration",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 1
+    },
+    {
+      "ordinal": 11,
+      "blockId": "task-02-field-propagation@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-02-field-propagation",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 2
+    },
+    {
+      "ordinal": 12,
+      "blockId": "task-02-field-propagation@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-02-field-propagation",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 2
+    },
+    {
+      "ordinal": 13,
+      "blockId": "task-06-misleading-symptom@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-06-misleading-symptom",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 2
+    },
+    {
+      "ordinal": 14,
+      "blockId": "task-06-misleading-symptom@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-06-misleading-symptom",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 2
+    },
+    {
+      "ordinal": 15,
+      "blockId": "task-10-architecture-question@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-10-architecture-question",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 4
+    },
+    {
+      "ordinal": 16,
+      "blockId": "task-10-architecture-question@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-10-architecture-question",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 4
+    },
+    {
+      "ordinal": 17,
+      "blockId": "task-04-external-adapter@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-04-external-adapter",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 2
+    },
+    {
+      "ordinal": 18,
+      "blockId": "task-04-external-adapter@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-04-external-adapter",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 2
+    },
+    {
+      "ordinal": 19,
+      "blockId": "task-05-localized-defect@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-05-localized-defect",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 2
+    },
+    {
+      "ordinal": 20,
+      "blockId": "task-05-localized-defect@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-05-localized-defect",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 2
+    },
+    {
+      "ordinal": 21,
+      "blockId": "task-08-schema-migration@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-08-schema-migration",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 2
+    },
+    {
+      "ordinal": 22,
+      "blockId": "task-08-schema-migration@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-08-schema-migration",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 2
+    },
+    {
+      "ordinal": 23,
+      "blockId": "task-08-schema-migration@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-08-schema-migration",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 5
+    },
+    {
+      "ordinal": 24,
+      "blockId": "task-08-schema-migration@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-08-schema-migration",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 5
+    },
+    {
+      "ordinal": 25,
+      "blockId": "task-01-simple-feature@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-01-simple-feature",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 5
+    },
+    {
+      "ordinal": 26,
+      "blockId": "task-01-simple-feature@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-01-simple-feature",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 5
+    },
+    {
+      "ordinal": 27,
+      "blockId": "task-06-misleading-symptom@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-06-misleading-symptom",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 1
+    },
+    {
+      "ordinal": 28,
+      "blockId": "task-06-misleading-symptom@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-06-misleading-symptom",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 1
+    },
+    {
+      "ordinal": 29,
+      "blockId": "task-01-simple-feature@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-01-simple-feature",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 2
+    },
+    {
+      "ordinal": 30,
+      "blockId": "task-01-simple-feature@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-01-simple-feature",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 2
+    },
+    {
+      "ordinal": 31,
+      "blockId": "task-10-architecture-question@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-10-architecture-question",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 3
+    },
+    {
+      "ordinal": 32,
+      "blockId": "task-10-architecture-question@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-10-architecture-question",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 3
+    },
+    {
+      "ordinal": 33,
+      "blockId": "task-08-schema-migration@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-08-schema-migration",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 4
+    },
+    {
+      "ordinal": 34,
+      "blockId": "task-08-schema-migration@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-08-schema-migration",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 4
+    },
+    {
+      "ordinal": 35,
+      "blockId": "task-03-cross-feature-rule@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-03-cross-feature-rule",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 3
+    },
+    {
+      "ordinal": 36,
+      "blockId": "task-03-cross-feature-rule@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-03-cross-feature-rule",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 3
+    },
+    {
+      "ordinal": 37,
+      "blockId": "task-09-compatible-rename@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-09-compatible-rename",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 5
+    },
+    {
+      "ordinal": 38,
+      "blockId": "task-09-compatible-rename@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-09-compatible-rename",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 5
+    },
+    {
+      "ordinal": 39,
+      "blockId": "task-09-compatible-rename@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-09-compatible-rename",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 4
+    },
+    {
+      "ordinal": 40,
+      "blockId": "task-09-compatible-rename@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-09-compatible-rename",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 4
+    },
+    {
+      "ordinal": 41,
+      "blockId": "task-03-cross-feature-rule@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-03-cross-feature-rule",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 1
+    },
+    {
+      "ordinal": 42,
+      "blockId": "task-03-cross-feature-rule@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-03-cross-feature-rule",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 1
+    },
+    {
+      "ordinal": 43,
+      "blockId": "task-01-simple-feature@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-01-simple-feature",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 3
+    },
+    {
+      "ordinal": 44,
+      "blockId": "task-01-simple-feature@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-01-simple-feature",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 3
+    },
+    {
+      "ordinal": 45,
+      "blockId": "task-02-field-propagation@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-02-field-propagation",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 3
+    },
+    {
+      "ordinal": 46,
+      "blockId": "task-02-field-propagation@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-02-field-propagation",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 3
+    },
+    {
+      "ordinal": 47,
+      "blockId": "task-03-cross-feature-rule@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-03-cross-feature-rule",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 5
+    },
+    {
+      "ordinal": 48,
+      "blockId": "task-03-cross-feature-rule@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-03-cross-feature-rule",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 5
+    },
+    {
+      "ordinal": 49,
+      "blockId": "task-05-localized-defect@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-05-localized-defect",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 3
+    },
+    {
+      "ordinal": 50,
+      "blockId": "task-05-localized-defect@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-05-localized-defect",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 3
+    },
+    {
+      "ordinal": 51,
+      "blockId": "task-02-field-propagation@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-02-field-propagation",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 5
+    },
+    {
+      "ordinal": 52,
+      "blockId": "task-02-field-propagation@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-02-field-propagation",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 5
+    },
+    {
+      "ordinal": 53,
+      "blockId": "task-10-architecture-question@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-10-architecture-question",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 5
+    },
+    {
+      "ordinal": 54,
+      "blockId": "task-10-architecture-question@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-10-architecture-question",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 5
+    },
+    {
+      "ordinal": 55,
+      "blockId": "task-06-misleading-symptom@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-06-misleading-symptom",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 5
+    },
+    {
+      "ordinal": 56,
+      "blockId": "task-06-misleading-symptom@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-06-misleading-symptom",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 5
+    },
+    {
+      "ordinal": 57,
+      "blockId": "task-10-architecture-question@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-10-architecture-question",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 2
+    },
+    {
+      "ordinal": 58,
+      "blockId": "task-10-architecture-question@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-10-architecture-question",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 2
+    },
+    {
+      "ordinal": 59,
+      "blockId": "task-10-architecture-question@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-10-architecture-question",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 1
+    },
+    {
+      "ordinal": 60,
+      "blockId": "task-10-architecture-question@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-10-architecture-question",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 1
+    },
+    {
+      "ordinal": 61,
+      "blockId": "task-01-simple-feature@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-01-simple-feature",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 4
+    },
+    {
+      "ordinal": 62,
+      "blockId": "task-01-simple-feature@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-01-simple-feature",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 4
+    },
+    {
+      "ordinal": 63,
+      "blockId": "task-03-cross-feature-rule@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-03-cross-feature-rule",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 2
+    },
+    {
+      "ordinal": 64,
+      "blockId": "task-03-cross-feature-rule@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-03-cross-feature-rule",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 2
+    },
+    {
+      "ordinal": 65,
+      "blockId": "task-04-external-adapter@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-04-external-adapter",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 1
+    },
+    {
+      "ordinal": 66,
+      "blockId": "task-04-external-adapter@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-04-external-adapter",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 1
+    },
+    {
+      "ordinal": 67,
+      "blockId": "task-02-field-propagation@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-02-field-propagation",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 1
+    },
+    {
+      "ordinal": 68,
+      "blockId": "task-02-field-propagation@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-02-field-propagation",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 1
+    },
+    {
+      "ordinal": 69,
+      "blockId": "task-06-misleading-symptom@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-06-misleading-symptom",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 4
+    },
+    {
+      "ordinal": 70,
+      "blockId": "task-06-misleading-symptom@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-06-misleading-symptom",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 4
+    },
+    {
+      "ordinal": 71,
+      "blockId": "task-08-schema-migration@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-08-schema-migration",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 3
+    },
+    {
+      "ordinal": 72,
+      "blockId": "task-08-schema-migration@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-08-schema-migration",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 3
+    },
+    {
+      "ordinal": 73,
+      "blockId": "task-03-cross-feature-rule@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-03-cross-feature-rule",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 4
+    },
+    {
+      "ordinal": 74,
+      "blockId": "task-03-cross-feature-rule@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-03-cross-feature-rule",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 4
+    },
+    {
+      "ordinal": 75,
+      "blockId": "task-04-external-adapter@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-04-external-adapter",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 4
+    },
+    {
+      "ordinal": 76,
+      "blockId": "task-04-external-adapter@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-04-external-adapter",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 4
+    },
+    {
+      "ordinal": 77,
+      "blockId": "task-04-external-adapter@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-04-external-adapter",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 5
+    },
+    {
+      "ordinal": 78,
+      "blockId": "task-04-external-adapter@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-04-external-adapter",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 5
+    },
+    {
+      "ordinal": 79,
+      "blockId": "task-07-authorization-change@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-07-authorization-change",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 2
+    },
+    {
+      "ordinal": 80,
+      "blockId": "task-07-authorization-change@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-07-authorization-change",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 2
+    },
+    {
+      "ordinal": 81,
+      "blockId": "task-05-localized-defect@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-05-localized-defect",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 1
+    },
+    {
+      "ordinal": 82,
+      "blockId": "task-05-localized-defect@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-05-localized-defect",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 1
+    },
+    {
+      "ordinal": 83,
+      "blockId": "task-04-external-adapter@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-04-external-adapter",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 3
+    },
+    {
+      "ordinal": 84,
+      "blockId": "task-04-external-adapter@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-04-external-adapter",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 3
+    },
+    {
+      "ordinal": 85,
+      "blockId": "task-07-authorization-change@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-07-authorization-change",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 1
+    },
+    {
+      "ordinal": 86,
+      "blockId": "task-07-authorization-change@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-07-authorization-change",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 1
+    },
+    {
+      "ordinal": 87,
+      "blockId": "task-07-authorization-change@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-07-authorization-change",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 5
+    },
+    {
+      "ordinal": 88,
+      "blockId": "task-07-authorization-change@1#5",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-07-authorization-change",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 5
+    },
+    {
+      "ordinal": 89,
+      "blockId": "task-09-compatible-rename@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-09-compatible-rename",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 2
+    },
+    {
+      "ordinal": 90,
+      "blockId": "task-09-compatible-rename@1#2",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-09-compatible-rename",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 2
+    },
+    {
+      "ordinal": 91,
+      "blockId": "task-09-compatible-rename@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-09-compatible-rename",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 1
+    },
+    {
+      "ordinal": 92,
+      "blockId": "task-09-compatible-rename@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-09-compatible-rename",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 1
+    },
+    {
+      "ordinal": 93,
+      "blockId": "task-07-authorization-change@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-07-authorization-change",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 4
+    },
+    {
+      "ordinal": 94,
+      "blockId": "task-07-authorization-change@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-07-authorization-change",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 4
+    },
+    {
+      "ordinal": 95,
+      "blockId": "task-01-simple-feature@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-01-simple-feature",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 1
+    },
+    {
+      "ordinal": 96,
+      "blockId": "task-01-simple-feature@1#1",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-01-simple-feature",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 1
+    },
+    {
+      "ordinal": 97,
+      "blockId": "task-02-field-propagation@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-02-field-propagation",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 4
+    },
+    {
+      "ordinal": 98,
+      "blockId": "task-02-field-propagation@1#4",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-02-field-propagation",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 4
+    },
+    {
+      "ordinal": 99,
+      "blockId": "task-09-compatible-rename@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-09-compatible-rename",
+        "version": 1
+      },
+      "arm": "plain",
+      "repetition": 3
+    },
+    {
+      "ordinal": 100,
+      "blockId": "task-09-compatible-rename@1#3",
+      "task": {
+        "schemaVersion": 1,
+        "id": "task-09-compatible-rename",
+        "version": 1
+      },
+      "arm": "framework",
+      "repetition": 3
+    }
+  ],
+  "scheduleHash": "0f0cb613a582033ea6a95e19b3ada2efe4f932511b1a9c12ec3908f33b763003"
+}

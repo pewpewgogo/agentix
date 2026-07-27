@@ -1,0 +1,534 @@
+{
+  "schemaVersion": 1,
+  "kind": "corpus-v2-dry-run",
+  "classification": "smoke-engineering-validation",
+  "evidence": "NOT-CONFIRMATORY: this record can never support a framework verdict",
+  "generatedAt": "2026-07-27T15:35:42.485Z",
+  "corpus": {
+    "id": "agentix-commerce-maintenance-v2",
+    "version": 2,
+    "taskCount": 10,
+    "fixtureArmCount": 20
+  },
+  "adapters": {
+    "agent": "scripted (no provider, no paid model)",
+    "evaluatorProcessRunner": "smoke-only structural double for harness records",
+    "preChangeAcceptanceProbes": "real in-process execution against materialized fixtures",
+    "baselineRegression": "real vitest runs on clean and defect arms"
+  },
+  "checks": [
+    {
+      "name": "corpus-load",
+      "status": "passed",
+      "details": "agentix-commerce-maintenance-v2@2: 10 tasks, 20 fixture arms hash-verified"
+    },
+    {
+      "name": "materialize:task-01-simple-feature-framework",
+      "status": "passed",
+      "details": "151 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "materialize:task-01-simple-feature-plain",
+      "status": "passed",
+      "details": "38 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "materialize:task-02-field-propagation-framework",
+      "status": "passed",
+      "details": "151 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "materialize:task-02-field-propagation-plain",
+      "status": "passed",
+      "details": "38 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "materialize:task-03-cross-feature-rule-framework",
+      "status": "passed",
+      "details": "151 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "materialize:task-03-cross-feature-rule-plain",
+      "status": "passed",
+      "details": "38 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "materialize:task-04-external-adapter-framework",
+      "status": "passed",
+      "details": "151 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "materialize:task-04-external-adapter-plain",
+      "status": "passed",
+      "details": "38 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "materialize:task-05-localized-defect-framework",
+      "status": "passed",
+      "details": "151 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "defect-overlay:task-05-localized-defect-framework",
+      "status": "passed",
+      "details": "expected defect anchor(s) max: 79 in examples/framework-app/src/features/products.ts"
+    },
+    {
+      "name": "materialize:task-05-localized-defect-plain",
+      "status": "passed",
+      "details": "38 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "defect-overlay:task-05-localized-defect-plain",
+      "status": "passed",
+      "details": "expected defect anchor(s) .max(79) in examples/plain-app/src/features/products/product.ts"
+    },
+    {
+      "name": "materialize:task-06-misleading-symptom-framework",
+      "status": "passed",
+      "details": "151 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "defect-overlay:task-06-misleading-symptom-framework",
+      "status": "passed",
+      "details": "expected defect anchor(s) order.quantity <= 6 in examples/framework-app/src/adapters.ts"
+    },
+    {
+      "name": "materialize:task-06-misleading-symptom-plain",
+      "status": "passed",
+      "details": "38 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "defect-overlay:task-06-misleading-symptom-plain",
+      "status": "passed",
+      "details": "expected defect anchor(s) commit.order.quantity <= 6 in examples/plain-app/src/infrastructure/memory.ts"
+    },
+    {
+      "name": "materialize:task-07-authorization-change-framework",
+      "status": "passed",
+      "details": "151 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "materialize:task-07-authorization-change-plain",
+      "status": "passed",
+      "details": "38 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "materialize:task-08-schema-migration-framework",
+      "status": "passed",
+      "details": "152 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "materialize:task-08-schema-migration-plain",
+      "status": "passed",
+      "details": "39 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "materialize:task-09-compatible-rename-framework",
+      "status": "passed",
+      "details": "151 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "materialize:task-09-compatible-rename-plain",
+      "status": "passed",
+      "details": "38 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "materialize:task-10-architecture-question-framework",
+      "status": "passed",
+      "details": "151 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "materialize:task-10-architecture-question-plain",
+      "status": "passed",
+      "details": "38 files from the frozen v2 inventory + overlays"
+    },
+    {
+      "name": "solution-absence:framework",
+      "status": "passed",
+      "details": "none of /promotions, REPEAT_PURCHASE, FRAUD_REJECTED, catalog:write, migrate:products, /purchases present in the starting application"
+    },
+    {
+      "name": "solution-absence:plain",
+      "status": "passed",
+      "details": "none of /promotions, REPEAT_PURCHASE, FRAUD_REJECTED, catalog:write, migrate:products, /purchases present in the starting application"
+    },
+    {
+      "name": "pre-change-acceptance:task-01-simple-feature-framework",
+      "status": "passed",
+      "details": "requested behavior absent as required (POST /promotions -> 404; GET /promotions/save10 -> 404)"
+    },
+    {
+      "name": "pre-change-acceptance:task-01-simple-feature-plain",
+      "status": "passed",
+      "details": "requested behavior absent as required (POST /promotions -> 404; GET /promotions/save10 -> 404)"
+    },
+    {
+      "name": "pre-change-acceptance:task-02-field-propagation-framework",
+      "status": "passed",
+      "details": "requested behavior absent as required (create -> 400 description=undefined; read description=undefined)"
+    },
+    {
+      "name": "pre-change-acceptance:task-02-field-propagation-plain",
+      "status": "passed",
+      "details": "requested behavior absent as required (create -> 400 description=undefined; read description=undefined)"
+    },
+    {
+      "name": "pre-change-acceptance:task-03-cross-feature-rule-framework",
+      "status": "passed",
+      "details": "requested behavior absent as required (first order -> 201; repeat order -> 201 no code)"
+    },
+    {
+      "name": "pre-change-acceptance:task-03-cross-feature-rule-plain",
+      "status": "passed",
+      "details": "requested behavior absent as required (first order -> 201; repeat order -> 201 no code)"
+    },
+    {
+      "name": "pre-change-acceptance:task-04-external-adapter-framework",
+      "status": "passed",
+      "details": "requested behavior absent as required (blocked-decision order -> 201 no code)"
+    },
+    {
+      "name": "pre-change-acceptance:task-04-external-adapter-plain",
+      "status": "passed",
+      "details": "requested behavior absent as required (blocked-decision order -> 201 no code)"
+    },
+    {
+      "name": "pre-change-acceptance:task-05-localized-defect-framework",
+      "status": "passed",
+      "details": "requested behavior absent as required (80-char name -> 400; 81-char name -> 400)"
+    },
+    {
+      "name": "pre-change-acceptance:task-05-localized-defect-plain",
+      "status": "passed",
+      "details": "requested behavior absent as required (80-char name -> 400; 81-char name -> 400)"
+    },
+    {
+      "name": "pre-change-acceptance:task-06-misleading-symptom-framework",
+      "status": "passed",
+      "details": "requested behavior absent as required (quantity-7 order -> 201; events -> 200; order.created present=false)"
+    },
+    {
+      "name": "pre-change-acceptance:task-06-misleading-symptom-plain",
+      "status": "passed",
+      "details": "requested behavior absent as required (quantity-7 order -> 201; events -> 200; order.created present=false)"
+    },
+    {
+      "name": "pre-change-acceptance:task-07-authorization-change-framework",
+      "status": "passed",
+      "details": "requested behavior absent as required (catalog:write-only create -> 403)"
+    },
+    {
+      "name": "pre-change-acceptance:task-07-authorization-change-plain",
+      "status": "passed",
+      "details": "requested behavior absent as required (catalog:write-only create -> 403)"
+    },
+    {
+      "name": "pre-change-acceptance:task-08-schema-migration-framework",
+      "status": "passed",
+      "details": "requested behavior absent as required (npm run migrate:products failed (Command failed: npm run migrate:products -- --input migration-inputs/products.v1.json --output migration-output.json))"
+    },
+    {
+      "name": "pre-change-acceptance:task-08-schema-migration-plain",
+      "status": "passed",
+      "details": "requested behavior absent as required (npm run migrate:products failed (Command failed: npm run migrate:products -- --input migration-inputs/products.v1.json --output migration-output.json))"
+    },
+    {
+      "name": "pre-change-acceptance:task-09-compatible-rename-framework",
+      "status": "passed",
+      "details": "requested behavior absent as required (POST /purchases -> 404)"
+    },
+    {
+      "name": "pre-change-acceptance:task-09-compatible-rename-plain",
+      "status": "passed",
+      "details": "requested behavior absent as required (POST /purchases -> 404)"
+    },
+    {
+      "name": "pre-change-acceptance:task-10-architecture-question-framework",
+      "status": "not_applicable",
+      "details": "read-only answer task: no pre-change failing acceptance applies; the answer evaluator fails closed without a production driver"
+    },
+    {
+      "name": "pre-change-acceptance:task-10-architecture-question-plain",
+      "status": "not_applicable",
+      "details": "read-only answer task: no pre-change failing acceptance applies; the answer evaluator fails closed without a production driver"
+    },
+    {
+      "name": "baseline-regression:task-01-simple-feature-framework",
+      "status": "passed",
+      "details": "Tests  35 passed (35)"
+    },
+    {
+      "name": "baseline-regression:task-01-simple-feature-plain",
+      "status": "passed",
+      "details": "Tests  24 passed (24)"
+    },
+    {
+      "name": "baseline-regression:task-05-localized-defect-framework",
+      "status": "passed",
+      "details": "Tests  35 passed (35)"
+    },
+    {
+      "name": "baseline-regression:task-05-localized-defect-plain",
+      "status": "passed",
+      "details": "Tests  24 passed (24)"
+    },
+    {
+      "name": "baseline-regression:task-06-misleading-symptom-framework",
+      "status": "passed",
+      "details": "Tests  35 passed (35)"
+    },
+    {
+      "name": "baseline-regression:task-06-misleading-symptom-plain",
+      "status": "passed",
+      "details": "Tests  24 passed (24)"
+    },
+    {
+      "name": "harness-smoke:task-01-simple-feature-framework",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-01-simple-feature-plain",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-02-field-propagation-framework",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-02-field-propagation-plain",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-03-cross-feature-rule-framework",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-03-cross-feature-rule-plain",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-04-external-adapter-framework",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-04-external-adapter-plain",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-05-localized-defect-framework",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-05-localized-defect-plain",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-06-misleading-symptom-framework",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-06-misleading-symptom-plain",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-07-authorization-change-framework",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-07-authorization-change-plain",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-08-schema-migration-framework",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-08-schema-migration-plain",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-09-compatible-rename-framework",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-09-compatible-rename-plain",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-10-architecture-question-framework",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    },
+    {
+      "name": "harness-smoke:task-10-architecture-question-plain",
+      "status": "passed",
+      "details": "completionStatus=completed, finalSuccess=false, invalidRunReason=production_hidden_evaluator_unavailable"
+    }
+  ],
+  "smokeRecords": [
+    {
+      "runId": "corpus-v2-dryrun-task-01-simple-feature-framework",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-01-simple-feature-framework"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-01-simple-feature-plain",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-01-simple-feature-plain"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-02-field-propagation-framework",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-02-field-propagation-framework"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-02-field-propagation-plain",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-02-field-propagation-plain"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-03-cross-feature-rule-framework",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-03-cross-feature-rule-framework"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-03-cross-feature-rule-plain",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-03-cross-feature-rule-plain"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-04-external-adapter-framework",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-04-external-adapter-framework"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-04-external-adapter-plain",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-04-external-adapter-plain"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-05-localized-defect-framework",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-05-localized-defect-framework"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-05-localized-defect-plain",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-05-localized-defect-plain"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-06-misleading-symptom-framework",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-06-misleading-symptom-framework"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-06-misleading-symptom-plain",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-06-misleading-symptom-plain"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-07-authorization-change-framework",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-07-authorization-change-framework"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-07-authorization-change-plain",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-07-authorization-change-plain"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-08-schema-migration-framework",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-08-schema-migration-framework"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-08-schema-migration-plain",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-08-schema-migration-plain"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-09-compatible-rename-framework",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-09-compatible-rename-framework"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-09-compatible-rename-plain",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-09-compatible-rename-plain"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-10-architecture-question-framework",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-10-architecture-question-framework"
+    },
+    {
+      "runId": "corpus-v2-dryrun-task-10-architecture-question-plain",
+      "completionStatus": "completed",
+      "finalSuccess": false,
+      "invalidRunReason": "production_hidden_evaluator_unavailable",
+      "resultDirectory": "/Users/mac/WebstormProjects/agentix/.claude/worktrees/agent-first-framework-overhaul/benchmarks/.workspaces/corpus-v2-dryrun/results/corpus-v2-dryrun-task-10-architecture-question-plain"
+    }
+  ],
+  "summary": {
+    "total": 73,
+    "passed": 71,
+    "notApplicable": 2,
+    "failed": 0
+  }
+}

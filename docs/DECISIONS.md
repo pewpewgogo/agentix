@@ -1020,3 +1020,26 @@ Rejected alternative: keeping the contract/operations/feature file split with
 compat aliases — the measured baseline showed it inverting the framework's own
 context-cost goal (4-6 files and 1.9x the source of the Express arm for a
 typical change), and pre-1.0 is the only cheap moment to remove it.
+
+## D-037: Freeze the v2 maintenance corpus and confirmatory schedule
+
+- Date: 2026-07-27
+- Status: accepted; additive to the frozen v1 corpus (D-025/D-027/D-029
+  lineage), recorded before any confirmatory observation.
+
+Corpus `agentix-commerce-maintenance-v2`: the 10 v1 task specifications
+unchanged in wording, re-anchored to the v2 single-file arms (the v2
+framework-app and plain-app in `examples/`), 20 fixture-arm manifests over a
+169-file inventory pinned to commit
+`4745d33c07b2c4a9cefddf1e0ee53b46566af730`, hidden evaluator manifests under
+`benchmarks/evaluator/hidden/v2/`, and the committed 100-slot blocked schedule
+(seed `agentix-commerce-v2-2026-07-27`, structural hash
+`0f0cb613a582033ea6a95e19b3ada2efe4f932511b1a9c12ec3908f33b763003`).
+
+Audit identities: corpus lock `benchmarks/tasks/corpus-v2.lock.json`, file
+SHA-256 `0681c8e8dc4ca0e279815c0dcaa11071dc72aecdb2f7e84aa6f2e1028b6c18c5`.
+The v1 record is
+byte-untouched (`benchmark:corpus:check` still verifies). The no-provider
+dry-run record is `results/corpus-v2-dryrun-smoke-2026-07-27.json`; per-arm
+workspace profiles ride as hash-locked overlays because the pinned commit
+predates them (fold into the inventory at the next freeze).

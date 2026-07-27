@@ -13,7 +13,9 @@
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false && tsc -p tsconfig.test.json --pretty false",
     "test": "vitest run --root ../.. benchmarks/evaluator",
-    "freeze:check": "tsx src/freeze.ts ../.."
+    "freeze:check": "tsx src/freeze.ts ../..",
+    "freeze:check:v2": "tsx src/freeze.ts ../.. --corpus v2",
+    "dryrun:v2": "tsx src/dry-run-v2.ts ../.."
   },
   "dependencies": {
     "zod": "4.4.3"

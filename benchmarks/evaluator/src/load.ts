@@ -9,6 +9,7 @@ import {
 } from "./integrity.js";
 import {
   BaseInventorySchema,
+  CORPUS_CONFIGURATIONS,
   CorpusLockSchema,
   FixtureManifestSchema,
   HiddenEvaluatorManifestSchema,
@@ -16,7 +17,9 @@ import {
   TASK_CATEGORIES,
   TaskSpecificationSchema,
   type BaseInventory,
+  type CorpusConfiguration,
   type CorpusLock,
+  type CorpusVersion,
   type FixtureManifest,
   type HiddenEvaluatorManifest,
   type Implementation,
@@ -50,6 +53,7 @@ export interface LoadedTask {
 export interface LoadedCorpus {
   readonly tasks: readonly LoadedTask[];
   readonly lock: CorpusLock;
+  readonly configuration: CorpusConfiguration;
 }
 
 const assertImplementationNeutral = (task: TaskSpecification): void => {
@@ -121,13 +125,24 @@ const assertPairedFixture = (
 const loadTask = async (
   repositoryRoot: string,
   path: string,
+  configuration: CorpusConfiguration,
 ): Promise<LoadedTask> => {
   const specification = await parseJsonFile(path, TaskSpecificationSchema);
   assertImplementationNeutral(specification);
   assertCompleteShortcutPolicy(specification);
 
-  if (!specification.evaluator.hiddenManifest.startsWith("benchmarks/evaluator/hidden/")) {
-    throw new Error(`${specification.id} hidden manifest is outside the hidden evaluator tree.`);
+  if (!specification.evaluator.hiddenManifest.startsWith(configuration.hiddenPrefix)) {
+    throw new Error(
+      `${specification.id} hidden manifest is outside ${configuration.hiddenPrefix}.`,
+    );
+  }
+  for (const implementation of ["framework", "plain"] as const) {
+    const manifest = specification.fixture[implementation].manifest;
+    if (!manifest.startsWith(configuration.fixturesPrefix)) {
+      throw new Error(
+        `${specification.id} ${implementation} fixture is outside ${configuration.fixturesPrefix}.`,
+      );
+    }
   }
   const hiddenPath = resolveInside(repositoryRoot, specification.evaluator.hiddenManifest);
   await assertFileDigest(hiddenPath, specification.evaluator.hiddenManifestSha256);
@@ -147,6 +162,14 @@ const loadTask = async (
     loadFixture(repositoryRoot, specification, "plain"),
   ]);
   assertPairedFixture(specification, framework, plain);
+  if (
+    framework.equivalence.contractId !== configuration.contractId ||
+    plain.equivalence.contractId !== configuration.contractId
+  ) {
+    throw new Error(
+      `${specification.id} fixtures must declare contract ${configuration.contractId}.`,
+    );
+  }
 
   return {
     specification,
@@ -167,8 +190,12 @@ export const loadBaseInventory = async (
   return parseJsonFile(path, BaseInventorySchema);
 };
 
-export const loadCorpus = async (repositoryRoot: string): Promise<LoadedCorpus> => {
-  const taskDirectory = resolveInside(repositoryRoot, "benchmarks/tasks/v1");
+export const loadCorpus = async (
+  repositoryRoot: string,
+  version: CorpusVersion = "v1",
+): Promise<LoadedCorpus> => {
+  const configuration = CORPUS_CONFIGURATIONS[version];
+  const taskDirectory = resolveInside(repositoryRoot, configuration.taskDirectory);
   const names = (await readdir(taskDirectory))
     .filter((name) => name.endsWith(".task.json"))
     .sort();
@@ -177,7 +204,9 @@ export const loadCorpus = async (repositoryRoot: string): Promise<LoadedCorpus> 
   }
 
   const tasks = await Promise.all(
-    names.map((name) => loadTask(repositoryRoot, join(taskDirectory, name))),
+    names.map((name) =>
+      loadTask(repositoryRoot, join(taskDirectory, name), configuration)
+    ),
   );
   const ids = new Set(tasks.map(({ specification }) => specification.id));
   const categories = new Set(tasks.map(({ specification }) => specification.category));
@@ -190,8 +219,16 @@ export const loadCorpus = async (repositoryRoot: string): Promise<LoadedCorpus> 
     }
   }
 
-  const lockPath = resolveInside(repositoryRoot, "benchmarks/tasks/corpus.lock.json");
+  const lockPath = resolveInside(repositoryRoot, configuration.lockPath);
   const lock = await parseJsonFile(lockPath, CorpusLockSchema);
+  if (
+    lock.corpusId !== configuration.corpusId ||
+    lock.corpusVersion !== configuration.corpusVersion
+  ) {
+    throw new Error(
+      `Corpus lock identity ${lock.corpusId}@${lock.corpusVersion} does not match the requested ${configuration.corpusId}@${configuration.corpusVersion}.`,
+    );
+  }
   const lockedPaths = new Set<string>();
   for (const file of lock.files) {
     if (lockedPaths.has(file.path)) {
@@ -237,7 +274,9 @@ export const loadCorpus = async (repositoryRoot: string): Promise<LoadedCorpus> 
         arm.fixture.baseInventory.manifest !== canonicalBaseReference.manifest ||
         arm.fixture.baseInventory.sha256 !== canonicalBaseReference.sha256
       ) {
-        throw new Error("All v1 fixture arms must use the same frozen base inventory.");
+        throw new Error(
+          `All ${configuration.version} fixture arms must use the same frozen base inventory.`,
+        );
       }
     }
   }
@@ -276,5 +315,5 @@ export const loadCorpus = async (repositoryRoot: string): Promise<LoadedCorpus> 
       throw new Error(`${implementation} inventory includes its counterpart source tree.`);
     }
   }
-  return { tasks, lock };
+  return { tasks, lock, configuration };
 };

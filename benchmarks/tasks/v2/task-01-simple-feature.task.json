@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "id": "task-01-simple-feature",
+  "version": 1,
+  "category": "simple-feature",
+  "userRequest": "Add a promotion-code capability. Authorized callers can create a code with an integer percentage discount from 1 through 90, then fetch it by code. Codes are case-insensitive and stored in uppercase.",
+  "publicAcceptanceCriteria": [
+    "POST /promotions accepts code and percentOff, returns 201, and records the deterministic creation time.",
+    "GET /promotions/:code returns the stored promotion; duplicate codes return 409 and unknown codes return 404.",
+    "Creating and reading promotions require promotions:create and promotions:read respectively, with the existing error envelope conventions.",
+    "Existing customer, product, order, payment, and event behavior remains unchanged."
+  ],
+  "expectedPublicSurfaces": [
+    {
+      "kind": "http",
+      "identifier": "POST /promotions",
+      "behavior": "Create one normalized promotion."
+    },
+    {
+      "kind": "http",
+      "identifier": "GET /promotions/:code",
+      "behavior": "Read one normalized promotion."
+    }
+  ],
+  "fixture": {
+    "framework": {
+      "manifest": "benchmarks/fixtures/v2/task-01-simple-feature/framework.fixture.json",
+      "sha256": "cc126a05cd607a2f7f957f31d95f7ef73ac998097adee80395da0287a7935d88"
+    },
+    "plain": {
+      "manifest": "benchmarks/fixtures/v2/task-01-simple-feature/plain.fixture.json",
+      "sha256": "b3a15835432cb6be3f6745f818533a385b92d0ca024010fd76d7fc41e9447157"
+    }
+  },
+  "evaluator": {
+    "kind": "workspace",
+    "commandByImplementation": {
+      "framework": [
+        "npm",
+        "--workspace",
+        "@agentix/framework-app",
+        "test"
+      ],
+      "plain": [
+        "npm",
+        "--workspace",
+        "@agentix/plain-app",
+        "test"
+      ]
+    },
+    "hiddenManifest": "benchmarks/evaluator/hidden/v2/task-01-simple-feature.hidden.json",
+    "hiddenManifestSha256": "97956c0bae24d1d7225597088f881fa9c9e58e916f6de3257828861bcad0eda3"
+  },
+  "maximumSeconds": 1800,
+  "prohibitedShortcuts": [
+    "hard-code-evaluator-output",
+    "modify-evaluator-or-harness",
+    "delete-or-disable-tests",
+    "bypass-public-api",
+    "network-or-prior-solution-access",
+    "cross-arm-source-access",
+    "fixture-specific-production-branch"
+  ],
+  "networkPolicy": "disabled"
+}

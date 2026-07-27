@@ -20,6 +20,19 @@ provisioning/preflight/evaluator hooks, and a runtime sandbox attestation with a
 killable session controller. Supplying an adapter and approving provider spend
 are external gates; this repository performs neither by itself.
 
+## Corpus selection
+
+The harness is corpus-agnostic: every run receives its fixture directory,
+task identity, and pinned revisions from the caller, so corpus selection
+happens where the evaluator loads a corpus (`loadCorpus(root, "v1" | "v2")`).
+Two committed confirmatory schedules exist: `config/confirmatory-schedule.v1.json`
+(seed `agentix-commerce-v1-2026-07-23`, the frozen v1 record) and
+`config/confirmatory-schedule.v2.json` (seed `agentix-commerce-v2-2026-07-27`,
+for `agentix-commerce-maintenance-v2`). A confirmatory cohort manifest must
+bind exactly one schedule and that corpus's fixture/evaluator hashes. The
+corpus v2 dry-run (`npm run benchmark:corpus:v2:dryrun`) exercises this runner
+end-to-end against every v2 arm with the scripted adapter only.
+
 ## Recorded surfaces
 
 - Schema-versioned task and run identities pin fixture, evaluator, analysis, and

@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "taskId": "task-06-misleading-symptom",
+  "taskVersion": 1,
+  "fixtureVersion": 1,
+  "implementation": "framework",
+  "applicationSubdirectory": "examples/framework-app",
+  "baseInventory": {
+    "manifest": "benchmarks/fixtures/v2/base.repository.json",
+    "sha256": "7f846ee97df99aa3c9da3418870e4b99177da324cf7945267e3e8190d25f9bb6"
+  },
+  "overlay": {
+    "edits": [
+      {
+        "path": "examples/framework-app/src/adapters.ts",
+        "find": "        state.events.push(event);",
+        "replace": "        if (order.quantity <= 6) {\n          state.events.push(event);\n        }",
+        "expectedOccurrences": 1
+      }
+    ],
+    "files": [
+      {
+        "source": "benchmarks/fixtures/v2/profiles/framework/README.md",
+        "target": "README.md",
+        "sha256": "e2a581582f0aa514ccf09ffcbc6e874dcc4b902c62b8c4c43f6de42f4ab7dbf9",
+        "executable": false
+      },
+      {
+        "source": "benchmarks/fixtures/v2/profiles/framework/package.json",
+        "target": "package.json",
+        "sha256": "b77c9729f8810734dbe650b9bc61c61b1a39fb94963912dc82fd2c64ccea8e66",
+        "executable": false
+      },
+      {
+        "source": "benchmarks/fixtures/v2/profiles/framework/tsconfig.json",
+        "target": "tsconfig.json",
+        "sha256": "2df7b5f5db2d75e46ac9ba419b9cf0d84cc6db57f20e1ce630737833a04ec478",
+        "executable": false
+      },
+      {
+        "source": "benchmarks/fixtures/v2/profiles/shared/package-lock.json",
+        "target": "package-lock.json",
+        "sha256": "8b9a77de6658ece368202eb7b3ec838126c77f522096f2050ab9faae069febe5",
+        "executable": false
+      }
+    ]
+  },
+  "preflight": [
+    {
+      "command": [
+        "npm",
+        "install",
+        "--offline",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund"
+      ],
+      "expectedExitCode": 0,
+      "purpose": "Install exactly locked dependencies without network access or lifecycle scripts."
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "expectedExitCode": 0,
+      "purpose": "Prove the selected clean arm type-checks before the task."
+    },
+    {
+      "command": [
+        "npm",
+        "--workspace",
+        "@agentix/framework-app",
+        "test"
+      ],
+      "expectedExitCode": 0,
+      "purpose": "Prove existing regression behavior is green before the task."
+    }
+  ],
+  "evaluationCommands": {
+    "typecheck": [
+      "npm",
+      "run",
+      "typecheck"
+    ],
+    "regression": [
+      "npm",
+      "--workspace",
+      "@agentix/framework-app",
+      "test"
+    ],
+    "architecture": [
+      "node",
+      "packages/cli/dist/bin.js",
+      "verify",
+      "orders",
+      "--root",
+      "examples/framework-app",
+      "--json"
+    ]
+  },
+  "equivalence": {
+    "contractId": "commerce-http-v2",
+    "counterpartManifest": "benchmarks/fixtures/v2/task-06-misleading-symptom/plain.fixture.json",
+    "scenarioIds": [
+      "base-commerce-acceptance-v2",
+      "quantity-seven-event-omitted-v2"
+    ]
+  },
+  "agentWorkspace": {
+    "excludedPrefixes": [
+      "benchmarks/tasks",
+      "benchmarks/fixtures",
+      "benchmarks/evaluator",
+      "benchmarks/harness",
+      "benchmarks/results",
+      "benchmarks/reports"
+    ]
+  }
+}

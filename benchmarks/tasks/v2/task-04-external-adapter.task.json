@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "id": "task-04-external-adapter",
+  "version": 1,
+  "category": "external-service-adapter",
+  "userRequest": "Integrate a fraud-screening service into order creation. Screen an otherwise valid order before payment; a blocked decision returns FRAUD_REJECTED and leaves stock, payments, orders, and events untouched. Tests must inject deterministic decisions.",
+  "publicAcceptanceCriteria": [
+    "Order creation calls the injected fraud-screening capability after customer and product validation and before payment authorization.",
+    "A blocked decision returns 409 with code FRAUD_REJECTED and produces no payment, order, event, or stock change.",
+    "An allowed decision preserves current successful-order behavior, and existing callers default to an allowed decision.",
+    "Fraud decisions are deterministic in tests and production domain logic performs no direct network access."
+  ],
+  "expectedPublicSurfaces": [
+    {
+      "kind": "module",
+      "identifier": "CommerceSystemOptions.fraudDecisions",
+      "behavior": "Inject deterministic allowed or blocked decisions."
+    },
+    {
+      "kind": "http",
+      "identifier": "POST /orders",
+      "behavior": "Return FRAUD_REJECTED for blocked orders."
+    }
+  ],
+  "fixture": {
+    "framework": {
+      "manifest": "benchmarks/fixtures/v2/task-04-external-adapter/framework.fixture.json",
+      "sha256": "9f55ccf149965c1b9d107aa7d42725e6ba1ea7ea0fe3ee4a6dbdd5ba528133fe"
+    },
+    "plain": {
+      "manifest": "benchmarks/fixtures/v2/task-04-external-adapter/plain.fixture.json",
+      "sha256": "1b95ea353325aab340595c05e167096446e576c3912f9d1a367c3fa3da832e0c"
+    }
+  },
+  "evaluator": {
+    "kind": "workspace",
+    "commandByImplementation": {
+      "framework": [
+        "npm",
+        "--workspace",
+        "@agentix/framework-app",
+        "test"
+      ],
+      "plain": [
+        "npm",
+        "--workspace",
+        "@agentix/plain-app",
+        "test"
+      ]
+    },
+    "hiddenManifest": "benchmarks/evaluator/hidden/v2/task-04-external-adapter.hidden.json",
+    "hiddenManifestSha256": "ae8c7c91761dc00179d9bd9741a8a42f82462c1b03788460188ac156d52b6daf"
+  },
+  "maximumSeconds": 1800,
+  "prohibitedShortcuts": [
+    "hard-code-evaluator-output",
+    "modify-evaluator-or-harness",
+    "delete-or-disable-tests",
+    "bypass-public-api",
+    "network-or-prior-solution-access",
+    "cross-arm-source-access",
+    "fixture-specific-production-branch"
+  ],
+  "networkPolicy": "disabled"
+}

@@ -1,10 +1,15 @@
 # Reproducible benchmark fixtures
 
 Each task has two manifests: one for the framework application and one for the
-plain TypeScript application. Both reference `v1/base.repository.json`, an exact
-SHA-256 inventory of the shared repository files used to build isolated
-workspaces. Inventory entries have an audience, so materialization copies only
-shared files and the selected arm. The other implementation is never present.
+plain TypeScript application. Both reference their corpus's base inventory —
+`v1/base.repository.json` (commit `5fd027e0…`, 141 files) or
+`v2/base.repository.json` (commit `4745d33c…`, 169 files) — an exact SHA-256
+inventory of the shared repository files used to build isolated workspaces.
+Inventory entries have an audience, so materialization copies only shared files
+and the selected arm. The other implementation is never present. In v2 the
+per-arm workspace root files (README, package.json, tsconfig.json,
+package-lock.json) are hash-locked overlay files under `v2/profiles/` because
+the pinned commit predates them.
 
 `materializeFixture` in `@agentix/benchmark-evaluator` performs these steps:
 
@@ -22,9 +27,13 @@ behavior; none of the overlays contains a completed solution.
 
 ## Freeze workflow
 
-Before a corpus freeze, run the inventory refresh utility, review every changed
-source hash and overlay, then regenerate cross-reference hashes and
-`benchmarks/tasks/corpus.lock.json`. Run the evaluator type-check and tests.
+Before a corpus freeze, run the inventory refresh utility
+(`scripts/refresh-benchmark-freeze.mjs` for v1,
+`scripts/refresh-benchmark-freeze-v2.mjs` for v2), review every changed source
+hash and overlay, then regenerate cross-reference hashes and the corpus lock
+(`benchmarks/tasks/corpus.lock.json` or
+`benchmarks/tasks/corpus-v2.lock.json`). Run the evaluator type-check and
+tests.
 After freezing, working-tree product changes do not alter v1 materialization:
 its source bytes come from the recorded commit. Update the corpus only by
 creating a new fixture or corpus version, not by moving the existing pin.

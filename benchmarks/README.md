@@ -24,7 +24,29 @@ The frozen 100-slot schedule is
 `agentix-commerce-v1-2026-07-23`. Current engineering-gate evidence and the
 remaining operational blockers are recorded in `../docs/PHASE5_READINESS.md`.
 
+Two corpora now coexist and are independently verifiable:
+
+- `agentix-commerce-maintenance-v1` (default everywhere) is the frozen
+  pre-overhaul record: `tasks/v1`, `fixtures/v1`, `evaluator/hidden/v1`,
+  `tasks/corpus.lock.json`, and `harness/config/confirmatory-schedule.v1.json`.
+  It is read-only.
+- `agentix-commerce-maintenance-v2` is the additive port of the same ten tasks
+  to the CURRENT framework revision (single-file feature modules): `tasks/v2`,
+  `fixtures/v2`, `evaluator/hidden/v2`, `tasks/corpus-v2.lock.json`, and
+  `harness/config/confirmatory-schedule.v2.json`
+  (seed `agentix-commerce-v2-2026-07-27`, 100 blocked slots).
+
+`npm run benchmark:corpus:check` verifies v1; `npm run
+benchmark:corpus:v2:check` verifies v2; `npm run benchmark:corpus:v2:dryrun`
+executes the no-provider v2 dry-run (fixture materialization, real pre-change
+acceptance probes that must fail, real baseline regressions, and full harness
+smoke records labeled non-evidence). See
+[`THREE_ARM_RUNBOOK.md`](THREE_ARM_RUNBOOK.md) for the confirmatory
+requirements, cost estimate, and the preregistration constraints that still
+apply.
+
 The Agentix/Express/NestJS process is documented in
 [`THREE_ARM_RUNBOOK.md`](THREE_ARM_RUNBOOK.md). The notes sandbox and HTTP runner
 are calibration/exploratory layers; a confirmatory three-arm maintenance study
-requires a new v2 corpus and must not mutate the frozen two-arm v1 evidence.
+requires a further corpus version and must not mutate the frozen two-arm
+evidence.

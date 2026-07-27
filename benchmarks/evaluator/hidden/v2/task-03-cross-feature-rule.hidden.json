@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "taskId": "task-03-cross-feature-rule",
+  "taskVersion": 1,
+  "evaluatorVersion": 1,
+  "checks": [
+    {
+      "id": "repeat-purchase-matrix",
+      "kind": "black-box",
+      "implementations": [
+        "framework",
+        "plain"
+      ],
+      "driver": "commerce-http",
+      "scenario": "Order across a matrix of two customers and two products, repeating exactly one customer-product pair.",
+      "assertions": [
+        "Only the repeated pair returns REPEAT_PURCHASE.",
+        "Allowed pairs retain existing totals, payment, event, and stock behavior.",
+        "The rejection consumes no scripted payment outcome."
+      ]
+    },
+    {
+      "id": "repeat-purchase-concurrency",
+      "kind": "black-box",
+      "implementations": [
+        "framework",
+        "plain"
+      ],
+      "driver": "commerce-http",
+      "scenario": "Submit two concurrent first orders for the same customer-product pair with sufficient stock for both.",
+      "assertions": [
+        "Exactly one request succeeds.",
+        "Exactly one payment, order, and event exists.",
+        "Stock is decremented exactly once."
+      ]
+    },
+    {
+      "id": "full-regression",
+      "kind": "regression-command",
+      "implementations": [
+        "framework",
+        "plain"
+      ],
+      "commandByImplementation": {
+        "framework": [
+          "npm",
+          "--workspace",
+          "@agentix/framework-app",
+          "test"
+        ],
+        "plain": [
+          "npm",
+          "--workspace",
+          "@agentix/plain-app",
+          "test"
+        ]
+      },
+      "expectedExitCode": 0
+    }
+  ],
+  "shortcutPolicy": {
+    "forbiddenModifiedPrefixes": [
+      "benchmarks/evaluator",
+      "benchmarks/harness",
+      "benchmarks/results"
+    ],
+    "rejectDeletedTests": true,
+    "rejectFocusedOrSkippedTests": true,
+    "rejectNetworkUse": true,
+    "rejectCrossArmSources": true
+  }
+}
