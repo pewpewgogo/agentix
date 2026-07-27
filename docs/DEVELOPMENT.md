@@ -157,3 +157,22 @@ The API is pre-1.0: semantic versioning applies, but a coordinated minor release
 may contain breaking changes until 1.0. Examples, sandboxes, benchmarks, and the
 repository root stay private and are never published. See
 [RELEASING.md](RELEASING.md) for the operational runbook and npm trust setup.
+
+## Known minor findings (v2 final review, 2026-07-27)
+
+The v2 overhaul's final adversarial review fixed every reproduced major
+finding; these reproduced minors remain open by choice:
+
+- The three sandbox arms diverge on paths outside the compared request matrix
+  (for example 405 handling); the sandbox README scopes the claim and the arms
+  stay minimal by design.
+- `createTestApplication` offers no reset for auto-bound store state
+  (`calls.reset()` clears only the log) — create a fresh application per test.
+- Store-port detection in `createTestApplication` is structural (get/save/
+  delete/list keys plus kinds) and can false-positive on a hand-built
+  lookalike port; a preset tag on `port.store` descriptors is the clean fix.
+- `ensures` checks receive the validated output object itself in dev/test, so
+  a mutating check could alter the returned value — keep checks pure.
+- `emit` called after a dispatch settles throws `EVENT_OUTSIDE_EXECUTION` into
+  the caller's context (timer or floating promise) rather than latching a
+  dispatch fault.

@@ -138,6 +138,33 @@ the [API reference](docs/API_REFERENCE.md).
 - [Architecture](docs/ARCHITECTURE.md) — frozen v1 experiment record with an
   appended, dated v2 revision; use the guides above for current behavior
 
+## What the local evidence shows
+
+Exploratory, single-machine measurements against Express 5 and NestJS 11
+implementing the same behavior (see the caveats in the linked reports before
+quoting them):
+
+**Context cost** — three notes apps with identical behavior, estimated tokens
+(`ceil(chars/4)`, [methodology](sandbox/README.md)):
+
+| Scenario | Agentix | Express | NestJS |
+| --- | ---: | ---: | ---: |
+| Full source, like-for-like | **762** | 780 | 859 |
+| "What is affected by this change?" | **62** | 635 | 635 |
+| Add-an-endpoint: files read (tokens) | **644** | 741 | 733 |
+| Add-an-endpoint: files written | **2** | 3 | 3 |
+
+**Runtime** — isolated-process medians, 300 iterations, equal validation work
+([full report](docs/HTTP_FRAMEWORK_BENCHMARK.md)):
+
+| Workload | Agentix | Express | NestJS |
+| --- | ---: | ---: | ---: |
+| POST echo (valid) | **101.7 µs** | 121.3 µs | 130.0 µs |
+| GET with path param | **62.1 µs** | 69.6 µs | 81.9 µs |
+| 8 in-flight batch | **264.1 µs** | 317.3 µs | 346.5 µs |
+| Cold start to ready | **37.9 ms** | 74.8 ms | 150.7 ms |
+| Ready RSS | **61.6 MiB** | 79.7 MiB | 99.5 MiB |
+
 ## Research status
 
 Agentix was built to test a falsifiable hypothesis: explicit feature capsules
