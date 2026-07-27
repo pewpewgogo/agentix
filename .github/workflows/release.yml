@@ -24,12 +24,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Use Node.js 24 and the npm registry
+      # No registry-url here: setup-node would write an _authToken line into
+      # .npmrc, which breaks npm's OIDC trusted-publishing detection. Publishing
+      # authenticates via the id-token permission alone (npm >= 11.5.1).
+      - name: Use Node.js 24
         uses: actions/setup-node@v7
         with:
           node-version: 24
           package-manager-cache: false
-          registry-url: https://registry.npmjs.org
 
       - name: Use the pinned npm release
         run: npm install --global npm@11.13.0
@@ -58,4 +60,3 @@ jobs:
           commit: Release Agentix packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -54,23 +54,37 @@ and packages that exceed their declared file-count budget.
 Do not edit package versions, changelogs, or the release pull request's generated
 lockfile changes by hand. `npm run release:status` previews pending releases.
 
-## npm authentication
+## npm authentication: trusted publishing only
 
-The release job grants `id-token: write` for npm trusted publishing and also
-accepts a repository secret named `NPM_TOKEN` for bootstrap or fallback use.
+Publishing authenticates exclusively through npm trusted publishing (GitHub
+OIDC). No automation token exists at any point: the release job's
+`id-token: write` permission lets npm (>= 11.5.1) mint a short-lived,
+workflow-bound credential per publish, and provenance attestations are
+generated automatically. The workflow deliberately sets no `registry-url` on
+`actions/setup-node` — the `.npmrc` auth line it writes would mask OIDC
+detection — and passes no npm secret to the changesets action.
 
-Before the first release:
+npm cannot attach a trusted publisher to a name that has never been published,
+so the five packages must exist once. Bootstrap, one time, from a maintainer's
+local npm login session (browser + 2FA — still no token):
 
-1. create or confirm ownership of the `@agentix` npm organization;
-2. add a granular automation token as the `NPM_TOKEN` GitHub Actions secret;
-3. merge the generated initial release pull request and confirm all five
-   packages publish at the same version; and
-4. configure each npm package's trusted publisher as repository
-   `pewpewgogo/agentix` with workflow file `.github/workflows/release.yml`.
+1. Create or confirm ownership of the `@agentix` npm organization.
+2. `npm login`, then `node scripts/bootstrap-npm-packages.mjs` (add
+   `--dry-run` to preview). It publishes a deprecated
+   `0.0.0-bootstrap.0` placeholder for each missing name under the
+   `bootstrap` dist-tag only, so nothing installs until a real release.
+3. On npmjs.com, for EACH of the five packages: Settings → Trusted publisher →
+   GitHub Actions, with organization `pewpewgogo`, repository `agentix`,
+   workflow filename `release.yml` (filename only, not the path), no
+   environment, and — required for configurations created after
+   2026-05-20 — allowed action `npm publish`.
+4. Merge the release pull request. The workflow publishes every package via
+   OIDC with provenance; the `bootstrap` placeholders stay deprecated and
+   `latest` points at the first real version.
 
-After trusted publishing succeeds for every package, remove `NPM_TOKEN` so npm
-publishing relies only on short-lived GitHub OIDC credentials. Keep npm
-two-factor authentication enabled for human account operations.
+Keep npm two-factor authentication enabled for human account operations, and
+never add an `NPM_TOKEN` secret — a workflow that falls back to a long-lived
+token silently re-creates the attack surface trusted publishing removes.
 
 ## Release gates and recovery
 
