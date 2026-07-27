@@ -8,6 +8,7 @@
     { "path": "packages/adapters-http" },
     { "path": "examples/shared-contract" },
     { "path": "examples/framework-app" },
+    { "path": "examples/pg-notes" },
     { "path": "examples/plain-app" },
     { "path": "benchmarks/evaluator" },
     { "path": "benchmarks/harness" },

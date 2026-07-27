@@ -17,13 +17,18 @@ guidance.
    authorization.
 4. [HTTP adapter](HTTP.md) — auto-derived routes, the fixed envelope,
    authentication, overrides, Node and edge hosts.
-5. [Testing](TESTING.md) — `createTestApplication`, `testHttp`, harnesses,
+5. [Persistence](PERSISTENCE.md) — database adapters, lifecycle hooks, the
+   transaction/unit-of-work recipe, outbox sketch, testing strategy;
+   canonical reference: [`examples/pg-notes`](../examples/pg-notes).
+6. [Testing](TESTING.md) — `createTestApplication`, `testHttp`, harnesses,
    deterministic capabilities, contracts.
-6. [CLI and generated index](CLI.md) — inspect artifacts, graph, affected
-   scope, narrow verification, scaffolding, cache semantics.
-7. [API reference](API_REFERENCE.md) — every public export of the five
+7. [CLI and generated index](CLI.md) — inspect artifacts, one-shot change
+   context packs (`agentix context`), graph, affected scope, narrow
+   verification, OpenAPI 3.1 export (`agentix openapi`), scaffolding, cache
+   semantics.
+8. [API reference](API_REFERENCE.md) — every public export of the five
    packages (each package also ships its own `API.md`).
-8. [Releasing](RELEASING.md) — coordinated versions, release pull requests,
+9. [Releasing](RELEASING.md) — coordinated versions, release pull requests,
    npm publishing, provenance.
 
 The complete runnable reference application is

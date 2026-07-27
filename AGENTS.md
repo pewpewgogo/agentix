@@ -50,6 +50,8 @@ derive from `effects`. The app shell (`createApplication` +
 - `packages/compiler` — static analysis, index, affected scope, context artifacts.
 - `packages/cli` — `inspect`, `graph`, `affected`, `verify`, `scaffold`.
 - `examples/framework-app` — parity-tested commerce application.
+- `examples/pg-notes` — PostgreSQL-backed notes service; the persistence
+  reference (`docs/PERSISTENCE.md`).
 - `sandbox/` — three-arm notes apps for token/perf comparison.
 - `benchmarks` — frozen evidence and isolated maintenance harnesses.
 

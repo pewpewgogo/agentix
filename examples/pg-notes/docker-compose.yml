@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      # Role names starting with "pg_" are reserved by PostgreSQL, hence
+      # plain "notes" credentials for the pg-notes example.
+      POSTGRES_DB: notes
+      POSTGRES_USER: notes
+      POSTGRES_PASSWORD: notes
+    ports:
+      # Host 55432 avoids clashing with a locally installed PostgreSQL.
+      - "127.0.0.1:55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notes -d notes"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    volumes:
+      - pg-notes-data:/var/lib/postgresql/data
+
+volumes:
+  pg-notes-data:

@@ -10,7 +10,7 @@ const packages = [
     "@agentix/compiler",
     "packages/compiler",
     ["dist/index.js", "dist/index.d.ts"],
-    22,
+    26,
   ],
   [
     "@agentix/cli",

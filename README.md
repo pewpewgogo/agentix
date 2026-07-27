@@ -120,7 +120,7 @@ interpreting calibration, runtime, or paid live-agent results.
 | `@agentix/adapters-http` | Auto-derived routes, fixed JSON envelope, `serveNode` raw Node host, edge-safe `fetch` entry |
 | `@agentix/testing` | `createTestApplication` (auto-faked ports), `testHttp`, harnesses, deterministic capabilities, contracts |
 | `@agentix/compiler` | Static analysis, deterministic `.agentix/index.json`, affected scope, bounded context artifacts |
-| `@agentix/cli` | `inspect`, `graph`, `affected`, `verify`, `scaffold` |
+| `@agentix/cli` | `inspect`, `context`, `graph`, `affected`, `verify`, `openapi`, `scaffold`, plus `mcp` — the same commands as a stdio MCP server for coding agents |
 
 Each package ships its own `README.md` and `API.md`; the full surface is in
 the [API reference](docs/API_REFERENCE.md).

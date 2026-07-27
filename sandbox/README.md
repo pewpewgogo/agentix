@@ -41,6 +41,12 @@ declarative per-arm model in the script (no hand-entered numbers):
   only) = the direct reads plus the compact `inspect` output — the discovery
   tool whose fixed cost substitutes for reading wiring in larger apps; on this
   deliberately tiny app it exceeds the direct strategy.
+  READ (context, Agentix only) = ONLY the compact `agentix context` output:
+  the one-artifact change pack embeds the operation's full declaration and
+  the primary test's full source (plus the error/status table, effect
+  signatures, affected closure, verification commands, and writes recipe),
+  so it *replaces* the direct reads instead of adding to them — by contract
+  it costs no more bytes than the direct strategy.
   WRITE = the count of files the task modifies, derived from the same model
   (Agentix: feature file + test; Express/NestJS: service + wiring + test).
 

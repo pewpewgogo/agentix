@@ -1,10 +1,15 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { startMcpServer } from "./mcp.js";
+
 import {
+  CHANGE_CONTEXT_DEFAULT_BUDGET,
   checkIndexStaleness,
   computeAffected,
+  createChangeContext,
+  createOpenApiDocument,
   createOperationContext,
   createOperationDetail,
   generateIndex,
@@ -12,6 +17,7 @@ import {
   readIndex,
   stableJson,
   type AgentIndex,
+  type ChangeContext,
   type CompilerDiagnostic,
   type GraphEdge,
   type IndexedHttp,
@@ -46,6 +52,8 @@ export interface CliDependencies {
   readonly cwd?: string;
   readonly io?: CliIO;
   readonly runProcess?: ProcessRunner;
+  /** Test seam for `agentix mcp`; defaults to the stdio MCP server. */
+  readonly startMcpServer?: (rootDir: string) => Promise<void>;
 }
 
 interface ParsedArguments {
@@ -54,9 +62,13 @@ interface ParsedArguments {
   readonly compact: boolean;
   readonly dryRun: boolean;
   readonly full: boolean;
+  readonly bearer: boolean;
   readonly help: boolean;
   readonly format?: string;
   readonly root?: string;
+  readonly out?: string;
+  readonly health?: string;
+  readonly budget?: string;
 }
 
 class UsageError extends Error {}
@@ -83,11 +95,16 @@ const defaultRunner: ProcessRunner = (command, args, cwd) => {
 const usage = `Usage:
   agentix inspect <feature-or-operation> [--json [--compact]] [--root <directory>]
   agentix inspect <operation> --full [--json [--compact]] [--root <directory>]
+  agentix context <operation> [--budget <bytes>] [--json [--compact]] [--root <directory>]
   agentix graph [<feature>] [--format text|json|dot] [--json [--compact]] [--root <directory>]
   agentix affected <feature-or-file> [--json [--compact]] [--root <directory>]
   agentix verify <feature-or-operation> [--json [--compact]] [--root <directory>]
+  agentix openapi [--bearer] [--health <path>] [--out <file>] [--compact] [--root <directory>]
   agentix scaffold feature <name> [--dry-run] [--json [--compact]] [--root <directory>]
+  agentix mcp [--root <directory>]
 `;
+
+const valueOptions = new Set(["--format", "--root", "--out", "--health", "--budget"]);
 
 const parseArguments = (args: readonly string[]): ParsedArguments => {
   const positional: string[] = [];
@@ -95,9 +112,9 @@ const parseArguments = (args: readonly string[]): ParsedArguments => {
   let compact = false;
   let dryRun = false;
   let full = false;
+  let bearer = false;
   let help = false;
-  let format: string | undefined;
-  let root: string | undefined;
+  const values = new Map<string, string>();
   let parseOptions = true;
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
@@ -111,15 +128,16 @@ const parseArguments = (args: readonly string[]): ParsedArguments => {
       compact = true;
     } else if (parseOptions && argument === "--full") {
       full = true;
+    } else if (parseOptions && argument === "--bearer") {
+      bearer = true;
     } else if (parseOptions && argument === "--dry-run") {
       dryRun = true;
-    } else if (parseOptions && (argument === "--format" || argument === "--root")) {
+    } else if (parseOptions && argument !== undefined && valueOptions.has(argument)) {
       const value = args[index + 1];
       if (value === undefined || value.startsWith("--")) {
         throw new UsageError(`${argument} requires a value.`);
       }
-      if (argument === "--format") format = value;
-      else root = value;
+      values.set(argument, value);
       index += 1;
     } else if (parseOptions && argument?.startsWith("--") === true) {
       throw new UsageError(`Unknown option '${argument}'.`);
@@ -127,15 +145,24 @@ const parseArguments = (args: readonly string[]): ParsedArguments => {
       positional.push(argument);
     }
   }
+  const format = values.get("--format");
+  const root = values.get("--root");
+  const out = values.get("--out");
+  const health = values.get("--health");
+  const budget = values.get("--budget");
   return {
     positional,
     json,
     compact,
     dryRun,
     full,
+    bearer,
     help,
     ...(format === undefined ? {} : { format }),
     ...(root === undefined ? {} : { root }),
+    ...(out === undefined ? {} : { out }),
+    ...(health === undefined ? {} : { health }),
+    ...(budget === undefined ? {} : { budget }),
   };
 };
 
@@ -297,6 +324,75 @@ const formatInspect = (value: unknown): string => {
     }
   }
   return `${lines.join("\n")}\n`;
+};
+
+const formatChangeContext = (context: ChangeContext): string => {
+  const lines = [`change-context ${context.id}`, `source: ${context.source}`];
+  if (context.http !== undefined) {
+    lines.push(
+      `http: ${context.http.method} ${context.http.path}${context.http.status === undefined ? "" : ` ${context.http.status}`}`,
+    );
+  }
+  if (context.errors.length > 0) {
+    lines.push(
+      `errors: ${context.errors.map((error) => `${error.code}${error.http === undefined ? "" : `(${error.http})`}`).join(", ")}`,
+    );
+  }
+  const list = (label: string, values: readonly string[] | undefined): void => {
+    if (values !== undefined) lines.push(`${label}: ${values.length === 0 ? "-" : values.join(", ")}`);
+  };
+  list("permissions", context.permissions);
+  list("events", context.events);
+  list("ensures", context.ensures);
+  list("exports", context.exports);
+  list("effects", context.effects);
+  for (const signature of context.portSignatures ?? []) lines.push(`port: ${signature}`);
+  if (context.excerpt !== undefined) lines.push("excerpt:", context.excerpt);
+  for (const test of context.tests) {
+    if (test.source === undefined) lines.push(`test (see file): ${test.file}`);
+    else lines.push(`test ${test.file}:`, test.source);
+  }
+  list("affected", context.affected);
+  lines.push(`verify typecheck (${context.verification.scope}): ${context.verification.typecheck}`);
+  lines.push(`verify tests: ${context.verification.tests}`);
+  list("writes", context.writes);
+  if (context.projection !== undefined) {
+    lines.push(
+      `projection: truncated to ${context.projection.byteLimit} bytes; ` +
+      `${context.projection.omissions.length} omission(s)`,
+    );
+    for (const omission of context.projection.omissions) {
+      const expansion = omission.expand.kind === "source"
+        ? `open ${omission.expand.source.file}:${omission.expand.source.line}`
+        : `run from ${omission.expand.cwd}: ${
+          omission.expand.argv.map(shellArgument).join(" ")
+        }`;
+      lines.push(
+        `omitted: ${omission.path} (${omission.included}/${omission.total} included); ${expansion}`,
+      );
+    }
+  }
+  return `${lines.join("\n")}\n`;
+};
+
+const readPackageInfo = (rootDir: string): { title: string; version: string } => {
+  try {
+    const manifest = JSON.parse(
+      readFileSync(resolve(rootDir, "package.json"), "utf8"),
+    ) as { readonly name?: unknown; readonly version?: unknown };
+    return {
+      title:
+        typeof manifest.name === "string" && manifest.name.length > 0
+          ? manifest.name
+          : "Agentix application",
+      version:
+        typeof manifest.version === "string" && manifest.version.length > 0
+          ? manifest.version
+          : "0.0.0",
+    };
+  } catch {
+    return { title: "Agentix application", version: "0.0.0" };
+  }
 };
 
 const graphEdges = (index: AgentIndex, featureId?: string): readonly GraphEdge[] => {
@@ -543,11 +639,38 @@ export const runCli = (
       io.stdout(usage);
       return ExitCode.success;
     }
-    if (parsed.compact && !parsed.json) {
+    // openapi output is always JSON, so --compact needs no --json there.
+    if (parsed.compact && !parsed.json && command !== "openapi") {
       throw new UsageError("--compact requires --json.");
     }
     if (parsed.full && command !== "inspect") {
       throw new UsageError("--full is supported only by inspect.");
+    }
+    if (
+      (parsed.bearer || parsed.health !== undefined || parsed.out !== undefined) &&
+      command !== "openapi"
+    ) {
+      throw new UsageError("--bearer, --health, and --out are supported only by openapi.");
+    }
+    if (parsed.budget !== undefined && command !== "context") {
+      throw new UsageError("--budget is supported only by context.");
+    }
+    if (command === "mcp") {
+      if (positionals.length > 0) {
+        throw new UsageError("mcp accepts no positional arguments.");
+      }
+      if (parsed.json || parsed.dryRun || parsed.format !== undefined) {
+        throw new UsageError("mcp accepts only --root.");
+      }
+      const start = dependencies.startMcpServer ?? startMcpServer;
+      // The server owns the process from here: it keeps running on stdio
+      // until the client closes the pipe, so runCli reports startup success.
+      void start(rootDir).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        io.stderr(`Internal agentix error: ${message}\n`);
+        process.exitCode = ExitCode.internalFailure;
+      });
+      return ExitCode.success;
     }
     if (command === "scaffold") {
       if (positionals[0] !== "feature" || positionals[1] === undefined || positionals.length !== 2) {
@@ -571,6 +694,53 @@ export const runCli = (
           ? serializeJson(inspected, parsed.compact)
           : formatInspect(inspected),
       );
+      return ExitCode.success;
+    }
+    if (command === "context") {
+      const target = requireTarget(positionals, "context");
+      let budgetBytes = CHANGE_CONTEXT_DEFAULT_BUDGET;
+      if (parsed.budget !== undefined) {
+        budgetBytes = Number(parsed.budget);
+        if (!Number.isSafeInteger(budgetBytes) || budgetBytes <= 0) {
+          throw new UsageError("--budget must be a positive integer (bytes).");
+        }
+      }
+      const context = createChangeContext(index, target, rootDir, { budgetBytes });
+      if (context === undefined) {
+        throw new UsageError(`No indexed operation matches '${target}'.`);
+      }
+      io.stdout(
+        parsed.json
+          ? serializeJson(context, parsed.compact)
+          : formatChangeContext(context),
+      );
+      return ExitCode.success;
+    }
+    if (command === "openapi") {
+      if (positionals.length > 0) {
+        throw new UsageError("openapi accepts no positional arguments.");
+      }
+      if (parsed.health !== undefined && !parsed.health.startsWith("/")) {
+        throw new UsageError("--health must be an absolute path starting with '/'.");
+      }
+      const info = readPackageInfo(rootDir);
+      const { document, warnings } = createOpenApiDocument(index, {
+        title: info.title,
+        version: info.version,
+        bearer: parsed.bearer,
+        ...(parsed.health === undefined ? {} : { health: parsed.health }),
+      });
+      for (const warning of warnings) io.stderr(`openapi: ${warning}\n`);
+      const json = serializeJson(document, parsed.compact);
+      if (parsed.out === undefined) {
+        io.stdout(json);
+      } else {
+        const outputFile = resolve(dependencies.cwd ?? process.cwd(), parsed.out);
+        writeFileSync(outputFile, json, "utf8");
+        io.stdout(
+          `Wrote OpenAPI 3.1 document to ${outputFile} (${Buffer.byteLength(json)} bytes).\n`,
+        );
+      }
       return ExitCode.success;
     }
     if (command === "graph") {

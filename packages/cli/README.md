@@ -22,6 +22,9 @@ npm exec -- agentix inspect invoices.create --root . --json --compact
 # Conservative closure and the narrowest safe checks for a change
 npm exec -- agentix affected src/features/invoices.ts --root .
 npm exec -- agentix verify invoices.create --root .
+
+# Serve the same commands as MCP tools for coding agents (stdio)
+npm exec -- agentix mcp --root .
 ```
 
 `inspect <operation> --json` returns an `operation-context` artifact: route,

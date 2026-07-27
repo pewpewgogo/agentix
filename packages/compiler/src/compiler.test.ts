@@ -113,10 +113,21 @@ describe("agent index compiler", () => {
     const create = index.operations.find(({ id }) => id === "orders.create");
     const get = index.operations.find(({ id }) => id === "customers.get");
 
+    const idDetails = { type: "object", fields: { id: { type: "string" } } };
+    const reasonDetails = { type: "object", fields: { reason: { type: "string" } } };
     expect(create?.errors).toEqual([
-      { code: "CUSTOMER_NOT_FOUND", details: "{ id: s.string() }" },
-      { code: "ORDER_INVALID", details: "s.object({ reason: s.string() })" },
-      { code: "PAYMENT_FAILED", http: 402, details: "{ reason: s.string() }" },
+      { code: "CUSTOMER_NOT_FOUND", details: "{ id: s.string() }", detailsDescription: idDetails },
+      {
+        code: "ORDER_INVALID",
+        details: "s.object({ reason: s.string() })",
+        detailsDescription: reasonDetails,
+      },
+      {
+        code: "PAYMENT_FAILED",
+        http: 402,
+        details: "{ reason: s.string() }",
+        detailsDescription: reasonDetails,
+      },
     ]);
     expect(create?.http).toEqual({
       method: "POST",

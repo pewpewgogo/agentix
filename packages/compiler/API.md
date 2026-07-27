@@ -26,6 +26,13 @@ Every public export, one line each. Artifact shapes: the repository's
 - `createOperationContext(index, id, rootDir): OperationContext | undefined` — bounded artifact (`OPERATION_CONTEXT_BYTE_LIMIT` = 8192 bytes) with source excerpts and an omissions ledger.
 - `createOperationDetail(index, id, rootDir): OperationDetail | undefined` — unbounded per-operation detail.
 - `OPERATION_CONTEXT_BYTE_LIMIT` — the 8 KiB projection cap.
+- `createChangeContext(index, id, rootDir, {budgetBytes?}?): ChangeContext | undefined` — the one-artifact change pack (operation declaration + primary test source + tables/closure/plan/recipe), byte-budgeted (`CHANGE_CONTEXT_DEFAULT_BUDGET` = 16384) with the omissions ledger; throws when the budget is below the smallest projection.
+- `CHANGE_CONTEXT_DEFAULT_BUDGET` — the 16 KiB default `--budget`.
+
+## OpenAPI
+
+- `createOpenApiDocument(index, {title?, version?, bearer?, health?}?): OpenApiResult` — deterministic OpenAPI 3.1 `{document, warnings}` mirroring the HTTP adapter (envelope responses, default-mapper parameters, standard 400/403/404/405/500 shapes, optional bearer scheme and health path).
+- `schemaDescriptionToJsonSchema(description): JsonSchema` — statically evaluated `SchemaDescription` tree to JSON Schema (strict objects emit `additionalProperties: false`).
 
 ## Files and helpers
 
@@ -41,11 +48,13 @@ Every public export, one line each. Artifact shapes: the repository's
 `AgentIndex`, `AnalyzeOptions`, `GenerateOptions`, `GeneratedIndex`,
 `IndexedFeature`, `IndexedOperation`, `IndexedOperationError`, `IndexedHttp`,
 `IndexedEffect`, `IndexedPort`, `IndexedPortOperation`, `IndexedEvent`,
-`IndexedTest`, `SchemaExcerpt`, `GraphEdge`, `CompilerDiagnostic`,
-`DiagnosticSeverity`, `DeclarationKind`, `SourceLocation`, `SourceManifest`,
-`ManifestEntry`, `AffectedResult`, `AffectedItem`, `AffectedReason`,
-`VerificationPlan`, `OperationContext`, `OperationContextAnalysis`,
-`OperationContextAffected`, `OperationContextAffectedItem`,
-`OperationContextExcerpts`, `OperationContextOmission`,
-`OperationContextProjection`, `OperationContextVerification`,
-`OperationDetail`, `StableJsonOptions`.
+`IndexedTest`, `SchemaExcerpt`, `SchemaDescription`, `GraphEdge`,
+`CompilerDiagnostic`, `DiagnosticSeverity`, `DeclarationKind`,
+`SourceLocation`, `SourceManifest`, `ManifestEntry`, `AffectedResult`,
+`AffectedItem`, `AffectedReason`, `VerificationPlan`, `OperationContext`,
+`OperationContextAnalysis`, `OperationContextAffected`,
+`OperationContextAffectedItem`, `OperationContextExcerpts`,
+`OperationContextOmission`, `OperationContextProjection`,
+`OperationContextVerification`, `OperationDetail`, `ChangeContext`,
+`ChangeContextTest`, `ChangeContextVerification`, `ChangeContextOptions`,
+`OpenApiOptions`, `OpenApiResult`, `StableJsonOptions`.

@@ -5,6 +5,7 @@ import * as ts from "typescript/unstable/ast";
 import {
   compareStrings as compare,
   createSourceManifest,
+  dedentText,
   discoverSourceFiles,
   featureSegmentOf,
   repositoryPath,
@@ -26,11 +27,13 @@ import {
   type IndexedPort,
   type IndexedPortOperation,
   type IndexedTest,
+  type SchemaDescription,
   type SchemaExcerpt,
   type SourceLocation,
 } from "./types.js";
 
 const EXCERPT_LIMIT = 1024;
+const DECLARATION_LIMIT = 8 * 1024;
 
 const PORT_OP_KINDS = ["read", "write", "time", "random", "external"] as const;
 type PortOpKind = (typeof PORT_OP_KINDS)[number];
@@ -262,6 +265,259 @@ const symbolDeclarationKey = (symbol: TypeScriptSymbol | undefined): string | un
   return `${resolve(sourceFile.fileName)}:${declaration.getStart(sourceFile)}`;
 };
 
+/* ------------------------------------------------------------------ */
+/* Static schema evaluation: `s.*` expressions -> SchemaDescription.  */
+/* Conservative by design: anything not statically provable returns   */
+/* undefined instead of guessing (a partial tree would emit a WRONG   */
+/* strict JSON Schema downstream).                                    */
+/* ------------------------------------------------------------------ */
+
+interface SchemaEvaluation {
+  readonly checkerFor: (node: ts.Node) => Checker;
+  readonly importsOf: (sourceFile: ts.SourceFile) => ReadonlyMap<string, string>;
+  /** Declarations currently being resolved (cycle guard). */
+  readonly active: Set<ts.Node>;
+  depth: number;
+}
+
+const SCHEMA_EVAL_MAX_DEPTH = 24;
+
+const numericValue = (expression: ts.Expression | undefined): number | undefined => {
+  if (expression === undefined) return undefined;
+  const unwrapped = unwrap(expression);
+  if (ts.isNumericLiteral(unwrapped)) return Number(unwrapped.text);
+  if (
+    ts.isPrefixUnaryExpression(unwrapped) &&
+    unwrapped.operator === ts.SyntaxKind.MinusToken &&
+    ts.isNumericLiteral(unwrapped.operand)
+  ) {
+    return -Number(unwrapped.operand.text);
+  }
+  return undefined;
+};
+
+/** true/false keyword only; anything else is not statically trusted. */
+const booleanValue = (expression: ts.Expression | undefined): boolean | undefined => {
+  if (expression === undefined) return undefined;
+  const kind = unwrap(expression).kind;
+  if (kind === ts.SyntaxKind.TrueKeyword) return true;
+  if (kind === ts.SyntaxKind.FalseKeyword) return false;
+  return undefined;
+};
+
+const literalValueOf = (
+  expression: ts.Expression,
+): string | number | boolean | null | undefined => {
+  const unwrapped = unwrap(expression);
+  if (ts.isStringLiteralLikeNode(unwrapped)) return unwrapped.text;
+  const numeric = numericValue(unwrapped);
+  if (numeric !== undefined) return numeric;
+  const boolean = booleanValue(unwrapped);
+  if (boolean !== undefined) return boolean;
+  if (unwrapped.kind === ts.SyntaxKind.NullKeyword) return null;
+  return undefined;
+};
+
+/** `/pattern/flags` regex literal -> pattern source (flags never described). */
+const regexSource = (expression: ts.Expression): string | undefined => {
+  const unwrapped = unwrap(expression);
+  if (!ts.isRegularExpressionLiteral(unwrapped)) return undefined;
+  const text = unwrapped.getText(unwrapped.getSourceFile());
+  const end = text.lastIndexOf("/");
+  return end > 0 ? text.slice(1, end) : undefined;
+};
+
+type OptionReader<T> = (expression: ts.Expression) => T | undefined;
+
+/**
+ * Reads `{ min: 1, trim: true }`-style option literals. Absent argument or
+ * absent keys yield an empty record; a present but unreadable value fails
+ * the whole evaluation (returned as undefined).
+ */
+const readOptions = (
+  argument: ts.Expression | undefined,
+  readers: Readonly<Record<string, OptionReader<unknown>>>,
+): Record<string, unknown> | undefined => {
+  const result: Record<string, unknown> = {};
+  if (argument === undefined) return result;
+  const object = unwrap(argument);
+  if (!ts.isObjectLiteralExpression(object)) return undefined;
+  for (const property of object.properties) {
+    const name = "name" in property ? propertyName(property.name) : undefined;
+    if (name === undefined) return undefined;
+    const reader = readers[name];
+    if (reader === undefined) continue; // unknown option: type-level concern
+    const expression = initializerForProperty(property);
+    if (expression === undefined) return undefined;
+    const value = reader(expression);
+    if (value === undefined) return undefined;
+    result[name] = value;
+  }
+  return result;
+};
+
+const evaluateSchemaFields = (
+  object: ts.ObjectLiteralExpression,
+  evaluation: SchemaEvaluation,
+): Readonly<Record<string, SchemaDescription>> | undefined => {
+  const entries: [string, SchemaDescription][] = [];
+  for (const property of object.properties) {
+    if (!ts.isPropertyAssignment(property) && !ts.isShorthandPropertyAssignment(property)) {
+      return undefined; // spread/computed member: not statically provable
+    }
+    const name = propertyName(property.name);
+    const expression = initializerForProperty(property);
+    if (name === undefined || expression === undefined) return undefined;
+    const field = evaluateSchemaExpression(expression, evaluation);
+    if (field === undefined) return undefined;
+    entries.push([name, field]);
+  }
+  entries.sort((left, right) => compare(left[0], right[0]));
+  return Object.fromEntries(entries);
+};
+
+const evaluateSchemaCall = (
+  call: ts.CallExpression,
+  evaluation: SchemaEvaluation,
+): SchemaDescription | undefined => {
+  const callee = calledName(call, evaluation.importsOf(call.getSourceFile()));
+  if (callee === undefined || callee.namespace !== "s") return undefined;
+  const [first, second, third] = call.arguments;
+  switch (callee.name) {
+    case "string": {
+      const options = readOptions(first, {
+        min: numericValue,
+        max: numericValue,
+        trim: booleanValue,
+        pattern: regexSource,
+      });
+      if (options === undefined) return undefined;
+      return { type: "string", ...options } as SchemaDescription;
+    }
+    case "number": {
+      const options = readOptions(first, {
+        min: numericValue,
+        max: numericValue,
+        int: booleanValue,
+      });
+      if (options === undefined) return undefined;
+      return { type: "number", ...options } as SchemaDescription;
+    }
+    case "boolean":
+      return { type: "boolean" };
+    case "literal": {
+      if (first === undefined) return undefined;
+      const value = literalValueOf(first);
+      return value === undefined ? undefined : { type: "literal", value };
+    }
+    case "array": {
+      const item = first === undefined ? undefined : evaluateSchemaExpression(first, evaluation);
+      return item === undefined ? undefined : { type: "array", item };
+    }
+    case "record": {
+      const value = first === undefined ? undefined : evaluateSchemaExpression(first, evaluation);
+      return value === undefined ? undefined : { type: "record", value };
+    }
+    case "optional": {
+      const inner = first === undefined ? undefined : evaluateSchemaExpression(first, evaluation);
+      return inner === undefined ? undefined : { type: "optional", inner };
+    }
+    case "object": {
+      const object = first === undefined ? undefined : unwrap(first);
+      if (object === undefined || !ts.isObjectLiteralExpression(object)) return undefined;
+      const fields = evaluateSchemaFields(object, evaluation);
+      return fields === undefined ? undefined : { type: "object", fields };
+    }
+    case "tuple":
+    case "union": {
+      const array = first === undefined ? undefined : unwrap(first);
+      if (array === undefined || !ts.isArrayLiteralExpression(array)) return undefined;
+      const members: SchemaDescription[] = [];
+      for (const element of array.elements) {
+        if (!ts.isExpression(element)) return undefined;
+        const member = evaluateSchemaExpression(element, evaluation);
+        if (member === undefined) return undefined;
+        members.push(member);
+      }
+      if (members.length === 0) return undefined;
+      return callee.name === "tuple"
+        ? { type: "tuple", items: members }
+        : { type: "union", options: members };
+    }
+    case "refine": {
+      const base = first === undefined ? undefined : evaluateSchemaExpression(first, evaluation);
+      if (base === undefined) return undefined;
+      let id = third === undefined ? undefined : stringLiteral(third);
+      if (id === undefined && third !== undefined) {
+        const options = unwrap(third);
+        if (ts.isObjectLiteralExpression(options)) {
+          id = stringLiteral(propertyExpression(options, "id"));
+        }
+      }
+      // Refinements are transparent to structural JSON Schema; an unreadable
+      // id degrades to the base description instead of failing evaluation.
+      return id === undefined ? base : { type: "refinement", id, base };
+    }
+    case "id": {
+      const brand = stringLiteral(first);
+      return brand === undefined ? undefined : { type: "id", brand };
+    }
+    default:
+      return undefined;
+  }
+};
+
+const evaluateSchemaExpression = (
+  expression: ts.Expression,
+  evaluation: SchemaEvaluation,
+): SchemaDescription | undefined => {
+  if (evaluation.depth >= SCHEMA_EVAL_MAX_DEPTH) return undefined;
+  const unwrapped = unwrap(expression);
+  if (ts.isCallExpression(unwrapped)) {
+    evaluation.depth += 1;
+    try {
+      return evaluateSchemaCall(unwrapped, evaluation);
+    } finally {
+      evaluation.depth -= 1;
+    }
+  }
+  if (!ts.isIdentifier(unwrapped) && !ts.isPropertyAccessExpression(unwrapped)) {
+    return undefined;
+  }
+  const declaration = symbolDeclaration(
+    expressionSymbol(evaluation.checkerFor(unwrapped), unwrapped),
+  );
+  if (
+    declaration === undefined ||
+    !ts.isVariableDeclaration(declaration) ||
+    declaration.initializer === undefined ||
+    evaluation.active.has(declaration)
+  ) {
+    return undefined;
+  }
+  evaluation.active.add(declaration);
+  evaluation.depth += 1;
+  try {
+    return evaluateSchemaExpression(declaration.initializer, evaluation);
+  } finally {
+    evaluation.depth -= 1;
+    evaluation.active.delete(declaration);
+  }
+};
+
+/** Error `details` accepts a schema OR a `{ key: schema }` shape record. */
+const evaluateDetailsExpression = (
+  expression: ts.Expression,
+  evaluation: SchemaEvaluation,
+): SchemaDescription | undefined => {
+  const unwrapped = unwrap(expression);
+  if (ts.isObjectLiteralExpression(unwrapped)) {
+    const fields = evaluateSchemaFields(unwrapped, evaluation);
+    return fields === undefined ? undefined : { type: "object", fields };
+  }
+  return evaluateSchemaExpression(unwrapped, evaluation);
+};
+
 const exportedNames = (sourceFile: ts.SourceFile): string[] => {
   const names: string[] = [];
   for (const statement of sourceFile.statements) {
@@ -469,6 +725,20 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
     const checker = checkerByFile.get(node.getSourceFile().fileName);
     if (checker === undefined) throw new Error(`No TypeScript checker for ${node.getSourceFile().fileName}`);
     return checker;
+  };
+  const importsCache = new Map<ts.SourceFile, Map<string, string>>();
+  const schemaEvaluation: SchemaEvaluation = {
+    checkerFor,
+    importsOf: (sourceFile) => {
+      let imports = importsCache.get(sourceFile);
+      if (imports === undefined) {
+        imports = canonicalImports(sourceFile);
+        importsCache.set(sourceFile, imports);
+      }
+      return imports;
+    },
+    active: new Set(),
+    depth: 0,
   };
   const diagnostics: CompilerDiagnostic[] = [];
   const unresolved: string[] = [];
@@ -787,18 +1057,23 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
   const schemaExcerpt = (expression: ts.Expression): SchemaExcerpt => {
     const unwrapped = unwrap(expression);
     const text = expressionText(unwrapped);
+    const described = evaluateSchemaExpression(unwrapped, schemaEvaluation);
+    const description = described === undefined ? {} : { description: described };
     if (!ts.isIdentifier(unwrapped) && !ts.isPropertyAccessExpression(unwrapped)) {
-      return { text };
+      return { text, ...description };
     }
     const declaration = symbolDeclaration(expressionSymbol(checkerFor(unwrapped), unwrapped));
-    if (declaration === undefined || !ts.isVariableDeclaration(declaration)) return { text };
+    if (declaration === undefined || !ts.isVariableDeclaration(declaration)) {
+      return { text, ...description };
+    }
     const declarationFile = declaration.getSourceFile();
     const repoFile = repositoryPath(rootDir, declarationFile.fileName);
-    if (repoFile.startsWith("..")) return { text };
+    if (repoFile.startsWith("..")) return { text, ...description };
     return {
       text,
       declaration: boundedText(declaration.getText(declarationFile)),
       source: sourceLocation(rootDir, declarationFile, declaration),
+      ...description,
     };
   };
 
@@ -1034,13 +1309,23 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
           ) {
             const http = numberLiteral(propertyExpression(spec, "http"));
             const detailsExpression = propertyExpression(spec, "details");
+            // No declared details = the runtime default strict empty object.
+            const detailsDescription = detailsExpression === undefined
+              ? { type: "object", fields: {} } as const
+              : evaluateDetailsExpression(detailsExpression, schemaEvaluation);
             errors.push({
               code,
               ...(http === undefined ? {} : { http }),
               ...(detailsExpression === undefined ? {} : { details: detailsText(detailsExpression) }),
+              ...(detailsDescription === undefined ? {} : { detailsDescription }),
             });
           } else {
-            errors.push({ code, details: detailsText(spec) });
+            const detailsDescription = evaluateDetailsExpression(spec, schemaEvaluation);
+            errors.push({
+              code,
+              details: detailsText(spec),
+              ...(detailsDescription === undefined ? {} : { detailsDescription }),
+            });
           }
         }
       }
@@ -1072,6 +1357,15 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
       const input = propertyExpression(object, "input");
       const output = propertyExpression(object, "output");
       const signature = executeSignature(object, operationFile);
+      // Full declaration text: the inline `key: command({...})` property, or
+      // the standalone call re-keyed under its operations-object name.
+      const declarationRaw = initializer !== undefined && ts.isCallExpression(initializer)
+        ? property.getText(draft.sourceFile)
+        : `${key}: ${call.getText(operationFile)}`;
+      const declarationDedented = dedentText(declarationRaw);
+      const declarationText = declarationDedented.length > DECLARATION_LIMIT
+        ? `${declarationDedented.slice(0, DECLARATION_LIMIT - 1)}…`
+        : declarationDedented;
       operationsMutable.push({
         id: operationId,
         key,
@@ -1088,6 +1382,7 @@ export const analyzeProject = (options: AnalyzeOptions): AgentIndex => {
         events: uniqueSorted(eventIds),
         ensures: uniqueSorted(ensures),
         ...(signature === undefined ? {} : { executeSignature: signature }),
+        declarationText,
         tests: [],
       });
     }

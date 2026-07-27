@@ -46,6 +46,7 @@
     "test": "vitest run --root ../.. packages/cli"
   },
   "dependencies": {
-    "@agentix/compiler": "0.1.0"
+    "@agentix/compiler": "0.1.0",
+    "@modelcontextprotocol/sdk": "1.29.0"
   }
 }

@@ -10,6 +10,17 @@ export {
   createOperationContext,
   createOperationDetail,
 } from "./context.js";
+export {
+  CHANGE_CONTEXT_DEFAULT_BUDGET,
+  createChangeContext,
+  type ChangeContextOptions,
+} from "./change-context.js";
+export {
+  createOpenApiDocument,
+  schemaDescriptionToJsonSchema,
+  type OpenApiOptions,
+  type OpenApiResult,
+} from "./openapi.js";
 export { computeAffected, planVerification, workspaceVerificationPlan } from "./affected.js";
 export { checkIndexStaleness, readIndex } from "./manifest.js";
 export {

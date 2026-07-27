@@ -663,4 +663,168 @@ describe("agentix CLI", () => {
       .toBe(ExitCode.invalidInvocation);
     expect(output.stderr.join("")).toContain("Unknown command");
   });
+
+  it("packs a change context with both sources, tables, plan, and recipe", () => {
+    const cwd = copyFixture("valid");
+    const json = capture();
+    const human = capture();
+
+    expect(runCli(["context", "orders.create", "--json", "--compact"], {
+      cwd,
+      io: json.io,
+    })).toBe(ExitCode.success);
+    expect(json.stderr).toEqual([]);
+    const context = JSON.parse(json.stdout.join("")) as {
+      readonly artifactKind: string;
+      readonly excerpt: string;
+      readonly exports: readonly string[];
+      readonly effects: readonly string[];
+      readonly portSignatures: readonly string[];
+      readonly tests: readonly { readonly file: string; readonly source?: string }[];
+      readonly affected: readonly string[];
+      readonly verification: { readonly typecheck: string; readonly tests: string };
+      readonly writes: readonly string[];
+    };
+    expect(context).toMatchObject({
+      schemaVersion: "2",
+      artifactKind: "change-context",
+      id: "orders.create",
+    });
+    expect(context.excerpt).toContain("create: command({");
+    expect(context.tests[0]?.source).toContain("associateOperationTest");
+    expect(context.verification.typecheck).toContain("tsc");
+    expect(context.writes).toEqual([
+      "src/features/orders/feature.ts",
+      "src/features/orders/orders.test.ts",
+    ]);
+
+    expect(runCli(["context", "orders.create"], { cwd, io: human.io }))
+      .toBe(ExitCode.success);
+    const text = human.stdout.join("");
+    expect(text).toContain("change-context orders.create");
+    expect(text).toContain("excerpt:");
+    expect(text).toContain("verify typecheck (workspace): npm exec -- tsc -b --pretty false");
+    expect(text).toContain("writes: src/features/orders/feature.ts");
+  });
+
+  it("validates context targets and budgets", () => {
+    const cwd = copyFixture("valid");
+    const unknown = capture();
+    expect(runCli(["context", "orders.missing", "--json"], { cwd, io: unknown.io }))
+      .toBe(ExitCode.invalidInvocation);
+    expect(unknown.stderr.join("")).toContain("No indexed operation matches");
+
+    const badBudget = capture();
+    expect(runCli(["context", "orders.create", "--budget", "0"], { cwd, io: badBudget.io }))
+      .toBe(ExitCode.invalidInvocation);
+    expect(badBudget.stderr.join("")).toContain("--budget must be a positive integer");
+
+    const misplaced = capture();
+    expect(runCli(["verify", "orders.create", "--budget", "512"], { cwd, io: misplaced.io }))
+      .toBe(ExitCode.invalidInvocation);
+    expect(misplaced.stderr.join("")).toContain("--budget is supported only by context");
+  });
+
+  it("emits a deterministic OpenAPI 3.1 document with bearer and health options", () => {
+    const cwd = copyFixture("valid");
+    const first = capture();
+    const second = capture();
+
+    expect(runCli([
+      "openapi", "--bearer", "--health", "/healthz", "--compact",
+    ], { cwd, io: first.io })).toBe(ExitCode.success);
+    expect(first.stderr).toEqual([]);
+    expect(runCli([
+      "openapi", "--bearer", "--health", "/healthz", "--compact",
+    ], { cwd, io: second.io })).toBe(ExitCode.success);
+    expect(first.stdout.join("")).toBe(second.stdout.join(""));
+
+    const document = JSON.parse(first.stdout.join("")) as {
+      readonly openapi: string;
+      readonly paths: Record<string, Record<string, {
+        readonly operationId?: string;
+        readonly security?: unknown;
+        readonly responses: Record<string, unknown>;
+      }>>;
+      readonly components: {
+        readonly securitySchemes?: Record<string, unknown>;
+        readonly responses: Record<string, unknown>;
+      };
+    };
+    expect(document.openapi).toBe("3.1.0");
+    expect(Object.keys(document.paths)).toEqual([
+      "/customers", "/customers/{id}", "/healthz", "/orders",
+    ]);
+    expect(document.components.securitySchemes).toEqual({
+      bearerAuth: { type: "http", scheme: "bearer" },
+    });
+    expect(document.paths["/orders"]?.["post"]?.security).toEqual([{ bearerAuth: [] }]);
+    expect(document.paths["/customers"]?.["post"]?.security).toBeUndefined();
+    expect(document.paths["/healthz"]?.["get"]?.responses["200"]).toBeDefined();
+  });
+
+  it("writes the OpenAPI document to --out and scopes openapi-only flags", () => {
+    const cwd = copyFixture("valid");
+    const output = capture();
+
+    expect(runCli(["openapi", "--out", "openapi.json"], { cwd, io: output.io }))
+      .toBe(ExitCode.success);
+    expect(output.stdout.join("")).toContain("Wrote OpenAPI 3.1 document to ");
+    const written = JSON.parse(readFileSync(join(cwd, "openapi.json"), "utf8")) as {
+      readonly openapi: string;
+    };
+    expect(written.openapi).toBe("3.1.0");
+
+    const misplaced = capture();
+    expect(runCli(["inspect", "orders.create", "--bearer"], { cwd, io: misplaced.io }))
+      .toBe(ExitCode.invalidInvocation);
+    expect(misplaced.stderr.join(""))
+      .toContain("--bearer, --health, and --out are supported only by openapi");
+
+    const badHealth = capture();
+    expect(runCli(["openapi", "--health", "healthz"], { cwd, io: badHealth.io }))
+      .toBe(ExitCode.invalidInvocation);
+    expect(badHealth.stderr.join("")).toContain("--health must be an absolute path");
+  });
+
+  it("replaces the direct feature+test reads for the sandbox notes app", () => {
+    // ACCEPTANCE: `agentix context notes.create --json --compact` must cost
+    // no more bytes than reading the feature file and the dispatch test
+    // directly, while embedding BOTH sources — it replaces those reads.
+    const sandboxRoot = fileURLToPath(
+      new URL("../../../sandbox/notes-app", import.meta.url),
+    );
+    const output = capture();
+
+    expect(runCli(["context", "notes.create", "--json", "--compact"], {
+      cwd: sandboxRoot,
+      io: output.io,
+    })).toBe(ExitCode.success);
+    const json = output.stdout.join("");
+    const directBytes =
+      Buffer.byteLength(readFileSync(join(sandboxRoot, "src/features/notes.ts"))) +
+      Buffer.byteLength(readFileSync(join(sandboxRoot, "src/notes.dispatch.test.ts")));
+    expect(Buffer.byteLength(json)).toBeLessThanOrEqual(directBytes);
+
+    const context = JSON.parse(json) as {
+      readonly excerpt: string;
+      readonly tests: readonly { readonly file: string; readonly source?: string }[];
+      readonly writes: readonly string[];
+      readonly projection?: unknown;
+    };
+    // Feature-file source: the operation's full command() declaration.
+    expect(context.excerpt).toContain("create: command({");
+    expect(context.excerpt).toContain('fail("NOTE_ALREADY_EXISTS", { id: input.id })');
+    // Test-file source: the primary associated suite, embedded in full.
+    const primary = context.tests.find(({ source }) => source !== undefined);
+    expect(primary?.file).toBe("src/notes.dispatch.test.ts");
+    expect(primary?.source).toContain("associateOperationTest(notes.operations.create)");
+    expect(primary?.source).toContain('app.call("notes.create"');
+    expect(context.writes).toEqual([
+      "src/features/notes.ts",
+      "src/notes.dispatch.test.ts",
+    ]);
+    // Nothing was omitted: the artifact fits its default budget outright.
+    expect(context.projection).toBeUndefined();
+  });
 });

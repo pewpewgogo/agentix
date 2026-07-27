@@ -29,9 +29,11 @@ const changeTaskDescription = "add a notes.delete endpoint";
 //   "direct": exactly the files that arm's conventions require opening
 //   (Agentix auto-wiring means the app assembly is never read or written;
 //   Express routes live in app.ts so it must be read). Agentix additionally
-//   reports "inspect-assisted": the direct reads plus the compact inspect
+//   reports "inspect-assisted" (the direct reads plus the compact inspect
 //   output — the discovery tool that substitutes for reading wiring in larger
-//   apps, charged here at its full fixed cost.
+//   apps, charged here at its full fixed cost) and "context" (`agentix
+//   context` ONLY: the one-artifact change pack that embeds the operation
+//   declaration and the primary test source, REPLACING the direct reads).
 //   cliReads are Agentix CLI invocations whose stdout is charged.
 // - changeTask.write: the files the agent modifies for the task; the script
 //   derives the write count and current-size proxy from this list.
@@ -53,6 +55,13 @@ const arms = {
             ["inspect", operation, "--root", "sandbox/notes-app", "--json", "--compact"],
           ],
           files: ["src/features/notes.ts", "src/notes.dispatch.test.ts"],
+        },
+        {
+          name: "context",
+          cliReads: [
+            ["context", operation, "--root", "sandbox/notes-app", "--json", "--compact"],
+          ],
+          files: [],
         },
       ],
       write: ["src/features/notes.ts", "src/notes.dispatch.test.ts"],
@@ -205,7 +214,7 @@ const result = {
     affected:
       "Agentix: `agentix affected notes.create` output; conventional arms: src file inventory + grep for the operation symbol + full content of every matched file (the realistic grep strategy — a grep hit still requires opening the file)",
     "change-cost":
-      "scripted task 'add a notes.delete endpoint'; READ (direct) = the files each arm's conventions require opening (Agentix: feature file + test, app assembly untouched by design; Express: schema/service/app routes/test; NestJS: schema/service/controller/test); READ (inspect-assisted, Agentix only) = direct reads plus compact inspect output, the discovery tool whose fixed cost substitutes for reading wiring in larger apps; WRITE = files modified. All derived from the declarative per-arm task model in run.mjs",
+      "scripted task 'add a notes.delete endpoint'; READ (direct) = the files each arm's conventions require opening (Agentix: feature file + test, app assembly untouched by design; Express: schema/service/app routes/test; NestJS: schema/service/controller/test); READ (inspect-assisted, Agentix only) = direct reads plus compact inspect output, the discovery tool whose fixed cost substitutes for reading wiring in larger apps; READ (context, Agentix only) = ONLY the compact `agentix context` output, the one-artifact change pack that embeds the operation declaration and the primary test source and therefore replaces the direct reads; WRITE = files modified. All derived from the declarative per-arm task model in run.mjs",
   },
 };
 
@@ -242,6 +251,10 @@ const markdown = [
   row(
     "change-cost READ est. tokens (inspect-assisted)",
     (s) => s["change-cost"].read["inspect-assisted"]?.estimatedTokens ?? "—",
+  ),
+  row(
+    "change-cost READ est. tokens (context)",
+    (s) => s["change-cost"].read.context?.estimatedTokens ?? "—",
   ),
   row("change-cost WRITE (files modified)", (s) => s["change-cost"].write.fileCount),
   "",

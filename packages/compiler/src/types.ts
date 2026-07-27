@@ -1,5 +1,5 @@
 export const INDEX_SCHEMA_VERSION = "2" as const;
-export const COMPILER_VERSION = "0.2.0" as const;
+export const COMPILER_VERSION = "0.3.0" as const;
 
 export type DeclarationKind =
   | "feature"
@@ -36,14 +36,55 @@ export interface SourceManifest {
 }
 
 /**
+ * Statically evaluated schema description tree. Structurally identical to
+ * the runtime `SchemaDescription` in `@agentix/core`; re-declared here so the
+ * compiler stays free of a runtime dependency. Present only when the schema
+ * expression could be resolved without executing code.
+ */
+export type SchemaDescription =
+  | {
+      readonly type: "string";
+      readonly min?: number;
+      readonly max?: number;
+      readonly trim?: boolean;
+      readonly pattern?: string;
+    }
+  | {
+      readonly type: "number";
+      readonly min?: number;
+      readonly max?: number;
+      readonly int?: boolean;
+    }
+  | { readonly type: "boolean" }
+  | { readonly type: "literal"; readonly value: string | number | boolean | null }
+  | { readonly type: "array"; readonly item: SchemaDescription }
+  | {
+      readonly type: "object";
+      readonly fields: Readonly<Record<string, SchemaDescription>>;
+    }
+  | { readonly type: "record"; readonly value: SchemaDescription }
+  | { readonly type: "tuple"; readonly items: readonly SchemaDescription[] }
+  | { readonly type: "optional"; readonly inner: SchemaDescription }
+  | { readonly type: "union"; readonly options: readonly SchemaDescription[] }
+  | {
+      readonly type: "refinement";
+      readonly id: string;
+      readonly base: SchemaDescription;
+    }
+  | { readonly type: "id"; readonly brand: string };
+
+/**
  * Bounded source excerpt for a schema reference: `text` is the collapsed
  * reference/inline expression, `declaration` the resolved declaration text
- * (each capped at 1 KiB), `source` the declaration's location.
+ * (each capped at 1 KiB), `source` the declaration's location. `description`
+ * is the statically evaluated schema tree when the `s.*` expression (and
+ * every declaration it references) is analyzable without execution.
  */
 export interface SchemaExcerpt {
   readonly text: string;
   readonly declaration?: string;
   readonly source?: SourceLocation;
+  readonly description?: SchemaDescription;
 }
 
 export interface IndexedFeature {
@@ -74,6 +115,11 @@ export interface IndexedOperationError {
   readonly http?: number;
   /** Bounded source text of the details schema declaration (≤1 KiB). */
   readonly details?: string;
+  /**
+   * Statically evaluated details schema. `{ http }` declarations without
+   * `details` get the runtime default: a strict empty object.
+   */
+  readonly detailsDescription?: SchemaDescription;
 }
 
 export interface IndexedHttp {
@@ -105,6 +151,11 @@ export interface IndexedOperation {
   readonly ensures: readonly string[];
   /** Bounded `execute` signature text (≤1 KiB, body elided). */
   readonly executeSignature?: string;
+  /**
+   * The full `key: command({...})` / `key: query({...})` declaration text,
+   * line-preserving but de-indented to column 0, capped at 8 KiB.
+   */
+  readonly declarationText?: string;
   readonly tests: readonly string[];
 }
 
@@ -306,6 +357,72 @@ export interface OperationDetail extends IndexedOperation {
   readonly artifactKind: "operation-detail";
   readonly analysis: OperationContextAnalysis;
   readonly verification: VerificationPlan;
+}
+
+/** One embedded or referenced test suite inside a change context. */
+export interface ChangeContextTest {
+  /** Repository-relative test file path. */
+  readonly file: string;
+  /**
+   * Full test source, line-preserving but de-indented to column 0. Present
+   * only on the embedded primary test (the smallest associated suite).
+   */
+  readonly source?: string;
+}
+
+/** Pasteable verification commands (shell-quoted argv joins). */
+export interface ChangeContextVerification {
+  readonly scope: "project" | "workspace";
+  readonly typecheck: string;
+  readonly tests: string;
+}
+
+/**
+ * One artifact with everything a typical change needs, designed to REPLACE
+ * reading the feature file and its test directly. Byte-bounded by a budget
+ * (measured on the compact stable-JSON serialization); anything dropped for
+ * the budget is listed in `projection.omissions` with an exact next action.
+ *
+ * Kept deliberately lean: the operation `kind` is visible in `excerpt`
+ * (`command(`/`query(`) and the owning feature id is the `id` prefix.
+ */
+export interface ChangeContext {
+  readonly schemaVersion: "2";
+  readonly artifactKind: "change-context";
+  readonly id: string;
+  /** `file:line` of the operation declaration. */
+  readonly source: string;
+  readonly http?: {
+    readonly method: string;
+    readonly path: string;
+    readonly status?: number;
+  };
+  /** Error/status table (per-error HTTP statuses; envelope code `${code}`). */
+  readonly errors: readonly { readonly code: string; readonly http?: number }[];
+  readonly permissions?: readonly string[];
+  readonly events?: readonly string[];
+  readonly ensures?: readonly string[];
+  /** Full `key: command({...})` declaration, de-indented to column 0. */
+  readonly excerpt?: string;
+  /** The feature file's exports — its public contract summary. */
+  readonly exports: readonly string[];
+  /** `alias=portOperationId` (or `alias=reference` when unresolved). */
+  readonly effects: readonly string[];
+  /** Unique port-operation signature texts for the declared effects. */
+  readonly portSignatures?: readonly string[];
+  /** Associated tests; the primary one embeds its full source. */
+  readonly tests: readonly ChangeContextTest[];
+  /** Conservative affected-closure ids (bounded; see omissions). */
+  readonly affected: readonly string[];
+  readonly verification: ChangeContextVerification;
+  /** The files a typical change to this operation edits, in edit order. */
+  readonly writes: readonly string[];
+  /** Present only when the budget forced omissions. */
+  readonly projection?: {
+    readonly byteLimit: number;
+    readonly truncated: true;
+    readonly omissions: readonly OperationContextOmission[];
+  };
 }
 
 /**

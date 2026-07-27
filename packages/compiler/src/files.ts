@@ -128,6 +128,20 @@ export const createSourceManifest = (
   return { algorithm: "sha256", digest, files };
 };
 
+/**
+ * Line-preserving whitespace normalization for embedded source excerpts:
+ * every line loses its leading indentation (column-0 normalized), trailing
+ * per-line whitespace is dropped, and the result is trimmed. Keeps the
+ * statement structure readable while removing the bytes that JSON escaping
+ * makes expensive.
+ */
+export const dedentText = (text: string): string =>
+  text
+    .split("\n")
+    .map((line) => line.replace(/^[ \t]+/u, "").replace(/[ \t]+$/u, ""))
+    .join("\n")
+    .trim();
+
 export interface StableJsonOptions {
   readonly compact?: boolean;
 }

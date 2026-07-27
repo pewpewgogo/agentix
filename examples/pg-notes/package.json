@@ -1,0 +1,29 @@
+{
+  "name": "@agentix/pg-notes",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Production-shaped notes service: @agentix/core + @agentix/adapters-http over a real PostgreSQL adapter.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false && tsc -p tsconfig.test.json --pretty false",
+    "test": "vitest run --root ../.. examples/pg-notes",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@agentix/adapters-http": "0.1.0",
+    "@agentix/core": "0.1.0",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@agentix/testing": "0.1.0",
+    "@types/pg": "^8.20.0",
+    "vitest": "4.1.10"
+  }
+}
