@@ -1,13 +1,16 @@
 import {
   createApplication,
+  type AdapterCallOptions,
   type AnyBoundOperation,
   type AnyFeature,
   type AnyPortOperation,
   type Application,
   type ApplicationOperations,
   type BoundPortAdapter,
+  type DispatchObserver,
   type Principal,
   type RuntimeMode,
+  type Subscription,
 } from "@agentix/core";
 
 import {
@@ -18,14 +21,26 @@ import {
 } from "./deterministic.js";
 import type { RecordedEffectCall } from "./recording.js";
 
-/** Replacement handler for one auto-bound port operation, keyed by its id. */
-export type TestOverrideHandler = (input: never) => unknown;
+/**
+ * Replacement handler for one auto-bound port operation, keyed by its id.
+ * Mirrors the core AdapterHandler shape: the second argument carries the
+ * effect signal, and single-argument handlers stay assignable.
+ */
+export type TestOverrideHandler = (
+  input: never,
+  options: AdapterCallOptions,
+) => unknown;
 
 export interface TestApplicationDefinition<
   Features extends readonly AnyFeature[],
 > {
   readonly features: Features;
-  /** Real adapters; ports they cover are never faked (and never recorded). */
+  /**
+   * Real adapters; ports they cover are never faked. Their calls ARE
+   * recorded: each adapter is wrapped transparently (see TestCallLog), and
+   * its init/dispose lifecycle hooks are forwarded unchanged so
+   * `started()`/`app.close()` reach them.
+   */
   readonly adapters?: readonly BoundPortAdapter[];
   /**
    * Handlers keyed by port-operation id (`"portId.opKey"`, e.g.
@@ -38,9 +53,18 @@ export interface TestApplicationDefinition<
     principal: Principal | undefined,
     operation: AnyBoundOperation,
   ) => boolean;
+  /** Forwarded to createApplication verbatim (opt-in instrumentation). */
+  readonly observer?: DispatchObserver;
+  /** Forwarded to createApplication verbatim (in-process event subscribers). */
+  readonly subscribers?: readonly Subscription[];
 }
 
-/** Call log of every auto-bound (fake or overridden) port operation. */
+/**
+ * Call log of every port operation the test application bound: auto-bound
+ * fakes, overrides, AND user-supplied adapters (wrapped transparently — the
+ * wrapper records and returns the handler's resolved value as the SAME
+ * reference, so wrapping never alters adapter behavior).
+ */
 export interface TestCallLog {
   all(): readonly RecordedEffectCall[];
   /** Calls recorded for one port operation id, e.g. `"noteStorage.save"`. */
@@ -55,15 +79,38 @@ export interface TestApplication<Features extends readonly AnyFeature[]> {
   readonly clock: DeterministicClock<string>;
   /** Backs every auto-bound `random` operation; yields "id-1", "id-2", ... */
   readonly ids: DeterministicIdGenerator;
+  /**
+   * Awaits `app.start()` (running every user-supplied adapter `init` hook in
+   * registration order) and resolves to this same harness, so tests can write
+   * `const { app } = await createTestApplication({...}).started()`. Auto-bound
+   * fakes need no hooks; `app.close()` runs the `dispose` hooks in reverse
+   * order.
+   */
+  started(): Promise<TestApplication<Features>>;
+  /**
+   * Fresh-app semantics without rebuilding the app: clears every auto-bound
+   * store's records, the recorded call log, and resets the deterministic
+   * clock and id sequences to their initial values.
+   *
+   * IMPORTANT: reset() does NOT touch user-supplied adapter state. Adapters
+   * you pass in own their state (a memory Map, a database connection, ...);
+   * the harness only wraps them for call recording and cannot — and will
+   * not — reset them. Rebuild the harness (or reset the adapter yourself)
+   * when a user adapter must start fresh.
+   */
+  reset(): void;
 }
 
-/** Store preset op keys and the effect kind each must carry to be memory-backed. */
-const STORE_OP_KINDS: Readonly<Record<string, "read" | "write">> = Object.freeze({
-  get: "read",
-  save: "write",
-  delete: "write",
-  list: "read",
-});
+// Structural store-detection heuristic, kept ONLY as a documented fallback.
+// Detection now uses the exact `preset === "store"` tag that port.store()
+// stamps on its four operations; a hand-built port that merely looks like a
+// store (get/save/delete/list with read/write kinds) is NOT memory-faked.
+// The retired heuristic was:
+//   const STORE_OP_KINDS: Readonly<Record<string, "read" | "write">> =
+//     Object.freeze({ get: "read", save: "write", delete: "write", list: "read" });
+//   if (STORE_OP_KINDS[operation.opKey] === operation.kind) {
+//     return storeHandler(operation);
+//   }
 
 const projectToOutput = (operation: AnyPortOperation, value: unknown): unknown => {
   const parsed = operation.output.safeParse(value);
@@ -79,11 +126,17 @@ const clockValueFor = (operation: AnyPortOperation, iso: string): unknown => {
   return parsedMillis.success ? parsedMillis.data : iso;
 };
 
+type RecordableHandler = (
+  input: unknown,
+  options: AdapterCallOptions,
+) => unknown;
+
 /**
  * Builds an application where every port operation reachable from the given
- * features is bound: user adapters win; uncovered operations get recording
- * fakes (store presets -> in-memory Map, time -> deterministic clock,
- * random -> deterministic ids); anything else throws until overridden.
+ * features is bound: user adapters win (wrapped for call recording, hooks
+ * forwarded); uncovered operations get recording fakes (`port.store` presets
+ * -> in-memory Map, time -> deterministic clock, random -> deterministic
+ * ids); anything else throws until overridden.
  */
 export const createTestApplication = <
   const Features extends readonly AnyFeature[],
@@ -96,12 +149,18 @@ export const createTestApplication = <
   const recorded: RecordedEffectCall[] = [];
   let nextSequence = 0;
   const record =
-    (effectId: string, handler: (input: unknown) => unknown) =>
-    async (input: unknown): Promise<unknown> => {
+    (effectId: string, handler: RecordableHandler) =>
+    async (input: unknown, options: AdapterCallOptions): Promise<unknown> => {
       const sequence = nextSequence;
       nextSequence += 1;
       try {
-        const output = await handler(input);
+        // Transparent wrapping: `options` (with the effect signal) is passed
+        // through unchanged, and the handler's resolved value is recorded and
+        // returned as the SAME reference. A handler that rejects because its
+        // signal aborted (timeoutMs / dispatch abort) is recorded as "threw"
+        // at its original sequence position, even when it settles after the
+        // dispatch already faulted.
+        const output = await handler(input, options);
         recorded.push({ sequence, effectId, input, status: "returned", output });
         return output;
       } catch (error: unknown) {
@@ -109,6 +168,25 @@ export const createTestApplication = <
         throw error;
       }
     };
+
+  /** Wraps a user adapter for call recording; identity and hooks preserved. */
+  const wrapUserAdapter = (adapter: BoundPortAdapter): BoundPortAdapter => {
+    const operations: Record<string, (input: never) => unknown> = {};
+    for (const opKey of Object.keys(adapter.operations)) {
+      const handler = adapter.operations[opKey] as unknown as RecordableHandler;
+      operations[opKey] = record(
+        `${adapter.portId}.${opKey}`,
+        handler,
+      ) as unknown as (input: never) => unknown;
+    }
+    return Object.freeze({
+      descriptorType: "port-adapter" as const,
+      portId: adapter.portId,
+      operations: Object.freeze(operations),
+      ...(adapter.init === undefined ? {} : { init: adapter.init }),
+      ...(adapter.dispose === undefined ? {} : { dispose: adapter.dispose }),
+    });
+  };
 
   const coveredPorts = new Set<string>();
   for (const adapter of definition.adapters ?? []) {
@@ -177,12 +255,10 @@ export const createTestApplication = <
     }
   };
 
-  const fakeFor = (
-    operation: AnyPortOperation,
-  ): ((input: unknown) => unknown) => {
+  const fakeFor = (operation: AnyPortOperation): RecordableHandler => {
     const override = overrides[operation.id];
     if (override !== undefined) {
-      return override as (input: unknown) => unknown;
+      return override as RecordableHandler;
     }
     if (operation.kind === "time") {
       return () => clockValueFor(operation, clock.now());
@@ -190,7 +266,9 @@ export const createTestApplication = <
     if (operation.kind === "random") {
       return () => projectToOutput(operation, ids.next());
     }
-    if (STORE_OP_KINDS[operation.opKey] === operation.kind) {
+    // Exact detection: only operations minted by port.store() carry the
+    // `preset === "store"` tag (see the retired structural heuristic above).
+    if (operation.preset === "store") {
       return storeHandler(operation);
     }
     return () => {
@@ -206,7 +284,10 @@ export const createTestApplication = <
   for (const [portId, ops] of uncoveredByPort) {
     const operations: Record<string, (input: never) => unknown> = {};
     for (const [opKey, operation] of ops) {
-      operations[opKey] = record(operation.id, fakeFor(operation));
+      operations[opKey] = record(
+        operation.id,
+        fakeFor(operation),
+      ) as unknown as (input: never) => unknown;
     }
     fakeAdapters.push(
       Object.freeze({
@@ -219,11 +300,20 @@ export const createTestApplication = <
 
   const app = createApplication({
     features: definition.features,
-    adapters: [...(definition.adapters ?? []), ...fakeAdapters],
+    adapters: [
+      ...(definition.adapters ?? []).map(wrapUserAdapter),
+      ...fakeAdapters,
+    ],
     mode: definition.mode ?? "test",
     ...(definition.authorize === undefined
       ? {}
       : { authorize: definition.authorize }),
+    ...(definition.observer === undefined
+      ? {}
+      : { observer: definition.observer }),
+    ...(definition.subscribers === undefined
+      ? {}
+      : { subscribers: definition.subscribers }),
   });
 
   const calls: TestCallLog = Object.freeze({
@@ -238,5 +328,24 @@ export const createTestApplication = <
     },
   });
 
-  return Object.freeze({ app, calls, clock, ids });
+  const harness: TestApplication<Features> = Object.freeze({
+    app,
+    calls,
+    clock,
+    ids,
+    started: async (): Promise<TestApplication<Features>> => {
+      await app.start();
+      return harness;
+    },
+    // Fresh-app semantics for everything the harness owns. User-supplied
+    // adapter state is deliberately NOT touched — see TestApplication.reset.
+    reset: (): void => {
+      for (const records of stores.values()) records.clear();
+      recorded.length = 0;
+      nextSequence = 0;
+      clock.reset();
+      ids.reset();
+    },
+  });
+  return harness;
 };

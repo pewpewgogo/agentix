@@ -5,9 +5,11 @@ Every public export, one line each. Full guide: the repository's
 
 ## Test application
 
-- `createTestApplication({features, adapters?, overrides?, mode?, authorize?}): {app, calls, clock, ids}` — auto-binds uncovered port ops to recording fakes (store→memory, time→clock, random→ids, other→throwing stub); `mode` defaults to `"test"`.
-- `TestCallLog` — `all()`, `of(effectId)`, `reset()`; entries are `RecordedEffectCall`s of auto-bound/overridden ops only.
-- Types: `TestApplicationDefinition`, `TestApplication`, `TestOverrideHandler`.
+- `createTestApplication({features, adapters?, overrides?, mode?, authorize?, observer?, subscribers?}): {app, calls, clock, ids, started, reset}` — auto-binds uncovered port ops to recording fakes (`preset === "store"`→memory, time→clock, random→ids, other→throwing stub); `mode` defaults to `"test"`; `observer`/`subscribers` forwarded to `createApplication` verbatim.
+- `harness.started(): Promise<TestApplication>` — awaits `app.start()` (user-adapter init hooks) and resolves to the same harness; `app.close()` runs dispose hooks. Auto-bound fakes need no hooks.
+- `harness.reset(): void` — clears auto-bound store state, recorded calls, clock, and id sequences (fresh-app semantics without rebuilding). Does NOT touch user-supplied adapter state.
+- `TestCallLog` — `all()`, `of(effectId)`, `reset()`; entries are `RecordedEffectCall`s of every bound op: fakes, overrides, AND user adapters (wrapped transparently — `(input, {signal})` forwarded, returned value identity preserved, signal-aborted calls recorded as `"threw"`).
+- Types: `TestApplicationDefinition`, `TestApplication`, `TestOverrideHandler` (now `(input, options: AdapterCallOptions) => unknown`; single-arg handlers stay assignable).
 
 ## HTTP driver
 

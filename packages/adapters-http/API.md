@@ -5,20 +5,26 @@ Every public export, one line each. Entries: root (all), `./web` (edge-safe),
 
 ## Handler
 
-- `createHttpHandler(app, {authenticate?, onError?, routes?}?): HttpHandler` — compiles routes from operations' `http` metadata.
+- `createHttpHandler(app, {authenticate?, onError?, routes?, health?, cors?, responseHeaders?}?): HttpHandler` — compiles routes from operations' `http` metadata.
 - `HttpHandler.fetch(request: Request): Promise<Response>` — Web/edge entry.
 - `HttpHandler.handle(request: HandlerRequest): Promise<HandlerResponse>` — runtime-neutral engine for custom hosts.
 - `HttpHandler.routes: CompiledRouteTable` — the compiled table.
+- `HttpHandler.app` — the application the handler serves (hosts use it for `closeApplication`).
+- Every response carries `x-request-id` (valid inbound header adopted, else generated); dispatch receives `meta: {requestId}` and the request's abort signal.
+- `health?: string` — GET path answering `200 {"ok":true}` without auth/dispatch; conflicts with GET routes throw.
+- `cors?: CorsOptions` — `{origins: readonly string[] | "*", methods?, headers?, credentials?, maxAgeSeconds?}`; answers OPTIONS preflight (204, outside the envelope) and adds Access-Control-* on matching origins.
+- `responseHeaders?: ResponseHeadersHook` — `({operationId?, status, requestId}) => headers?` merged onto responses; cannot override `content-type`/`content-length`/`x-request-id`.
 - `RequestBodyLimitError` — throw from a custom host's `readBody` to answer 413.
 - `JSON_CONTENT_TYPE` — `"application/json; charset=utf-8"`.
-- Types: `CreateHttpHandlerOptions`, `HandlerRequest` (`HttpRequestView` + `query` + `readBody()`), `HandlerResponse` (`{status, body, headers?}`), `HttpErrorInfo`, `HttpErrorObserver`.
+- Types: `CreateHttpHandlerOptions`, `HandlerRequest` (`{method, path, headers, query, readBody(), signal?}`), `HandlerResponse` (`{status, body, headers?}`), `HttpErrorInfo` (`{method, path, requestId, operationId?}`), `HttpErrorObserver`, `CorsOptions`, `ResponseHeadersContext`, `ResponseHeadersHook`.
 
 ## Authentication
 
 - `createBearerPrincipalExtractor({resolve(token, request)}): PrincipalExtractor` — 401 on malformed header; resolver decides trust.
 - `createTrustedHeaderPrincipalExtractor({idHeader?, permissionsHeader?, separator?}?): PrincipalExtractor` — proxy-injected identity.
 - `AuthenticationError(message?, code?)` — throw from an extractor for a 401 with `code` (default `"UNAUTHENTICATED"`).
-- Types: `PrincipalExtractor` (`(view) => Principal | null`, null = anonymous), `HttpRequestView`, `BearerPrincipalExtractorOptions`, `TrustedHeaderPrincipalOptions`.
+- `createCookieLookup(headers): (name) => string | undefined` — lazy single-parse Cookie-header lookup (the accessor behind `HttpRequestView.cookie`).
+- Types: `PrincipalExtractor` (`(view) => Principal | null`, null = anonymous), `HttpRequestView` (`{method, path, headers, cookie}`), `BearerPrincipalExtractorOptions`, `TrustedHeaderPrincipalOptions`.
 
 ## Routing
 
@@ -31,8 +37,9 @@ Every public export, one line each. Entries: root (all), `./web` (edge-safe),
 
 ## Node host (root and `./node`)
 
-- `serveNode(handler, {port, host?, maxBodyBytes?}): Promise<NodeHttpServer>` — raw `node:http` host; `port: 0` = ephemeral; `maxBodyBytes` default 1 MiB (413 above it).
-- `NodeHttpServer` — `{server, url, close(): Promise<void>}`.
+- `serveNode(handler, {port, host?, maxBodyBytes?, gracefulTimeoutMs?, closeApplication?}): Promise<NodeHttpServer>` — raw `node:http` host; `port: 0` = ephemeral; `maxBodyBytes` default 1 MiB (413 above it).
+- `NodeHttpServer` — `{server, url, close(): Promise<void>}`; `close()` drains in-flight requests up to `gracefulTimeoutMs` (default 10 000 ms), then destroys remaining sockets; with `closeApplication` it awaits `handler.app.close()` after the drain. Idempotent.
+- Client disconnects abort the per-request signal wired into dispatch (`DISPATCH_ABORTED`); aborted requests never write to the socket.
 - Types: `ServeNodeOptions`, `NodeHttpServer`.
 
 ## Envelope summary
@@ -45,3 +52,7 @@ error ⇒ per-error `http` ?? 422 with `{"ok":false,"error":{code,details}}`;
 (`serveNode`); faults 500 opaque `INTERNAL` + `onError`. Authored statuses
 (`http.status`, per-error `http`, route `status`/`errorStatus`) must be
 integers in 200..599 excluding 204/205/304 — the envelope always has a body.
+The CORS preflight 204 is produced outside the envelope path and is the only
+204 the adapter emits. Every response (envelope, health, preflight) carries
+`x-request-id`. Streaming/SSE/multipart are out of scope by design —
+terminate them at a proxy; bodies are JSON-only.

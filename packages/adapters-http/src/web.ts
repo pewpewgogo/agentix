@@ -3,6 +3,7 @@
 export {
   AuthenticationError,
   createBearerPrincipalExtractor,
+  createCookieLookup,
   createTrustedHeaderPrincipalExtractor,
 } from "./auth.js";
 export type {
@@ -14,12 +15,15 @@ export type {
 
 export { createHttpHandler, JSON_CONTENT_TYPE, RequestBodyLimitError } from "./handler.js";
 export type {
+  CorsOptions,
   CreateHttpHandlerOptions,
   HandlerRequest,
   HandlerResponse,
   HttpErrorInfo,
   HttpErrorObserver,
   HttpHandler,
+  ResponseHeadersContext,
+  ResponseHeadersHook,
 } from "./handler.js";
 
 export { defineHttpRoute } from "./route.js";

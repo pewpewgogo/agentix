@@ -96,19 +96,21 @@ Root re-exports `./web` plus `serveNode`; `./web` is edge-safe.
 
 ### Handler
 
-- `createHttpHandler(app, {authenticate?, onError?, routes?}?): HttpHandler` — routes auto-derived from operations' `http` metadata.
-- `HttpHandler` — `{fetch(request), handle(request), routes}`.
+- `createHttpHandler(app, {authenticate?, onError?, routes?, health?, cors?, responseHeaders?}?): HttpHandler` — routes auto-derived from operations' `http` metadata; every response carries `x-request-id` (adopted from a valid inbound header or generated), and dispatch receives `meta: {requestId}` plus the request's abort signal.
+- `HttpHandler` — `{fetch(request), handle(request), routes, app}`.
 - `RequestBodyLimitError` — throw from a custom host's `readBody` for a 413.
 - `JSON_CONTENT_TYPE` — `"application/json; charset=utf-8"`.
 - Types: `CreateHttpHandlerOptions`, `HandlerRequest`, `HandlerResponse`,
-  `HttpErrorInfo`, `HttpErrorObserver`.
+  `HttpErrorInfo` (includes `requestId`), `HttpErrorObserver`, `CorsOptions`,
+  `ResponseHeadersContext`, `ResponseHeadersHook`.
 
 ### Authentication
 
 - `createBearerPrincipalExtractor({resolve(token, request)}): PrincipalExtractor`
 - `createTrustedHeaderPrincipalExtractor({idHeader?, permissionsHeader?, separator?}?): PrincipalExtractor`
 - `AuthenticationError(message?, code?)` — throw from an extractor for a 401.
-- Types: `PrincipalExtractor`, `HttpRequestView`,
+- `createCookieLookup(headers): (name) => string | undefined` — the lazy cookie parser behind `HttpRequestView.cookie` (exported for custom hosts).
+- Types: `PrincipalExtractor`, `HttpRequestView` (with `cookie(name)`),
   `BearerPrincipalExtractorOptions`, `TrustedHeaderPrincipalOptions`.
 
 ### Routing
@@ -124,14 +126,15 @@ Root re-exports `./web` plus `serveNode`; `./web` is edge-safe.
 
 ### Node host (root and `./node`)
 
-- `serveNode(handler, {port, host?, maxBodyBytes?}): Promise<NodeHttpServer>` — raw `node:http` fast path; `{server, url, close()}`.
+- `serveNode(handler, {port, host?, maxBodyBytes?, gracefulTimeoutMs?, closeApplication?}): Promise<NodeHttpServer>` — raw `node:http` fast path; `{server, url, close()}`. `close()` drains in-flight requests up to `gracefulTimeoutMs` (default 10 000 ms) before destroying sockets; with `closeApplication` it then awaits `handler.app.close()`. Client disconnects abort the in-flight dispatch; aborted requests never write.
 - Types: `ServeNodeOptions`, `NodeHttpServer`.
 
 ## `@agentix/testing`
 
 ### Test application
 
-- `createTestApplication({features, adapters?, overrides?, mode?, authorize?}): {app, calls, clock, ids}` — auto-binds uncovered port ops to recording fakes (store→memory, time→clock, random→ids, other→throwing stub).
+- `createTestApplication({features, adapters?, overrides?, mode?, authorize?, observer?, subscribers?}): {app, calls, clock, ids, started, reset}` — auto-binds uncovered port ops to recording fakes (`preset === "store"`→memory, time→clock, random→ids, other→throwing stub); user adapters are wrapped for call recording (identity-preserving, hooks forwarded).
+- `harness.started()` — awaits `app.start()`, resolves to the same harness; `harness.reset()` — clears fake store state, calls, clock, and ids (user-adapter state untouched).
 - Types: `TestApplicationDefinition`, `TestApplication`, `TestCallLog`,
   `TestOverrideHandler`.
 

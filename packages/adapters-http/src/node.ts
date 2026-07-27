@@ -17,11 +17,24 @@ export interface ServeNodeOptions {
   readonly host?: string;
   /** Body byte cap; defaults to one mebibyte. Exceeding it answers 413. */
   readonly maxBodyBytes?: number;
+  /**
+   * Grace window close() gives in-flight requests before the remaining
+   * sockets are destroyed. Defaults to 10 000 ms; 0 destroys immediately.
+   */
+  readonly gracefulTimeoutMs?: number;
+  /** When true, close() awaits `handler.app.close()` after the drain. */
+  readonly closeApplication?: boolean;
 }
 
 export interface NodeHttpServer {
   readonly server: Server;
   readonly url: string;
+  /**
+   * Graceful shutdown: stops accepting, destroys idle keep-alive
+   * connections, waits for in-flight requests up to gracefulTimeoutMs, then
+   * destroys whatever is left. Idempotent — repeat calls return the same
+   * promise. With closeApplication, awaits app.close() after the drain.
+   */
   readonly close: () => Promise<void>;
 }
 
@@ -67,6 +80,12 @@ const readRequestBody = async (
 };
 
 const writeOutcome = (response: ServerResponse, outcome: HandlerResponse): void => {
+  if (outcome.status === 204) {
+    // CORS preflight only: 204 forbids a body, so no content headers either.
+    response.writeHead(204, { ...outcome.headers });
+    response.end();
+    return;
+  }
   const payload = CONSTANT_PAYLOADS.get(outcome.body) ?? Buffer.from(outcome.body, "utf8");
   const headers: Record<string, string | number> = {
     "content-type": JSON_CONTENT_TYPE,
@@ -87,7 +106,14 @@ const handleRaw = async (
   request: IncomingMessage,
   response: ServerResponse,
   maxBodyBytes: number,
+  isClosing: () => boolean,
 ): Promise<void> => {
+  // Per-request abort wiring: the controller aborts when the client socket
+  // closes before the response finished; its signal reaches dispatch.
+  const controller = new AbortController();
+  response.once("close", () => {
+    if (!response.writableFinished) controller.abort();
+  });
   let outcome: HandlerResponse;
   try {
     const target = request.url ?? "/";
@@ -98,10 +124,17 @@ const handleRaw = async (
       query: queryIndex === -1 ? "" : target.slice(queryIndex + 1),
       headers: (name) => headerValue(request.headers, name),
       readBody: () => readRequestBody(request, maxBodyBytes),
+      signal: controller.signal,
     };
     outcome = await handler.handle(raw);
   } catch {
     outcome = { status: 500, body: INTERNAL_ERROR_BODY };
+  }
+  // Aborted requests never write: the client is gone, so any bytes would hit
+  // a dead socket (and the envelope for an aborted dispatch is meaningless).
+  if (controller.signal.aborted || response.destroyed || response.writableEnded) {
+    response.destroy();
+    return;
   }
   if (response.headersSent) {
     response.destroy();
@@ -113,7 +146,9 @@ const handleRaw = async (
   // reuse can never read stale body bytes as a new pipelined request.
   const truncated =
     !request.complete && (request.destroyed || request.errored !== null);
-  if (truncated) {
+  if (truncated || isClosing()) {
+    // While close() drains, finished responses must not linger on keep-alive
+    // sockets — the connection is announced closed and destroyed on flush.
     response.setHeader("connection", "close");
     response.once("finish", () => response.destroy());
   }
@@ -130,6 +165,7 @@ const urlHost = (address: AddressInfo): string => {
  * RAW req/res Node host over handler.handle(): no undici Request/Response
  * construction on the hot path, single-copy body reads, pre-encoded constant
  * envelopes, per-response precomputed status + content-length headers.
+ * Requests carry an AbortSignal that fires when the client disconnects.
  */
 export const serveNode = (
   handler: HttpHandler,
@@ -142,11 +178,46 @@ export const serveNode = (
   if (!Number.isSafeInteger(options.port) || options.port < 0 || options.port > 65_535) {
     throw new TypeError("port must be an integer in 0..65535");
   }
+  const gracefulTimeoutMs = options.gracefulTimeoutMs ?? 10_000;
+  if (!Number.isSafeInteger(gracefulTimeoutMs) || gracefulTimeoutMs < 0) {
+    throw new TypeError("gracefulTimeoutMs must be a non-negative safe integer");
+  }
+  const closeApplication = options.closeApplication === true;
   const host = options.host ?? "127.0.0.1";
 
+  let closing = false;
+  let closeInvocation: Promise<void> | null = null;
+
   const server = createServer((request, response) => {
-    void handleRaw(handler, request, response, maxBodyBytes);
+    void handleRaw(handler, request, response, maxBodyBytes, () => closing);
   });
+
+  const close = (): Promise<void> => {
+    closeInvocation ??= (async () => {
+      closing = true;
+      await new Promise<void>((resolveClose, rejectClose) => {
+        // close() resolves once every remaining connection has ended.
+        server.close((error) =>
+          error === undefined ? resolveClose() : rejectClose(error),
+        );
+        server.closeIdleConnections();
+        if (gracefulTimeoutMs === 0) {
+          server.closeAllConnections();
+          return;
+        }
+        const timer = setTimeout(() => server.closeAllConnections(), gracefulTimeoutMs);
+        timer.unref();
+        server.once("close", () => clearTimeout(timer));
+      });
+      if (closeApplication) {
+        // Drain first, dispose after: app.close() runs only once no request
+        // can still be mid-dispatch on this host.
+        const app = handler.app as { readonly close?: () => Promise<void> } | undefined;
+        if (app !== undefined && typeof app.close === "function") await app.close();
+      }
+    })();
+    return closeInvocation;
+  };
 
   return new Promise<NodeHttpServer>((resolve, reject) => {
     server.once("error", reject);
@@ -157,13 +228,7 @@ export const serveNode = (
         Object.freeze({
           server,
           url: `http://${urlHost(address)}:${address.port}`,
-          close: () =>
-            new Promise<void>((resolveClose, rejectClose) => {
-              server.close((error) =>
-                error === undefined ? resolveClose() : rejectClose(error),
-              );
-              server.closeIdleConnections();
-            }),
+          close,
         }),
       );
     });

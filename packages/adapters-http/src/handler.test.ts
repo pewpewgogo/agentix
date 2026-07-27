@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { command, createApplication, feature, port, query, s } from "@agentix/core";
 import type { RuntimeMode } from "@agentix/core";
 
-import { createBearerPrincipalExtractor } from "./auth.js";
+import { AuthenticationError, createBearerPrincipalExtractor } from "./auth.js";
 import { createHttpHandler } from "./handler.js";
+import type { ResponseHeadersContext } from "./handler.js";
 import { defineHttpRoute } from "./route.js";
 
 /* ------------------------------------------------------------------ */
@@ -428,7 +429,7 @@ describe("custom authorize hook over HTTP", () => {
         features: [notes],
         adapters: [NoteStore.memory()],
         mode: "test",
-        authorize: authorizeHook,
+        ...(authorizeHook === undefined ? {} : { authorize: authorizeHook }),
       }),
       { authenticate, ...options },
     );
@@ -743,6 +744,7 @@ describe("faults", () => {
       method: "GET",
       path: "/boom",
       operationId: "chaos.boom",
+      requestId: expect.any(String) as string,
     });
   });
 
@@ -786,6 +788,7 @@ describe("faults", () => {
       method: "GET",
       path: "/notes/latest",
       operationId: "notes.latest",
+      requestId: expect.any(String) as string,
     });
   });
 
@@ -801,7 +804,11 @@ describe("faults", () => {
 
     expect(response.status).toBe(500);
     expect(onError).toHaveBeenCalledTimes(1);
-    expect(onError.mock.calls[0]?.[1]).toEqual({ method: "GET", path: "not-a-url" });
+    expect(onError.mock.calls[0]?.[1]).toEqual({
+      method: "GET",
+      path: "not-a-url",
+      requestId: expect.any(String) as string,
+    });
   });
 
   it("defaults onError to console.error in development mode only", async () => {
@@ -964,5 +971,564 @@ describe("route overrides", () => {
     expect(() =>
       createHttpHandler(app, { routes: [first, sameShape] }),
     ).toThrow(/Duplicate HTTP route/);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Request id (D1)                                                    */
+/* ------------------------------------------------------------------ */
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+describe("request id", () => {
+  it("generates a uuid and echoes it as x-request-id on every response", async () => {
+    const handler = makeHandler({ authenticate });
+
+    const success = await handler.fetch(jsonRequest("/notes/latest"));
+    expect(success.headers.get("x-request-id")).toMatch(UUID_PATTERN);
+
+    const missing = await handler.fetch(jsonRequest("/nowhere"));
+    expect(missing.status).toBe(404);
+    expect(missing.headers.get("x-request-id")).toMatch(UUID_PATTERN);
+
+    const wrongMethod = await handler.fetch(jsonRequest("/notes/abc", { method: "PATCH" }));
+    expect(wrongMethod.status).toBe(405);
+    expect(wrongMethod.headers.get("x-request-id")).toMatch(UUID_PATTERN);
+
+    const denied = await handler.fetch(
+      jsonRequest("/notes", { method: "POST", body: { id: "x", title: "T" } }),
+    );
+    expect(denied.status).toBe(403);
+    expect(denied.headers.get("x-request-id")).toMatch(UUID_PATTERN);
+
+    const fault = await handler.fetch(jsonRequest("/boom"));
+    expect(fault.status).toBe(500);
+    expect(fault.headers.get("x-request-id")).toMatch(UUID_PATTERN);
+  });
+
+  it("adopts a valid inbound x-request-id header (both entries)", async () => {
+    const handler = makeHandler();
+
+    const viaFetch = await handler.fetch(
+      jsonRequest("/notes/latest", { headers: { "x-request-id": "req-1.ABC_x" } }),
+    );
+    expect(viaFetch.headers.get("x-request-id")).toBe("req-1.ABC_x");
+
+    const viaHandle = await handler.handle({
+      method: "GET",
+      path: "/notes/latest",
+      query: "",
+      headers: (name) => (name === "x-request-id" ? "req-2" : undefined),
+      readBody: async () => undefined,
+    });
+    expect(viaHandle.headers?.["x-request-id"]).toBe("req-2");
+  });
+
+  it("regenerates ids for invalid inbound headers", async () => {
+    const handler = makeHandler();
+    for (const inbound of ["has space", "x".repeat(65), "bad!id"]) {
+      const response = await handler.fetch(
+        jsonRequest("/notes/latest", { headers: { "x-request-id": inbound } }),
+      );
+      const echoed = response.headers.get("x-request-id");
+      expect(echoed).toMatch(UUID_PATTERN);
+      expect(echoed).not.toBe(inbound);
+    }
+    // The handle entry takes plain strings: empty and non-ASCII ids too.
+    for (const inbound of ["", "碎"]) {
+      const response = await handler.handle({
+        method: "GET",
+        path: "/notes/latest",
+        query: "",
+        headers: (name) => (name === "x-request-id" ? inbound : undefined),
+        readBody: async () => undefined,
+      });
+      const echoed = response.headers?.["x-request-id"];
+      expect(echoed).toMatch(UUID_PATTERN);
+      expect(echoed).not.toBe(inbound);
+    }
+  });
+
+  it("passes {requestId} as dispatch meta, visible to the observer", async () => {
+    const started: unknown[] = [];
+    const settled: unknown[] = [];
+    const app = createApplication({
+      features: [notes],
+      adapters: [NoteStore.memory()],
+      mode: "test",
+      observer: {
+        dispatchStarted(ctx) {
+          started.push(ctx.meta);
+          return "token";
+        },
+        dispatchSettled(ctx) {
+          settled.push(ctx.meta);
+        },
+      },
+    });
+    const handler = createHttpHandler(app);
+
+    const response = await handler.fetch(
+      jsonRequest("/notes/latest", { headers: { "x-request-id": "req-42.ABC_x" } }),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-request-id")).toBe("req-42.ABC_x");
+    expect(started).toEqual([{ requestId: "req-42.ABC_x" }]);
+    expect(settled).toEqual([{ requestId: "req-42.ABC_x" }]);
+  });
+
+  it("includes the echoed requestId in onError info", async () => {
+    const onError = vi.fn();
+    const handler = makeHandler({ onError });
+    const response = await handler.fetch(
+      jsonRequest("/boom", { headers: { "x-request-id": "trace-9" } }),
+    );
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get("x-request-id")).toBe("trace-9");
+    expect(onError.mock.calls[0]?.[1]).toMatchObject({ requestId: "trace-9" });
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Health (D2)                                                        */
+/* ------------------------------------------------------------------ */
+
+describe("health", () => {
+  it('answers 200 {"ok":true} without authentication or dispatch', async () => {
+    const started: unknown[] = [];
+    const app = createApplication({
+      features: [notes],
+      adapters: [NoteStore.memory()],
+      mode: "test",
+      observer: {
+        dispatchStarted(ctx) {
+          started.push(ctx.operationId);
+        },
+      },
+    });
+    // An authenticate hook that rejects EVERY request: health must not care.
+    const handler = createHttpHandler(app, {
+      health: "/healthz",
+      authenticate: () => {
+        throw new AuthenticationError();
+      },
+    });
+
+    const health = await handler.fetch(jsonRequest("/healthz"));
+    expect(health.status).toBe(200);
+    await expect(health.json()).resolves.toEqual({ ok: true });
+    expect(health.headers.get("x-request-id")).toMatch(UUID_PATTERN);
+    expect(started).toEqual([]); // nothing dispatched
+
+    // Ordinary routes still authenticate (and 401 here).
+    const guarded = await handler.fetch(jsonRequest("/notes/latest"));
+    expect(guarded.status).toBe(401);
+  });
+
+  it("answers 405 with allow GET for non-GET methods on the health path", async () => {
+    const handler = makeHandler({ health: "/healthz" });
+    const response = await handler.fetch(jsonRequest("/healthz", { method: "POST" }));
+    expect(response.status).toBe(405);
+    expect(response.headers.get("allow")).toBe("GET");
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: { code: "METHOD_NOT_ALLOWED" },
+    });
+  });
+
+  it("validates health path conflicts against the compiled GET table", () => {
+    expect(() => makeHandler({ health: "/notes/latest" })).toThrow(
+      /health path \/notes\/latest conflicts/,
+    );
+    // Param routes conflict too: /notes/:id matches /notes/anything.
+    expect(() => makeHandler({ health: "/notes/anything" })).toThrow(/conflicts/);
+    expect(() => makeHandler({ health: "no-slash" })).toThrow(/must start/);
+    expect(() => makeHandler({ health: "/healthz" })).not.toThrow();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* CORS (D2)                                                          */
+/* ------------------------------------------------------------------ */
+
+describe("CORS", () => {
+  const ORIGIN = "https://app.example";
+
+  it("answers preflight 204 outside the JSON envelope on route hits", async () => {
+    const handler = makeHandler({
+      cors: {
+        origins: [ORIGIN],
+        headers: ["content-type", "x-request-id"],
+        maxAgeSeconds: 600,
+      },
+    });
+    const response = await handler.fetch(
+      new Request("https://api.test/notes", {
+        method: "OPTIONS",
+        headers: {
+          origin: ORIGIN,
+          "access-control-request-method": "POST",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(204);
+    await expect(response.text()).resolves.toBe("");
+    expect(response.headers.get("content-type")).toBeNull();
+    expect(response.headers.get("access-control-allow-origin")).toBe(ORIGIN);
+    expect(response.headers.get("access-control-allow-methods")).toBe(
+      "DELETE, GET, PATCH, POST",
+    );
+    expect(response.headers.get("access-control-allow-headers")).toBe(
+      "content-type, x-request-id",
+    );
+    expect(response.headers.get("access-control-max-age")).toBe("600");
+    expect(response.headers.get("vary")).toBe("origin");
+    expect(response.headers.get("x-request-id")).toMatch(UUID_PATTERN);
+  });
+
+  it("answers preflight 204 on route misses too (browsers preflight real paths)", async () => {
+    const handler = makeHandler({ cors: { origins: "*" } });
+    const response = await handler.fetch(
+      new Request("https://api.test/nowhere", {
+        method: "OPTIONS",
+        headers: {
+          origin: ORIGIN,
+          "access-control-request-method": "DELETE",
+          "access-control-request-headers": "x-custom",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-origin")).toBe("*");
+    // No headers config: the requested headers are echoed back.
+    expect(response.headers.get("access-control-allow-headers")).toBe("x-custom");
+    expect(response.headers.get("vary")).toBe("access-control-request-headers");
+  });
+
+  it("answers preflight 204 WITHOUT Access-Control-* for non-matching origins", async () => {
+    const handler = makeHandler({ cors: { origins: [ORIGIN] } });
+    const response = await handler.fetch(
+      new Request("https://api.test/notes", {
+        method: "OPTIONS",
+        headers: {
+          origin: "https://evil.example",
+          "access-control-request-method": "POST",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+    expect(response.headers.get("access-control-allow-methods")).toBeNull();
+    expect(response.headers.get("x-request-id")).toMatch(UUID_PATTERN);
+  });
+
+  it("sets Access-Control-* on ordinary responses when the origin matches", async () => {
+    const handler = makeHandler({ cors: { origins: [ORIGIN] } });
+
+    const hit = await handler.fetch(
+      jsonRequest("/notes/latest", { headers: { origin: ORIGIN } }),
+    );
+    expect(hit.status).toBe(200);
+    expect(hit.headers.get("access-control-allow-origin")).toBe(ORIGIN);
+    expect(hit.headers.get("vary")).toBe("origin");
+    await expect(hit.json()).resolves.toEqual({ ok: true, value: { latest: true } });
+
+    const miss = await handler.fetch(
+      jsonRequest("/nowhere", { headers: { origin: ORIGIN } }),
+    );
+    expect(miss.status).toBe(404);
+    expect(miss.headers.get("access-control-allow-origin")).toBe(ORIGIN);
+
+    const foreign = await handler.fetch(
+      jsonRequest("/notes/latest", { headers: { origin: "https://evil.example" } }),
+    );
+    expect(foreign.status).toBe(200);
+    expect(foreign.headers.get("access-control-allow-origin")).toBeNull();
+
+    const noOrigin = await handler.fetch(jsonRequest("/notes/latest"));
+    expect(noOrigin.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
+  it("echoes the origin (never *) and allows credentials in credentialed mode", async () => {
+    const handler = makeHandler({ cors: { origins: "*", credentials: true } });
+    const response = await handler.fetch(
+      jsonRequest("/notes/latest", { headers: { origin: ORIGIN } }),
+    );
+
+    expect(response.headers.get("access-control-allow-origin")).toBe(ORIGIN);
+    expect(response.headers.get("access-control-allow-credentials")).toBe("true");
+    expect(response.headers.get("vary")).toBe("origin");
+  });
+
+  it("answers wildcard non-credentialed requests with a literal *", async () => {
+    const handler = makeHandler({ cors: { origins: "*" } });
+    const response = await handler.fetch(
+      jsonRequest("/notes/latest", { headers: { origin: ORIGIN } }),
+    );
+    expect(response.headers.get("access-control-allow-origin")).toBe("*");
+    expect(response.headers.get("vary")).toBeNull();
+  });
+
+  it("validates the cors configuration at build time", () => {
+    expect(() => makeHandler({ cors: { origins: [] } })).toThrow(/cors\.origins/);
+    expect(() =>
+      makeHandler({ cors: { origins: "*", maxAgeSeconds: -1 } }),
+    ).toThrow(/maxAgeSeconds/);
+    expect(() =>
+      makeHandler({ cors: { origins: "*", maxAgeSeconds: 1.5 } }),
+    ).toThrow(/maxAgeSeconds/);
+  });
+
+  it("keeps rejecting 204 as an operation status (preflight is the only 204)", () => {
+    const app = makeApp();
+    expect(() =>
+      defineHttpRoute({
+        method: "delete",
+        path: "/legacy/:noteId",
+        operation: app.operations["notes.remove"],
+        status: 204,
+      }),
+    ).toThrow(/cannot be 204/);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* responseHeaders hook (D2)                                          */
+/* ------------------------------------------------------------------ */
+
+describe("responseHeaders hook", () => {
+  it("merges extra headers and receives {operationId, status, requestId}", async () => {
+    const contexts: ResponseHeadersContext[] = [];
+    const handler = makeHandler({
+      responseHeaders: (context) => {
+        contexts.push(context);
+        return { "Set-Cookie": "sid=1; HttpOnly", "x-extra": "yes" };
+      },
+    });
+
+    const response = await handler.fetch(
+      jsonRequest("/notes/latest", { headers: { "x-request-id": "hook-req-1" } }),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("set-cookie")).toBe("sid=1; HttpOnly");
+    expect(response.headers.get("x-extra")).toBe("yes");
+    expect(contexts).toEqual([
+      { operationId: "notes.latest", status: 200, requestId: "hook-req-1" },
+    ]);
+  });
+
+  it("runs on 404/405 without an operationId", async () => {
+    const contexts: ResponseHeadersContext[] = [];
+    const handler = makeHandler({
+      responseHeaders: (context) => {
+        contexts.push(context);
+        return undefined;
+      },
+    });
+
+    await handler.fetch(jsonRequest("/nowhere", { headers: { "x-request-id": "r1" } }));
+    await handler.fetch(
+      jsonRequest("/notes/abc", { method: "PATCH", headers: { "x-request-id": "r2" } }),
+    );
+    expect(contexts).toEqual([
+      { status: 404, requestId: "r1" },
+      { status: 405, requestId: "r2" },
+    ]);
+  });
+
+  it("cannot override content-type, content-length, or x-request-id", async () => {
+    const handler = makeHandler({
+      responseHeaders: () => ({
+        "Content-Type": "text/plain",
+        "content-length": "0",
+        "X-Request-Id": "spoofed",
+        "x-legit": "kept",
+      }),
+    });
+
+    const viaHandle = await handler.handle({
+      method: "GET",
+      path: "/notes/latest",
+      query: "",
+      headers: (name) => (name === "x-request-id" ? "real-id" : undefined),
+      readBody: async () => undefined,
+    });
+    expect(viaHandle.headers?.["x-request-id"]).toBe("real-id");
+    expect(viaHandle.headers?.["x-legit"]).toBe("kept");
+    expect(viaHandle.headers?.["content-type"]).toBeUndefined();
+    expect(viaHandle.headers?.["content-length"]).toBeUndefined();
+
+    const viaFetch = await handler.fetch(
+      jsonRequest("/notes/latest", { headers: { "x-request-id": "real-id" } }),
+    );
+    expect(viaFetch.headers.get("content-type")).toBe("application/json; charset=utf-8");
+    expect(viaFetch.headers.get("x-request-id")).toBe("real-id");
+  });
+
+  it("degrades to an opaque 500 + onError when the hook throws", async () => {
+    const boom = new Error("cookie jar unavailable");
+    const onError = vi.fn();
+    const handler = makeHandler({
+      onError,
+      responseHeaders: () => {
+        throw boom;
+      },
+    });
+
+    const response = await handler.fetch(jsonRequest("/notes/latest"));
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: { code: "INTERNAL" },
+    });
+    expect(response.headers.get("x-request-id")).toMatch(UUID_PATTERN);
+    expect(onError).toHaveBeenCalledWith(
+      boom,
+      expect.objectContaining({ operationId: "notes.latest" }),
+    );
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Cookie accessor on the auth view (D2)                              */
+/* ------------------------------------------------------------------ */
+
+describe("cookie accessor", () => {
+  it("parses the cookie header lazily once and skips malformed pairs", async () => {
+    let seen: readonly (string | undefined)[] = [];
+    let cookieHeaderReads = 0;
+    const handler = makeHandler({
+      authenticate: (request) => {
+        seen = [
+          request.cookie("session"),
+          request.cookie("theme"),
+          request.cookie("missing"),
+        ];
+        return null;
+      },
+    });
+
+    const response = await handler.handle({
+      method: "GET",
+      path: "/notes/latest",
+      query: "",
+      headers: (name) => {
+        if (name === "cookie") {
+          cookieHeaderReads += 1;
+          return "session=abc123; theme=dark%20mode; malformed; =nameless; session=dup";
+        }
+        return undefined;
+      },
+      readBody: async () => undefined,
+    });
+
+    expect(response.status).toBe(200);
+    expect(seen).toEqual(["abc123", "dark mode", undefined]);
+    expect(cookieHeaderReads).toBe(1); // three lookups, one parse
+  });
+
+  it("returns undefined for every cookie when the header is absent", async () => {
+    let seen: string | undefined = "sentinel";
+    const handler = makeHandler({
+      authenticate: (request) => {
+        seen = request.cookie("session");
+        return null;
+      },
+    });
+
+    const response = await handler.fetch(jsonRequest("/notes/latest"));
+    expect(response.status).toBe(200);
+    expect(seen).toBeUndefined();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Abort wiring at the handler level (D3 semantics)                   */
+/* ------------------------------------------------------------------ */
+
+const makeAbortFixture = () => {
+  const Hang = port("hangPort", {
+    read: port.read({ input: s.object({}), output: s.object({}) }),
+  });
+  const hangs = feature("hang", {
+    operations: {
+      wait: query({
+        input: s.object({}),
+        output: s.object({}),
+        http: { method: "GET", path: "/hang" },
+        effects: { read: Hang.read },
+        async execute({ effects }) {
+          return effects.read({});
+        },
+      }),
+    },
+  });
+  let entered!: () => void;
+  const enteredPromise = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const settled: { kind: string; code?: string }[] = [];
+  const app = createApplication({
+    features: [hangs],
+    adapters: [
+      Hang.adapter({
+        read: (_input, { signal }) => {
+          entered();
+          return new Promise((resolve) => {
+            signal.addEventListener("abort", () => resolve({}), { once: true });
+          });
+        },
+      }),
+    ],
+    mode: "test",
+    observer: {
+      dispatchSettled(ctx) {
+        settled.push({ kind: ctx.kind, ...(ctx.code === undefined ? {} : { code: ctx.code }) });
+      },
+    },
+  });
+  return { handler: createHttpHandler(app), enteredPromise, settled };
+};
+
+describe("dispatch abort wiring", () => {
+  it("faults DISPATCH_ABORTED when the handle-entry signal aborts mid-dispatch", async () => {
+    const { handler, enteredPromise, settled } = makeAbortFixture();
+    const controller = new AbortController();
+    const pending = handler.handle({
+      method: "GET",
+      path: "/hang",
+      query: "",
+      headers: () => undefined,
+      readBody: async () => undefined,
+      signal: controller.signal,
+    });
+
+    await enteredPromise;
+    controller.abort();
+    const response = await pending;
+
+    expect(response.status).toBe(500);
+    expect(JSON.parse(response.body)).toEqual({ ok: false, error: { code: "INTERNAL" } });
+    expect(settled).toEqual([{ kind: "fault", code: "DISPATCH_ABORTED" }]);
+  });
+
+  it("wires Request.signal into dispatch on the fetch entry", async () => {
+    const { handler, enteredPromise, settled } = makeAbortFixture();
+    const controller = new AbortController();
+    const pending = handler.fetch(
+      new Request("https://api.test/hang", { signal: controller.signal }),
+    );
+
+    await enteredPromise;
+    controller.abort();
+    const response = await pending;
+
+    expect(response.status).toBe(500);
+    expect(settled).toEqual([{ kind: "fault", code: "DISPATCH_ABORTED" }]);
   });
 });

@@ -1,4 +1,5 @@
 import { Agent, request as httpRequest } from "node:http";
+import type { ServerResponse } from "node:http";
 import { createConnection } from "node:net";
 import type { Socket } from "node:net";
 
@@ -76,6 +77,8 @@ beforeAll(async () => {
   });
   const handler = createHttpHandler(app, {
     authenticate: createTrustedHeaderPrincipalExtractor(),
+    health: "/healthz",
+    cors: { origins: ["https://app.example"] },
   });
   handle = await serveNode(handler, { port: 0, maxBodyBytes: 4096 });
   handle.server.on("connection", () => {
@@ -279,5 +282,254 @@ describe("serveNode", () => {
     expect(second).toBe(200);
     expect(connections - before).toBe(1);
     agent.destroy();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Request id, health, CORS over real sockets                         */
+/* ------------------------------------------------------------------ */
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+describe("serveNode request id + health + CORS", () => {
+  it("echoes inbound x-request-id and generates one when absent", async () => {
+    const echoed = await fetch(`${handle.url}/notes/absent`, {
+      headers: { "x-request-id": "node-req-1" },
+    });
+    expect(echoed.status).toBe(404);
+    expect(echoed.headers.get("x-request-id")).toBe("node-req-1");
+
+    const generated = await fetch(`${handle.url}/nowhere`);
+    expect(generated.status).toBe(404);
+    expect(generated.headers.get("x-request-id")).toMatch(UUID_PATTERN);
+
+    const invalid = await fetch(`${handle.url}/nowhere`, {
+      headers: { "x-request-id": "not a valid header value!" },
+    });
+    expect(invalid.headers.get("x-request-id")).toMatch(UUID_PATTERN);
+  });
+
+  it("serves health without principal headers", async () => {
+    const response = await fetch(`${handle.url}/healthz`);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/json; charset=utf-8");
+    expect(response.headers.get("x-request-id")).toMatch(UUID_PATTERN);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+  });
+
+  it("answers preflight 204 with no body and no content headers", async () => {
+    const response = await fetch(`${handle.url}/notes`, {
+      method: "OPTIONS",
+      headers: {
+        origin: "https://app.example",
+        "access-control-request-method": "POST",
+      },
+    });
+    expect(response.status).toBe(204);
+    expect(response.headers.get("content-type")).toBeNull();
+    expect(response.headers.get("access-control-allow-origin")).toBe(
+      "https://app.example",
+    );
+    expect(response.headers.get("access-control-allow-methods")).toBe("GET, POST");
+    expect(response.headers.get("x-request-id")).toMatch(UUID_PATTERN);
+    await expect(response.text()).resolves.toBe("");
+
+    // The connection state stays coherent: a follow-up request works.
+    const followUp = await fetch(`${handle.url}/healthz`);
+    expect(followUp.status).toBe(200);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Graceful shutdown + abort wiring                                   */
+/* ------------------------------------------------------------------ */
+
+const waitUntil = async (
+  predicate: () => boolean,
+  timeoutMs = 3000,
+): Promise<void> => {
+  const start = Date.now();
+  while (!predicate()) {
+    if (Date.now() - start > timeoutMs) {
+      throw new Error("condition not met within the timeout");
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, 10));
+  }
+};
+
+const makeGracefulFixture = (behavior: "gate" | "abort" = "gate") => {
+  const Slow = port("slowPort", {
+    read: port.read({ input: s.object({}), output: s.object({ done: s.boolean() }) }),
+  });
+  const slow = feature("slow", {
+    operations: {
+      wait: query({
+        input: s.object({}),
+        output: s.object({ done: s.boolean() }),
+        http: { method: "GET", path: "/slow" },
+        effects: { read: Slow.read },
+        async execute({ effects }) {
+          return effects.read({});
+        },
+      }),
+    },
+  });
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let entered!: () => void;
+  const enteredPromise = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const settled: { kind: string; code?: string }[] = [];
+  let disposeCount = 0;
+  const app = createApplication({
+    features: [slow],
+    adapters: [
+      Slow.adapter(
+        {
+          read: (_input, { signal }) => {
+            entered();
+            if (behavior === "abort") {
+              // Settles only when the dispatch signal aborts (client gone).
+              return new Promise((resolve) => {
+                signal.addEventListener("abort", () => resolve({ done: false }), {
+                  once: true,
+                });
+              });
+            }
+            return gate.then(() => ({ done: true }));
+          },
+        },
+        {
+          dispose: () => {
+            disposeCount += 1;
+          },
+        },
+      ),
+    ],
+    mode: "test",
+    observer: {
+      dispatchSettled(ctx) {
+        settled.push({
+          kind: ctx.kind,
+          ...(ctx.code === undefined ? {} : { code: ctx.code }),
+        });
+      },
+    },
+  });
+  return {
+    handler: createHttpHandler(app),
+    app,
+    enteredPromise,
+    release,
+    settled,
+    disposed: () => disposeCount,
+  };
+};
+
+describe("serveNode graceful shutdown", () => {
+  it("waits for in-flight requests, then refuses new connections", async () => {
+    const fixture = makeGracefulFixture();
+    const server = await serveNode(fixture.handler, {
+      port: 0,
+      gracefulTimeoutMs: 5000,
+    });
+
+    const pending = fetch(`${server.url}/slow`);
+    await fixture.enteredPromise;
+    const closing = server.close();
+    fixture.release();
+
+    const response = await pending;
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      value: { done: true },
+    });
+    await closing;
+
+    await expect(fetch(`${server.url}/slow`)).rejects.toThrow();
+    // Idempotent: repeat close() resolves without error.
+    await server.close();
+  });
+
+  it("destroys sockets still in flight once the graceful timeout expires", async () => {
+    const fixture = makeGracefulFixture();
+    const server = await serveNode(fixture.handler, {
+      port: 0,
+      gracefulTimeoutMs: 100,
+    });
+
+    const pending = fetch(`${server.url}/slow`); // never released before close
+    await fixture.enteredPromise;
+    const closing = server.close();
+
+    await expect(pending).rejects.toThrow(); // socket torn down at the timeout
+    await closing;
+    fixture.release(); // let the still-pending dispatch settle (cleanup)
+  });
+
+  it("closeApplication disposes adapters after the drain", async () => {
+    const fixture = makeGracefulFixture();
+    const server = await serveNode(fixture.handler, {
+      port: 0,
+      gracefulTimeoutMs: 1000,
+      closeApplication: true,
+    });
+
+    fixture.release(); // fast request: nothing in flight at close time
+    const ok = await fetch(`${server.url}/slow`);
+    expect(ok.status).toBe(200);
+    expect(fixture.disposed()).toBe(0);
+
+    await server.close();
+    expect(fixture.disposed()).toBe(1);
+
+    const afterClose = await fixture.app.dispatch("slow.wait", { input: {} });
+    expect(afterClose).toMatchObject({
+      kind: "fault",
+      error: { code: "APPLICATION_CLOSED" },
+    });
+  });
+
+  it("aborts dispatch and never writes when the client disconnects mid-dispatch", async () => {
+    const fixture = makeGracefulFixture("abort");
+    const server = await serveNode(fixture.handler, { port: 0 });
+    let captured: ServerResponse | undefined;
+    server.server.on("request", (_request, response) => {
+      captured = response;
+    });
+
+    const url = new URL(server.url);
+    const socket = createConnection({ host: url.hostname, port: Number(url.port) });
+    socket.on("error", () => {});
+    await new Promise<void>((resolve, reject) => {
+      socket.once("connect", () => resolve());
+      socket.once("error", reject);
+    });
+    let received = "";
+    socket.on("data", (buffer) => {
+      received += buffer.toString("utf8");
+    });
+    socket.write(`GET /slow HTTP/1.1\r\nhost: ${url.host}\r\n\r\n`);
+
+    await fixture.enteredPromise;
+    socket.destroy(); // client goes away mid-dispatch
+
+    await waitUntil(() =>
+      fixture.settled.some(
+        (entry) => entry.kind === "fault" && entry.code === "DISPATCH_ABORTED",
+      ),
+    );
+    expect(fixture.settled).toEqual([{ kind: "fault", code: "DISPATCH_ABORTED" }]);
+    // Nothing was written to the closed socket: no status line ever arrived
+    // and the server never sent headers.
+    expect(received).toBe("");
+    expect(captured?.headersSent).toBe(false);
+
+    await server.close();
   });
 });

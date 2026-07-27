@@ -13,7 +13,64 @@ export interface HttpRequestView {
   readonly path: string;
   /** Case-insensitive single-value header lookup. */
   readonly headers: (name: string) => string | undefined;
+  /**
+   * Single-cookie lookup over the `Cookie` request header. The header is
+   * parsed lazily, once per request, on first access. Returns undefined when
+   * the header is absent or the cookie is not present; malformed pairs (no
+   * `=`, empty name) are skipped; the first occurrence of a name wins.
+   */
+  readonly cookie: (name: string) => string | undefined;
 }
+
+/* ------------------------------------------------------------------ */
+/* Cookie parsing (lazy, once per request)                            */
+/* ------------------------------------------------------------------ */
+
+const EMPTY_COOKIES: ReadonlyMap<string, string> = new Map();
+
+const decodeCookieValue = (raw: string): string => {
+  let value = raw;
+  if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+    value = value.slice(1, -1);
+  }
+  if (!value.includes("%")) return value;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value; // malformed percent-encoding: keep the raw value
+  }
+};
+
+const parseCookieHeader = (header: string): ReadonlyMap<string, string> => {
+  const cookies = new Map<string, string>();
+  for (const part of header.split(";")) {
+    const separator = part.indexOf("=");
+    if (separator === -1) continue; // malformed pair: no "="
+    const name = part.slice(0, separator).trim();
+    if (name.length === 0) continue; // malformed pair: empty name
+    if (cookies.has(name)) continue; // first occurrence wins
+    cookies.set(name, decodeCookieValue(part.slice(separator + 1).trim()));
+  }
+  return cookies;
+};
+
+/**
+ * Builds the lazy `cookie(name)` accessor of HttpRequestView from a header
+ * lookup. The `Cookie` header is read and parsed at most once, on the first
+ * `cookie()` call; requests that never touch cookies never parse anything.
+ */
+export const createCookieLookup = (
+  headers: (name: string) => string | undefined,
+): ((name: string) => string | undefined) => {
+  let parsed: ReadonlyMap<string, string> | null = null;
+  return (name) => {
+    if (parsed === null) {
+      const header = headers("cookie");
+      parsed = header === undefined ? EMPTY_COOKIES : parseCookieHeader(header);
+    }
+    return parsed.get(name);
+  };
+};
 
 /**
  * Returning `null` yields an ANONYMOUS request (core authorize() then rejects

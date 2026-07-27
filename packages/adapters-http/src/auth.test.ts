@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   AuthenticationError,
   createBearerPrincipalExtractor,
+  createCookieLookup,
   createTrustedHeaderPrincipalExtractor,
 } from "./auth.js";
 import type { HttpRequestView } from "./auth.js";
@@ -11,11 +12,10 @@ const view = (
   headers: Readonly<Record<string, string>>,
   method = "GET",
   path = "/",
-): HttpRequestView => ({
-  method,
-  path,
-  headers: (name) => headers[name.toLowerCase()],
-});
+): HttpRequestView => {
+  const lookup = (name: string): string | undefined => headers[name.toLowerCase()];
+  return { method, path, headers: lookup, cookie: createCookieLookup(lookup) };
+};
 
 describe("bearer principal extraction", () => {
   it("returns null (anonymous) when credentials are absent", async () => {
@@ -82,5 +82,57 @@ describe("trusted header principal extraction", () => {
       id: "u2",
       permissions: ["a", "b"],
     });
+  });
+});
+
+describe("cookie lookup", () => {
+  it("parses multiple cookies with quoting and percent-decoding", () => {
+    const cookie = createCookieLookup((name) =>
+      name === "cookie"
+        ? 'session=abc123; theme="dark"; label=hello%20world; empty='
+        : undefined,
+    );
+
+    expect(cookie("session")).toBe("abc123");
+    expect(cookie("theme")).toBe("dark");
+    expect(cookie("label")).toBe("hello world");
+    expect(cookie("empty")).toBe("");
+    expect(cookie("missing")).toBeUndefined();
+  });
+
+  it("returns undefined for everything when the header is absent", () => {
+    const cookie = createCookieLookup(() => undefined);
+    expect(cookie("session")).toBeUndefined();
+    expect(cookie("anything")).toBeUndefined();
+  });
+
+  it("skips malformed pairs, keeps first occurrences, tolerates bad encoding", () => {
+    const cookie = createCookieLookup((name) =>
+      name === "cookie"
+        ? "malformed; =nameless; a=1; a=2;   b = spaced ; broken=%zz"
+        : undefined,
+    );
+
+    expect(cookie("malformed")).toBeUndefined(); // no "="
+    expect(cookie("")).toBeUndefined(); // empty name
+    expect(cookie("a")).toBe("1"); // first occurrence wins
+    expect(cookie("b")).toBe("spaced"); // names and values are trimmed
+    expect(cookie("broken")).toBe("%zz"); // malformed encoding kept raw
+  });
+
+  it("reads and parses the cookie header at most once", () => {
+    let reads = 0;
+    const cookie = createCookieLookup((name) => {
+      if (name === "cookie") {
+        reads += 1;
+        return "a=1; b=2";
+      }
+      return undefined;
+    });
+
+    expect(cookie("a")).toBe("1");
+    expect(cookie("b")).toBe("2");
+    expect(cookie("c")).toBeUndefined();
+    expect(reads).toBe(1);
   });
 });

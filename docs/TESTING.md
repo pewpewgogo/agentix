@@ -8,31 +8,73 @@ does not replace one.
 
 Builds an app where every port operation reachable from the features is bound:
 your adapters win; uncovered operations get recording fakes. `port.store`
-ports get the `.memory()` equivalent, `time` ops a deterministic clock,
-`random` ops seeded ids; anything else throws with a clear message until
-overridden.
+ports get the `.memory()` equivalent (detected by the exact `preset ===
+"store"` tag those operations carry — a hand-built port that merely looks
+like a store is NOT memory-faked), `time` ops a deterministic clock, `random`
+ops seeded ids; anything else throws with a clear message until overridden.
 
 ```ts
 import { createTestApplication } from "@agentix/testing";
 
-const { app, calls, clock, ids } = createTestApplication({ features: [notes] });
+const harness = createTestApplication({ features: [notes] });
+const { app, calls, clock, ids } = harness;
 
 await app.call("notes.create", { id: "n1", title: "First", body: "" });
 
 calls.of("noteStorage.save");       // recorded calls for one port operation
 calls.all();                        // every recorded call in sequence
 calls.reset();
+
+harness.reset();                    // fresh-app semantics without rebuilding
 ```
 
 - `overrides` replace one derived fake by port-operation id:
   `overrides: { "noteStorage.get": () => ({ id: "n1", title: "Cached", body: "" }) }`.
   Unknown keys throw listing all valid keys. Ports covered by a real adapter
-  cannot be overridden per-op (core allows one adapter per port).
+  cannot be overridden per-op (core allows one adapter per port). Overrides
+  receive the same `(input, { signal })` arguments as core adapter handlers.
 - `clock` starts at `2000-01-01T00:00:00.000Z`, +1s per `now()`; `ids` yields
   `"id-1"`, `"id-2"`, ...
-- `mode` defaults to `"test"`; `authorize` passes through to `createApplication`.
-- Only auto-bound fakes are recorded; wrap a real adapter with
-  `createRecordingAdapter` if you need its log.
+- `mode` defaults to `"test"`; `authorize`, `observer`, and `subscribers` pass
+  through to `createApplication` verbatim.
+- `calls` records EVERY bound port operation — auto-bound fakes, overrides,
+  and your own adapters. User adapters are wrapped transparently: the wrapper
+  forwards `(input, { signal })` unchanged and returns (and records) the
+  handler's resolved value as the same reference, so wrapping never alters
+  adapter behavior. Calls that reject because the effect signal aborted
+  (`timeoutMs` or dispatch abort) are recorded as `"threw"` at their original
+  sequence position, even when they settle after the dispatch faulted.
+
+### harness.reset()
+
+`harness.reset()` gives fresh-app semantics without rebuilding: it clears
+every auto-bound store's records, empties the recorded call log, and resets
+the deterministic clock and id sequences to their initial values.
+
+**`reset()` does NOT touch user-supplied adapter state.** Adapters you pass
+in own their state (a memory Map, a database, ...); the harness only wraps
+them for call recording and cannot reset them. Rebuild the harness — or reset
+the adapter yourself — when a user adapter must start fresh.
+
+### Lifecycle: started() and close()
+
+`createTestApplication` never auto-starts. `await harness.started()` awaits
+`app.start()` (running every user-adapter `init` hook in registration order)
+and resolves to the same harness, so setup reads as one expression:
+
+```ts
+const { app } = await createTestApplication({
+  features: [notes],
+  adapters: [postgresNotes], // adapter built with port.adapter(impl, { init, dispose })
+}).started();
+
+// ... tests ...
+
+await app.close(); // dispose hooks in reverse order; then dispatch faults APPLICATION_CLOSED
+```
+
+Auto-bound fakes need no hooks; lifecycle hooks on your adapters survive the
+recording wrapper unchanged.
 
 ## testHttp
 
