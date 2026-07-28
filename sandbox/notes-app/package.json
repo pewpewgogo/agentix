@@ -9,11 +9,11 @@
     "test": "vitest run --root ../.. sandbox/notes-app"
   },
   "dependencies": {
-    "@agentixdev/adapters-http": "0.1.0",
-    "@agentixdev/core": "0.1.0"
+    "@agentixdev/adapters-http": "0.2.0",
+    "@agentixdev/core": "0.2.0"
   },
   "devDependencies": {
-    "@agentixdev/testing": "0.1.0",
+    "@agentixdev/testing": "0.2.0",
     "vitest": "4.1.10"
   }
 }
