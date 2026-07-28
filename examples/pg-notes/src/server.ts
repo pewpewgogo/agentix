@@ -5,7 +5,7 @@
  *   docker compose up -d
  *   npm run build && npm start
  */
-import { serveNode } from "@agentix/adapters-http";
+import { serveNode } from "@agentixdev/adapters-http";
 
 import { createPgNotesApplication, createPgNotesHandler } from "./application.js";
 

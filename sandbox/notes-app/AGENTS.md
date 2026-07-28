@@ -19,6 +19,6 @@ Open the reported operation source; expand `affected`/omissions only when the
 change needs it. Verify with:
 
 ```sh
-npm run typecheck --workspace @agentix/sandbox-agentix-notes
-npm test --workspace @agentix/sandbox-agentix-notes
+npm run typecheck --workspace @agentixdev/sandbox-agentix-notes
+npm test --workspace @agentixdev/sandbox-agentix-notes
 ```

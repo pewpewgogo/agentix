@@ -246,7 +246,7 @@ describe("openapi generation", () => {
     mkdirSync(join(temporary, "src/features"), { recursive: true });
     writeFileSync(
       join(temporary, "src/features/widgets.ts"),
-      `import { feature, query, s } from "@agentix/core";
+      `import { feature, query, s } from "@agentixdev/core";
 
 export const Widget = s.object({
   id: s.id("widget"),
@@ -327,7 +327,7 @@ export const widgets = feature("widgets", {
     mkdirSync(join(temporary, "src/features"), { recursive: true });
     writeFileSync(
       join(temporary, "src/features/dyn.ts"),
-      `import { command, feature, s } from "@agentix/core";
+      `import { command, feature, s } from "@agentixdev/core";
 
 const shape = { id: s.string() };
 export const Dyn = s.object({ ...shape });

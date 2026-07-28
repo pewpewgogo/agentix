@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { command, feature, s } from "@agentix/core";
+import { command, feature, s } from "@agentixdev/core";
 import { integer, record } from "fast-check";
 
 import {

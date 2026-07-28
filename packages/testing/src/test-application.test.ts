@@ -8,7 +8,7 @@ import {
   s,
   subscription,
   type DispatchObserver,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 import { createTestApplication } from "./test-application.js";
 

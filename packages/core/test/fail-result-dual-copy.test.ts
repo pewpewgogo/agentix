@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 /**
- * Regression (#15 repro): with two copies of @agentix/core in one process
+ * Regression (#15 repro): with two copies of @agentixdev/core in one process
  * (duplicated node_modules resolution, mismatched pins, non-deduped bundles)
  * a `fail(...)` produced by one copy must stay recognizable to the other
  * copy's dispatch. FAIL_RESULT is therefore the REGISTERED

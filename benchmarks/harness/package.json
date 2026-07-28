@@ -1,5 +1,5 @@
 {
-  "name": "@agentix/benchmark-harness",
+  "name": "@agentixdev/benchmark-harness",
   "version": "0.0.0",
   "private": true,
   "type": "module",

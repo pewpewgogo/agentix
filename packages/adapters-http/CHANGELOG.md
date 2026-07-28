@@ -1,4 +1,4 @@
-# @agentix/adapters-http
+# @agentixdev/adapters-http
 
 ## 0.1.0
 

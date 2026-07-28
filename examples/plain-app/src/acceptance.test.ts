@@ -1,4 +1,4 @@
-import { defineCommerceAcceptance } from "@agentix/shared-contract/acceptance";
+import { defineCommerceAcceptance } from "@agentixdev/shared-contract/acceptance";
 
 import { createPlainSystem } from "./system.js";
 

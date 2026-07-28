@@ -1,8 +1,8 @@
-import type { BoundPortAdapter } from "@agentix/core";
+import type { BoundPortAdapter } from "@agentixdev/core";
 import type {
   CommerceSnapshot,
   CommerceSystemOptions,
-} from "@agentix/shared-contract";
+} from "@agentixdev/shared-contract";
 
 import {
   CustomerClock,

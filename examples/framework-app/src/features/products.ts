@@ -1,4 +1,4 @@
-import { command, feature, port, query, s } from "@agentix/core";
+import { command, feature, port, query, s } from "@agentixdev/core";
 
 export const PositiveSafeInteger = s.number({
   int: true,

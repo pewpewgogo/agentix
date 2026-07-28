@@ -8,7 +8,7 @@ import {
   type RawUsageField,
   type RunRecord,
   type ScheduledRun,
-} from "@agentix/benchmark-harness";
+} from "@agentixdev/benchmark-harness";
 import { isAbsolute } from "node:path";
 
 import { distribution, wilson95 } from "./statistics.js";

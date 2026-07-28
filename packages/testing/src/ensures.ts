@@ -1,4 +1,4 @@
-import type { AnyBoundOperation, EnsureContext, Infer } from "@agentix/core";
+import type { AnyBoundOperation, EnsureContext, Infer } from "@agentixdev/core";
 import { assert, property } from "fast-check";
 import type { Arbitrary, Parameters as FcParameters } from "fast-check";
 

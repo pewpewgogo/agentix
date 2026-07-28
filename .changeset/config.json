@@ -4,11 +4,11 @@
   "commit": false,
   "fixed": [
     [
-      "@agentix/core",
-      "@agentix/compiler",
-      "@agentix/cli",
-      "@agentix/testing",
-      "@agentix/adapters-http"
+      "@agentixdev/core",
+      "@agentixdev/compiler",
+      "@agentixdev/cli",
+      "@agentixdev/testing",
+      "@agentixdev/adapters-http"
     ]
   ],
   "linked": [],

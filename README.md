@@ -12,13 +12,13 @@ Application behavior stays in ordinary TypeScript.
 [Example application](examples/framework-app/src)
 
 > **Project status:** Agentix is a research-stage, pre-1.0 framework. Public
-> packages use coordinated versions under the `@agentix/*` npm scope. The API
+> packages use coordinated versions under the `@agentixdev/*` npm scope. The API
 > may change between minor releases until 1.0.
 
 ## A feature at a glance
 
 ```ts
-import { command, feature, port, query, s } from "@agentix/core";
+import { command, feature, port, query, s } from "@agentixdev/core";
 
 export const Note = s.object({
   id: s.string({ min: 1 }),
@@ -78,8 +78,8 @@ Agentix requires Node.js `>=22.12.0 <25` (Node.js 22.12+ or 24). Install only
 what the application needs:
 
 ```sh
-npm install @agentix/core @agentix/adapters-http
-npm install --save-dev @agentix/cli @agentix/testing
+npm install @agentixdev/core @agentixdev/adapters-http
+npm install --save-dev @agentixdev/cli @agentixdev/testing
 npm exec -- agentix help
 ```
 
@@ -116,11 +116,11 @@ interpreting calibration, runtime, or paid live-agent results.
 
 | Package | Responsibility |
 | --- | --- |
-| `@agentix/core` | `s` schemas, `command/query/feature/port/event` descriptors, outcomes, `createApplication`, `authorize`, dispatch |
-| `@agentix/adapters-http` | Auto-derived routes, fixed JSON envelope, `serveNode` raw Node host, edge-safe `fetch` entry |
-| `@agentix/testing` | `createTestApplication` (auto-faked ports), `testHttp`, harnesses, deterministic capabilities, contracts |
-| `@agentix/compiler` | Static analysis, deterministic `.agentix/index.json`, affected scope, bounded context artifacts |
-| `@agentix/cli` | `inspect`, `context`, `graph`, `affected`, `verify`, `openapi`, `scaffold`, plus `mcp` — the same commands as a stdio MCP server for coding agents |
+| `@agentixdev/core` | `s` schemas, `command/query/feature/port/event` descriptors, outcomes, `createApplication`, `authorize`, dispatch |
+| `@agentixdev/adapters-http` | Auto-derived routes, fixed JSON envelope, `serveNode` raw Node host, edge-safe `fetch` entry |
+| `@agentixdev/testing` | `createTestApplication` (auto-faked ports), `testHttp`, harnesses, deterministic capabilities, contracts |
+| `@agentixdev/compiler` | Static analysis, deterministic `.agentix/index.json`, affected scope, bounded context artifacts |
+| `@agentixdev/cli` | `inspect`, `context`, `graph`, `affected`, `verify`, `openapi`, `scaffold`, plus `mcp` — the same commands as a stdio MCP server for coding agents |
 
 Each package ships its own `README.md` and `API.md`; the full surface is in
 the [API reference](docs/API_REFERENCE.md).

@@ -4,7 +4,7 @@
  * records every statement so the tests can assert the parameterized SQL text,
  * the bound values, and the BEGIN/COMMIT/ROLLBACK ordering.
  */
-import { createApplication, principal } from "@agentix/core";
+import { createApplication, principal } from "@agentixdev/core";
 import { describe, expect, it } from "vitest";
 
 import { NoteClock, notes } from "../features/notes.js";

@@ -1,5 +1,5 @@
 {
-  "name": "@agentix/benchmark-runtime",
+  "name": "@agentixdev/benchmark-runtime",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -18,11 +18,11 @@
     "test": "vitest run --root ../.. benchmarks/runtime"
   },
   "dependencies": {
-    "@agentix/adapters-http": "0.1.0",
-    "@agentix/compiler": "0.1.0",
-    "@agentix/core": "0.1.0",
-    "@agentix/framework-app": "0.0.0",
-    "@agentix/plain-app": "0.0.0",
+    "@agentixdev/adapters-http": "0.1.0",
+    "@agentixdev/compiler": "0.1.0",
+    "@agentixdev/core": "0.1.0",
+    "@agentixdev/framework-app": "0.0.0",
+    "@agentixdev/plain-app": "0.0.0",
     "@nestjs/common": "11.1.28",
     "@nestjs/core": "11.1.28",
     "@nestjs/platform-express": "11.1.28",

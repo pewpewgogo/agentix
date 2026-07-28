@@ -1,4 +1,4 @@
-import type { BoundPortAdapter } from "@agentix/core";
+import type { BoundPortAdapter } from "@agentixdev/core";
 import pg from "pg";
 
 import { NoteStore, type ArchivedNote, type Note } from "../features/notes.js";

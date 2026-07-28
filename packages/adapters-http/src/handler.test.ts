@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { command, createApplication, feature, port, query, s } from "@agentix/core";
-import type { RuntimeMode } from "@agentix/core";
+import { command, createApplication, feature, port, query, s } from "@agentixdev/core";
+import type { RuntimeMode } from "@agentixdev/core";
 
 import { AuthenticationError, createBearerPrincipalExtractor } from "./auth.js";
 import { createHttpHandler } from "./handler.js";

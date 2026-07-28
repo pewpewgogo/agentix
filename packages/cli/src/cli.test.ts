@@ -331,7 +331,7 @@ describe("agentix CLI", () => {
     const cwd = copyFixture("valid");
     writeFileSync(
       join(cwd, "src/features/broken.ts"),
-      `import { feature } from "@agentix/core";\n\n` +
+      `import { feature } from "@agentixdev/core";\n\n` +
       `const dynamicId = "broken" as string;\n` +
       `export const broken = feature(dynamicId, { operations: {} });\n`,
       "utf8",
@@ -556,7 +556,7 @@ describe("agentix CLI", () => {
   });
 
   it("scaffolds a compilable single-file feature the index immediately sees", () => {
-    // Package-local copy so tsc resolves @agentix/core through the workspace.
+    // Package-local copy so tsc resolves @agentixdev/core through the workspace.
     const cwd = copyFixture("valid", packageDirectory);
     const preview = capture();
     const created = capture();

@@ -68,9 +68,9 @@ depend on the compiler, CLI, HTTP adapter, or testing package.
 Use workspace commands for a fast edit loop:
 
 ```sh
-npm run typecheck --workspace @agentix/core
-npm test --workspace @agentix/core
-npm test --workspace @agentix/framework-app
+npm run typecheck --workspace @agentixdev/core
+npm test --workspace @agentixdev/core
+npm test --workspace @agentixdev/framework-app
 ```
 
 Before handing off a framework change, run at least:

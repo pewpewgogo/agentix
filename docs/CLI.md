@@ -7,7 +7,7 @@ re-analyze (rewriting it) when anything is stale, missing, or malformed. It is
 not a signed artifact and is never used by runtime dispatch.
 
 ```sh
-npm install --save-dev @agentix/cli
+npm install --save-dev @agentixdev/cli
 npm exec -- agentix help
 ```
 
@@ -164,7 +164,7 @@ operations with unified errors and routes) and one colocated test.
 
 `agentix mcp` serves the commands above as a stdio [MCP](https://modelcontextprotocol.io)
 server so coding agents can call them as tools. Register it with Claude Code
-from the application root (requires `@agentix/cli` installed there):
+from the application root (requires `@agentixdev/cli` installed there):
 
 ```sh
 claude mcp add agentix -- npm exec -- agentix mcp --root .
@@ -222,7 +222,7 @@ name up to the first dot: `src/features/notes.ts`, dotted siblings such as
 `notes.integration.test.ts`), and the directory form `notes/` all map to the
 same feature segment `notes`.
 
-Prefer the CLI to reading the index; the `@agentix/compiler` package exposes
+Prefer the CLI to reading the index; the `@agentixdev/compiler` package exposes
 the same data programmatically (`generateIndex`, `computeAffected`,
 `planVerification`, `createOperationContext`, `createChangeContext`,
 `createOpenApiDocument`).

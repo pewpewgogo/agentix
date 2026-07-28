@@ -4,7 +4,7 @@ import { createConnection } from "node:net";
 import type { Socket } from "node:net";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { command, createApplication, feature, port, query, s } from "@agentix/core";
+import { command, createApplication, feature, port, query, s } from "@agentixdev/core";
 
 import { createTrustedHeaderPrincipalExtractor } from "./auth.js";
 import { createHttpHandler } from "./handler.js";

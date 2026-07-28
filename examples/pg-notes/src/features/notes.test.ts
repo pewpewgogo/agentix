@@ -4,8 +4,8 @@
  * fake is bound through `overrides`. The time port IS auto-faked with the
  * deterministic clock: 2000-01-01T00:00:00.000Z, +1s per reading.
  */
-import { principal } from "@agentix/core";
-import { createTestApplication } from "@agentix/testing";
+import { principal } from "@agentixdev/core";
+import { createTestApplication } from "@agentixdev/testing";
 import { describe, expect, it } from "vitest";
 
 import { notes, type ArchivedNote, type Note } from "./notes.js";

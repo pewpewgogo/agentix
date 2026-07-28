@@ -1,9 +1,9 @@
 ---
-"@agentix/core": minor
-"@agentix/compiler": minor
-"@agentix/cli": minor
-"@agentix/testing": minor
-"@agentix/adapters-http": minor
+"@agentixdev/core": minor
+"@agentixdev/compiler": minor
+"@agentixdev/cli": minor
+"@agentixdev/testing": minor
+"@agentixdev/adapters-http": minor
 ---
 
 Agent-first v2: single-file feature authoring with derived registration, and a

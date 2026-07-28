@@ -69,7 +69,7 @@ tokens, files, or tool calls.
 ## Release boundary
 
 The five framework packages are public, ESM-only, pre-1.0 packages under the
-`@agentix/*` npm scope. They share one coordinated version and follow semantic
+`@agentixdev/*` npm scope. They share one coordinated version and follow semantic
 versioning, but minor releases may contain breaking API changes until 1.0.
 Release automation publishes only built package artifacts plus each package's
 `README.md`/`API.md`; benchmark fixtures, results, examples, and sandboxes

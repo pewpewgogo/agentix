@@ -1,4 +1,4 @@
-# `@agentix/core` API
+# `@agentixdev/core` API
 
 Every public export, one line each. Full model: the repository's
 `docs/CORE_CONCEPTS.md`.

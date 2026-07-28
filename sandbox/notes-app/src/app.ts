@@ -1,5 +1,5 @@
-import { createHttpHandler } from "@agentix/adapters-http";
-import { createApplication } from "@agentix/core";
+import { createHttpHandler } from "@agentixdev/adapters-http";
+import { createApplication } from "@agentixdev/core";
 
 import { notes, NoteStorage } from "./features/notes.js";
 

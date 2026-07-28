@@ -1,4 +1,4 @@
-import { command, event, feature, port, query, s } from "@agentix/core";
+import { command, event, feature, port, query, s } from "@agentixdev/core";
 
 /* ------------------------------------------------------------------ */
 /* Domain records                                                     */

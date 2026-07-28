@@ -1,13 +1,13 @@
 import {
   createHttpHandler,
   createTrustedHeaderPrincipalExtractor,
-} from "@agentix/adapters-http";
-import { createApplication } from "@agentix/core";
+} from "@agentixdev/adapters-http";
+import { createApplication } from "@agentixdev/core";
 import {
   COMMERCE_HTTP_CONTRACT,
   type CommerceSystem,
   type CommerceSystemOptions,
-} from "@agentix/shared-contract";
+} from "@agentixdev/shared-contract";
 
 import { cloneSnapshot, commerceAdapters, createState } from "./adapters.js";
 import { customers } from "./features/customers.js";

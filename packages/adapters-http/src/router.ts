@@ -3,7 +3,7 @@ import type {
   HttpMethod,
   Schema,
   SchemaDescription,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 export type Awaitable<T> = T | Promise<T>;
 

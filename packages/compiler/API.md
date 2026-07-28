@@ -1,4 +1,4 @@
-# `@agentix/compiler` API
+# `@agentixdev/compiler` API
 
 Every public export, one line each. Artifact shapes: the repository's
 `docs/CLI.md`.

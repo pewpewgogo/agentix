@@ -1,4 +1,4 @@
-import { s } from "@agentix/core";
+import { s } from "@agentixdev/core";
 
 export const OrderDraft = s.object({
   id: s.string({ min: 1 }),

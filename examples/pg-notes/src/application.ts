@@ -3,7 +3,7 @@ import {
   createBearerPrincipalExtractor,
   createHttpHandler,
   type HttpHandler,
-} from "@agentix/adapters-http";
+} from "@agentixdev/adapters-http";
 import {
   createApplication,
   type Application,
@@ -11,7 +11,7 @@ import {
   type BoundPortAdapter,
   type Principal,
   type RuntimeMode,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 import { createPostgresNotesAdapter, createPostgresPool } from "./adapters/postgres.js";
 import { NoteClock, notes } from "./features/notes.js";

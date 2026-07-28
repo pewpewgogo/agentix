@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
-      "@agentix/benchmark-harness": fileURLToPath(
+      "@agentixdev/benchmark-harness": fileURLToPath(
         new URL("../harness/src/index.ts", import.meta.url),
       ),
     },

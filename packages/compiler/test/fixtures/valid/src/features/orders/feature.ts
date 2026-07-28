@@ -1,4 +1,4 @@
-import { command, event, feature, port, s } from "@agentix/core";
+import { command, event, feature, port, s } from "@agentixdev/core";
 import { CustomerStore } from "../customers.js";
 import { OrderDraft } from "./model.js";
 

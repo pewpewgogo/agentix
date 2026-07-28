@@ -1,4 +1,4 @@
-# @agentix/core
+# @agentixdev/core
 
 ## 0.1.0
 

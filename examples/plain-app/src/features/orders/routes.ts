@@ -1,7 +1,7 @@
 import {
   COMMERCE_ERRORS,
   COMMERCE_HTTP_CONTRACT,
-} from "@agentix/shared-contract";
+} from "@agentixdev/shared-contract";
 
 import type { Route } from "../../http/router.js";
 import {

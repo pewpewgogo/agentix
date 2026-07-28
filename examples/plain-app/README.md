@@ -33,10 +33,10 @@ unrelated entity IDs.
 ## Verification
 
 ```sh
-npm run typecheck --workspace @agentix/plain-app
-npm test --workspace @agentix/plain-app
+npm run typecheck --workspace @agentixdev/plain-app
+npm test --workspace @agentixdev/plain-app
 ```
 
 The package registers the implementation-independent acceptance suite from
-`@agentix/shared-contract/acceptance`; focused tests additionally cover customer
+`@agentixdev/shared-contract/acceptance`; focused tests additionally cover customer
 boundaries and the cross-feature invariant.

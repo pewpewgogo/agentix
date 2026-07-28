@@ -1,4 +1,4 @@
-import type { DispatchObserver } from "@agentix/core";
+import type { DispatchObserver } from "@agentixdev/core";
 
 /** Milliseconds with microsecond precision from a bigint nanosecond reading. */
 const millis = (durationNs: bigint): number =>

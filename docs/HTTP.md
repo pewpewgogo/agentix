@@ -1,6 +1,6 @@
 # HTTP Adapter
 
-`@agentix/adapters-http` maps operations to HTTP automatically. Routes are
+`@agentixdev/adapters-http` maps operations to HTTP automatically. Routes are
 derived from each operation's `http` metadata; the response envelope is fixed;
 `defineHttpRoute` is the only escape hatch. Entries: the package root exports
 everything, `./web` is the edge-safe subset (no Node built-ins), `./node`
@@ -9,7 +9,7 @@ exports the raw Node host.
 ## Handler
 
 ```ts
-import { createHttpHandler } from "@agentix/adapters-http";
+import { createHttpHandler } from "@agentixdev/adapters-http";
 
 const handler = createHttpHandler(app);
 ```
@@ -178,7 +178,7 @@ import {
   AuthenticationError,
   createBearerPrincipalExtractor,
   createHttpHandler,
-} from "@agentix/adapters-http";
+} from "@agentixdev/adapters-http";
 
 const bearer = createBearerPrincipalExtractor({
   resolve: async (token) =>
@@ -199,7 +199,7 @@ check runs before the request body is read in all cases.
 exposes an operation that has no `http` metadata:
 
 ```ts
-import { defineHttpRoute } from "@agentix/adapters-http";
+import { defineHttpRoute } from "@agentixdev/adapters-http";
 
 const handler = createHttpHandler(app, {
   routes: [
@@ -224,7 +224,7 @@ app), `status?`, `errorStatus?` (merged over the declared per-error statuses),
 Node (raw `node:http`, no per-request `Request` allocation):
 
 ```ts
-import { serveNode } from "@agentix/adapters-http";
+import { serveNode } from "@agentixdev/adapters-http";
 
 const server = await serveNode(handler, {
   port: 3000,          // 0 = ephemeral; server.url reflects the real port

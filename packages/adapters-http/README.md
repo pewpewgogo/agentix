@@ -1,4 +1,4 @@
-# `@agentix/adapters-http`
+# `@agentixdev/adapters-http`
 
 Automatic HTTP for [Agentix](https://pewpewgogo.github.io/agentix/)
 applications: routes are derived from each operation's `http` metadata, the
@@ -6,7 +6,7 @@ JSON envelope is fixed, and the same handler serves Node (raw `node:http` fast
 path) and edge runtimes (Web `fetch`).
 
 ```sh
-npm install @agentix/core @agentix/adapters-http
+npm install @agentixdev/core @agentixdev/adapters-http
 ```
 
 Entries: package root (everything), `./web` (edge-safe, no Node built-ins),
@@ -19,8 +19,8 @@ import {
   createBearerPrincipalExtractor,
   createHttpHandler,
   serveNode,
-} from "@agentix/adapters-http";
-import { createApplication } from "@agentix/core";
+} from "@agentixdev/adapters-http";
+import { createApplication } from "@agentixdev/core";
 
 import { notes, NoteStorage } from "./features/notes.js";
 

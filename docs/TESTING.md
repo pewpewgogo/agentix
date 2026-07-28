@@ -1,6 +1,6 @@
 # Testing
 
-`@agentix/testing` runs operations through the exact production dispatcher
+`@agentixdev/testing` runs operations through the exact production dispatcher
 with deterministic infrastructure. It complements Vitest (or any runner); it
 does not replace one.
 
@@ -14,7 +14,7 @@ like a store is NOT memory-faked), `time` ops a deterministic clock, `random`
 ops seeded ids; anything else throws with a clear message until overridden.
 
 ```ts
-import { createTestApplication } from "@agentix/testing";
+import { createTestApplication } from "@agentixdev/testing";
 
 const harness = createTestApplication({ features: [notes] });
 const { app, calls, clock, ids } = harness;
@@ -81,8 +81,8 @@ recording wrapper unchanged.
 Drives any `{ fetch(request) }` handler without a socket:
 
 ```ts
-import { TEST_PRINCIPAL_HEADER, testHttp } from "@agentix/testing";
-import type { Principal } from "@agentix/core";
+import { TEST_PRINCIPAL_HEADER, testHttp } from "@agentixdev/testing";
+import type { Principal } from "@agentixdev/core";
 
 const handler = createHttpHandler(app, {
   authenticate: (request) => {
@@ -114,7 +114,7 @@ principal that holds exactly the operation's permissions (override with
 `principal`):
 
 ```ts
-import { assertEffectSequence, testCommand } from "@agentix/testing";
+import { assertEffectSequence, testCommand } from "@agentixdev/testing";
 
 const created = await testCommand({
   application: app,

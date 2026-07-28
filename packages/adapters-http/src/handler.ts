@@ -3,7 +3,7 @@ import type {
   Application,
   DispatchResult,
   Principal,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 import { AuthenticationError, createCookieLookup } from "./auth.js";
 import type { HttpRequestView, PrincipalExtractor } from "./auth.js";

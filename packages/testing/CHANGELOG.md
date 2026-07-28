@@ -1,4 +1,4 @@
-# @agentix/testing
+# @agentixdev/testing
 
 ## 0.1.0
 

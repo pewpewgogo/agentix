@@ -44,7 +44,7 @@ channel. Model expected alternatives in the output schema; let unexpected
 failures throw (they become `EFFECT_FAILURE` faults):
 
 ```ts
-import { port, s } from "@agentix/core";
+import { port, s } from "@agentixdev/core";
 
 export const Payments = port("payments", {
   charge: port.external({
@@ -291,7 +291,7 @@ it, and the HTTP adapter calls `app.authorize` before reading a request body,
 so a custom hook is honored on every entry:
 
 ```ts
-import { authorize, principal } from "@agentix/core";
+import { authorize, principal } from "@agentixdev/core";
 
 const admin = principal("admin", ["notes:write"]);
 await app.call("notes.create", input, { principal: admin });

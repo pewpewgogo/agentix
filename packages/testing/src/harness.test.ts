@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { command, createApplication, event, feature, port, query, s } from "@agentix/core";
+import { command, createApplication, event, feature, port, query, s } from "@agentixdev/core";
 
 import { createRecordingAdapter } from "./recording.js";
 import { testCommand, testQuery } from "./harness.js";

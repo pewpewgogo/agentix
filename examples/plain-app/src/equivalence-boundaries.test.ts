@@ -1,7 +1,7 @@
 import {
   COMMERCE_ERRORS,
   COMMERCE_HTTP_CONTRACT,
-} from "@agentix/shared-contract";
+} from "@agentixdev/shared-contract";
 import { describe, expect, it, vi } from "vitest";
 
 import { createPlainSystem } from "./system.js";

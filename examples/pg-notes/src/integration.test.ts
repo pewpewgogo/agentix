@@ -6,7 +6,7 @@
  *   PG_NOTES_DATABASE_URL=postgres://notes:notes@127.0.0.1:55432/notes \
  *     vitest run examples/pg-notes/src/integration.test.ts
  */
-import { principal } from "@agentix/core";
+import { principal } from "@agentixdev/core";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { createPostgresPool, type SqlPool } from "./adapters/postgres.js";

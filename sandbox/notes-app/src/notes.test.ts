@@ -1,4 +1,4 @@
-import { associateOperationTest, testHttp } from "@agentix/testing";
+import { associateOperationTest, testHttp } from "@agentixdev/testing";
 import { describe, expect, it } from "vitest";
 
 import { createNotesApp } from "./app.js";

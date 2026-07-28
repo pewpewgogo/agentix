@@ -1,4 +1,4 @@
-# `@agentix/core`
+# `@agentixdev/core`
 
 Schemas, operation descriptors, ports, events, and the dispatch runtime of the
 [Agentix](https://pewpewgogo.github.io/agentix/) TypeScript framework. One
@@ -7,7 +7,7 @@ errors (with HTTP status), permissions, effects, and route in one place, and
 the application derives everything else.
 
 ```sh
-npm install @agentix/core
+npm install @agentixdev/core
 ```
 
 Agentix is research-stage, ESM-only, and pre-1.0.
@@ -15,7 +15,7 @@ Agentix is research-stage, ESM-only, and pre-1.0.
 ## Example
 
 ```ts
-import { command, createApplication, feature, port, query, s } from "@agentix/core";
+import { command, createApplication, feature, port, query, s } from "@agentixdev/core";
 
 const Note = s.object({
   id: s.string({ min: 1 }),

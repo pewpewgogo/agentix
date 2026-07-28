@@ -4,7 +4,7 @@
  * `testHttp` driving the handler's Web entry, with the persistence port
  * replaced by memory fakes.
  */
-import { createTestApplication, testHttp } from "@agentix/testing";
+import { createTestApplication, testHttp } from "@agentixdev/testing";
 import { describe, expect, it } from "vitest";
 
 import { createPgNotesHandler } from "./application.js";

@@ -11,7 +11,7 @@ import {
   type PricingSnapshot,
   type RunRecord,
   type TaskReference,
-} from "@agentix/benchmark-harness";
+} from "@agentixdev/benchmark-harness";
 import { describe, expect, it } from "vitest";
 
 import { analyzeExperiment } from "./analyze.js";

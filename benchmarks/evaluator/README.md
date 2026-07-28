@@ -48,11 +48,11 @@ and `production_hidden_evaluator_unavailable`.
 ## Commands
 
 ```sh
-npm --workspace @agentix/benchmark-evaluator run typecheck
-npm --workspace @agentix/benchmark-evaluator test
-npm --workspace @agentix/benchmark-evaluator run freeze:check
-npm --workspace @agentix/benchmark-evaluator run freeze:check:v2
-npm --workspace @agentix/benchmark-evaluator run dryrun:v2
+npm --workspace @agentixdev/benchmark-evaluator run typecheck
+npm --workspace @agentixdev/benchmark-evaluator test
+npm --workspace @agentixdev/benchmark-evaluator run freeze:check
+npm --workspace @agentixdev/benchmark-evaluator run freeze:check:v2
+npm --workspace @agentixdev/benchmark-evaluator run dryrun:v2
 ```
 
 `loadCorpus` defaults to the frozen v1 corpus; pass `"v2"` (or

@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { sha256 } from "@agentix/benchmark-harness";
+import { sha256 } from "@agentixdev/benchmark-harness";
 
 import {
   publishReportDirectory,

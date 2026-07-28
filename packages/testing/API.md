@@ -1,4 +1,4 @@
-# `@agentix/testing` API
+# `@agentixdev/testing` API
 
 Every public export, one line each. Full guide: the repository's
 `docs/TESTING.md`.

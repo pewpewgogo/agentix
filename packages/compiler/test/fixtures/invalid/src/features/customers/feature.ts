@@ -1,3 +1,3 @@
-import { feature } from "@agentix/core";
+import { feature } from "@agentixdev/core";
 
 export const customers = feature("customers", { operations: {} });

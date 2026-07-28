@@ -12,8 +12,8 @@ module resolution (relative imports use `.js` suffixes).
 ```sh
 mkdir agentix-notes && cd agentix-notes
 npm init -y && npm pkg set type=module
-npm install @agentix/core @agentix/adapters-http
-npm install --save-dev @agentix/cli @agentix/testing typescript vitest
+npm install @agentixdev/core @agentixdev/adapters-http
+npm install --save-dev @agentixdev/cli @agentixdev/testing typescript vitest
 ```
 
 `tsconfig.json`:
@@ -37,7 +37,7 @@ npm install --save-dev @agentix/cli @agentix/testing typescript vitest
 file is the feature's public contract:
 
 ```ts
-import { command, feature, port, query, s } from "@agentix/core";
+import { command, feature, port, query, s } from "@agentixdev/core";
 
 export const Note = s.object({
   id: s.string({ min: 1 }),
@@ -92,8 +92,8 @@ What each block declares:
 `src/app.ts` — assemble features and adapters; HTTP routes are derived:
 
 ```ts
-import { createHttpHandler } from "@agentix/adapters-http";
-import { createApplication } from "@agentix/core";
+import { createHttpHandler } from "@agentixdev/adapters-http";
+import { createApplication } from "@agentixdev/core";
 
 import { notes, NoteStorage } from "./features/notes.js";
 
@@ -114,7 +114,7 @@ from the operations' `http` metadata — there is no route table to maintain.
 `src/serve.ts`:
 
 ```ts
-import { serveNode } from "@agentix/adapters-http";
+import { serveNode } from "@agentixdev/adapters-http";
 
 import { handler } from "./app.js";
 
@@ -136,7 +136,7 @@ Edge runtimes skip `serveNode` and use `handler.fetch(request)` directly.
 `src/features/notes.test.ts` — HTTP-level, no server socket:
 
 ```ts
-import { testHttp } from "@agentix/testing";
+import { testHttp } from "@agentixdev/testing";
 import { describe, expect, it } from "vitest";
 
 import { handler } from "../app.js";

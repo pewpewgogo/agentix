@@ -1,4 +1,4 @@
-# @agentix/compiler
+# @agentixdev/compiler
 
 ## 0.1.0
 

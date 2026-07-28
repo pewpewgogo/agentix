@@ -37,7 +37,7 @@ export interface SourceManifest {
 
 /**
  * Statically evaluated schema description tree. Structurally identical to
- * the runtime `SchemaDescription` in `@agentix/core`; re-declared here so the
+ * the runtime `SchemaDescription` in `@agentixdev/core`; re-declared here so the
  * compiler stays free of a runtime dependency. Present only when the schema
  * expression could be resolved without executing code.
  */

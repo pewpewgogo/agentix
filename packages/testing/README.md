@@ -1,4 +1,4 @@
-# `@agentix/testing`
+# `@agentixdev/testing`
 
 Deterministic testing for [Agentix](https://pewpewgogo.github.io/agentix/)
 applications: a test application that auto-fakes uncovered ports (recording
@@ -6,7 +6,7 @@ every call), an HTTP driver over any `fetch` handler, dispatch harnesses,
 deterministic clocks/ids, adapter contracts, and trace assertions.
 
 ```sh
-npm install --save-dev @agentix/testing
+npm install --save-dev @agentixdev/testing
 ```
 
 Agentix is research-stage, ESM-only, and pre-1.0.
@@ -14,8 +14,8 @@ Agentix is research-stage, ESM-only, and pre-1.0.
 ## Example
 
 ```ts
-import { createTestApplication, testHttp } from "@agentix/testing";
-import { createHttpHandler } from "@agentix/adapters-http";
+import { createTestApplication, testHttp } from "@agentixdev/testing";
+import { createHttpHandler } from "@agentixdev/adapters-http";
 import { describe, expect, it } from "vitest";
 
 import { notes } from "./features/notes.js";

@@ -1043,3 +1043,32 @@ byte-untouched (`benchmark:corpus:check` still verifies). The no-provider
 dry-run record is `results/corpus-v2-dryrun-smoke-2026-07-27.json`; per-arm
 workspace profiles ride as hash-locked overlays because the pinned commit
 predates them (fold into the inventory at the next freeze).
+
+## D-038: Migrate the published npm scope from @agentix to @agentixdev
+
+- Date: 2026-07-28
+- Status: accepted.
+
+The `@agentix` npm organization belongs to an unrelated party, so the five
+published packages move to the maintainer-owned `@agentixdev` organization:
+`@agentixdev/core`, `@agentixdev/compiler`, `@agentixdev/cli`,
+`@agentixdev/testing`, and `@agentixdev/adapters-http`. Private workspace
+packages (examples, sandbox, benchmarks) adopt the same scope so one name
+resolves everywhere. Everything else about the release contract is unchanged:
+the CLI binary remains `agentix` (`npm exec -- agentix ...`), coordinated
+versioning, provenance, and the changeset fixed group carry over under the new
+names.
+
+Frozen records keep historical names: benchmark results, fixture and hidden
+evaluator manifests, corpus task specifications and locks, the frozen docs
+(ARCHITECTURE, HYPOTHESIS, BENCHMARK_PROTOCOL, PHASE5_READINESS, LIMITATIONS),
+and prior entries in this file continue to read `@agentix/*` as history. The
+corpora verify against pinned git revisions, so the rename cannot alter them;
+both corpus freeze checks must still pass on the renamed tree. Existing
+`0.1.0` changelog entries likewise keep the `@agentix/*@0.1.0` dependency
+lines because those artifacts were published under the old scope.
+
+Rejected alternative: publishing under the unscoped `agentix` name (owned by
+an unrelated project, per D-034 lineage) or negotiating for the `@agentix`
+org — neither is available, and squatting-adjacent names would break the
+provenance story.

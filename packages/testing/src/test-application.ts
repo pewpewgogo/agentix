@@ -11,7 +11,7 @@ import {
   type Principal,
   type RuntimeMode,
   type Subscription,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 import {
   createDeterministicClock,

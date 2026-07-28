@@ -42,4 +42,4 @@ export type {
   RouteSegment,
 } from "./router.js";
 
-export type { HttpMethod } from "@agentix/core";
+export type { HttpMethod } from "@agentixdev/core";

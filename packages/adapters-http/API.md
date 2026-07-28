@@ -1,4 +1,4 @@
-# `@agentix/adapters-http` API
+# `@agentixdev/adapters-http` API
 
 Every public export, one line each. Entries: root (all), `./web` (edge-safe),
 `./node` (`serveNode` only). Full guide: the repository's `docs/HTTP.md`.

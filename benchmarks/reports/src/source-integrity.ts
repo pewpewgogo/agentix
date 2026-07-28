@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-import { canonicalJson, sha256 } from "@agentix/benchmark-harness";
+import { canonicalJson, sha256 } from "@agentixdev/benchmark-harness";
 
 import { ANALYSIS_VERSION } from "./validation.js";
 

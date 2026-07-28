@@ -1,11 +1,11 @@
-# `@agentix/cli`
+# `@agentixdev/cli`
 
 The `agentix` command for [Agentix](https://pewpewgogo.github.io/agentix/)
 applications: bounded inspection artifacts, dependency graphs, conservative
 affected scope, narrow verification, and single-file feature scaffolding.
 
 ```sh
-npm install --save-dev @agentix/cli
+npm install --save-dev @agentixdev/cli
 ```
 
 Agentix is research-stage, ESM-only, and pre-1.0.
@@ -42,7 +42,7 @@ input and never overrides TypeScript source.
 The CLI is also programmable:
 
 ```ts
-import { ExitCode, runCli } from "@agentix/cli";
+import { ExitCode, runCli } from "@agentixdev/cli";
 
 const exitCode = await runCli(["inspect", "notes.create", "--json", "--compact"], {
   cwd: "/path/to/application",

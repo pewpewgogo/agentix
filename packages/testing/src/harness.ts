@@ -6,7 +6,7 @@ import type {
   DispatchResult,
   Infer,
   Principal,
-} from "@agentix/core";
+} from "@agentixdev/core";
 
 /**
  * Structural application surface used by the harnesses: anything returned by

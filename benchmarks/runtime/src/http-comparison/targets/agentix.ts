@@ -1,5 +1,5 @@
-import { command, createApplication, feature, query, s } from "@agentix/core";
-import { createHttpHandler, serveNode } from "@agentix/adapters-http";
+import { command, createApplication, feature, query, s } from "@agentixdev/core";
+import { createHttpHandler, serveNode } from "@agentixdev/adapters-http";
 
 import type { HttpCondition, StartedHttpTarget } from "../types.js";
 

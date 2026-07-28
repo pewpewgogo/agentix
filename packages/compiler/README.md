@@ -1,13 +1,13 @@
-# `@agentix/compiler`
+# `@agentixdev/compiler`
 
 Static analysis of [Agentix](https://pewpewgogo.github.io/agentix/) source into
 a deterministic machine index, bounded per-operation context artifacts,
 conservative affected-scope computation, and verification planning. Most
-applications consume it through `@agentix/cli`; use this package directly for
+applications consume it through `@agentixdev/cli`; use this package directly for
 custom tooling.
 
 ```sh
-npm install --save-dev @agentix/compiler
+npm install --save-dev @agentixdev/compiler
 ```
 
 Agentix is research-stage, ESM-only, and pre-1.0. The compiler pins TypeScript
@@ -21,7 +21,7 @@ import {
   createOperationContext,
   generateIndex,
   planVerification,
-} from "@agentix/compiler";
+} from "@agentixdev/compiler";
 
 const rootDir = "/path/to/application";
 

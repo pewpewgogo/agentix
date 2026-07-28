@@ -5,11 +5,11 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageSpecs = [
-  ["@agentix/core", "packages/core"],
-  ["@agentix/compiler", "packages/compiler"],
-  ["@agentix/cli", "packages/cli"],
-  ["@agentix/testing", "packages/testing"],
-  ["@agentix/adapters-http", "packages/adapters-http"],
+  ["@agentixdev/core", "packages/core"],
+  ["@agentixdev/compiler", "packages/compiler"],
+  ["@agentixdev/cli", "packages/cli"],
+  ["@agentixdev/testing", "packages/testing"],
+  ["@agentixdev/adapters-http", "packages/adapters-http"],
 ];
 const publicPackageNames = new Set(packageSpecs.map(([name]) => name));
 
@@ -140,10 +140,10 @@ for (const [name, directory] of packageSpecs) {
 }
 
 const packageByName = new Map(packages.map((entry) => [entry.name, entry]));
-const runtimePackages = ["@agentix/core", "@agentix/adapters-http"]
+const runtimePackages = ["@agentixdev/core", "@agentixdev/adapters-http"]
   .map((name) => packageByName.get(name).url)
   .join(" ");
-const developmentPackages = ["@agentix/cli", "@agentix/testing"]
+const developmentPackages = ["@agentixdev/cli", "@agentixdev/testing"]
   .map((name) => packageByName.get(name).url)
   .join(" ");
 const notes = `# Agentix GitHub test packages ${version}
@@ -160,8 +160,8 @@ npm install --save-dev ${developmentPackages}
 npm exec -- agentix help
 \`\`\`
 
-The installed package names remain \`@agentix/core\`,
-\`@agentix/adapters-http\`, \`@agentix/cli\`, and \`@agentix/testing\`.
+The installed package names remain \`@agentixdev/core\`,
+\`@agentixdev/adapters-http\`, \`@agentixdev/cli\`, and \`@agentixdev/testing\`.
 Internal package dependencies resolve to immutable assets from this release.
 `;
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { port, s } from "@agentix/core";
+import { port, s } from "@agentixdev/core";
 
 import { createRecordingAdapter, createScriptedEffect } from "./recording.js";
 

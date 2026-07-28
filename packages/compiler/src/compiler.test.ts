@@ -169,7 +169,7 @@ describe("agent index compiler", () => {
     const fields = Array.from({ length: 80 }, (_, index) => `f${index}: s.string({ min: 1 })`);
     writeFileSync(
       join(temporary, "src/features/bulk.ts"),
-      `import { feature, query, s } from "@agentix/core";\n\n` +
+      `import { feature, query, s } from "@agentixdev/core";\n\n` +
       `export const Bulk = s.object({ ${fields.join(", ")} });\n\n` +
       `export const bulk = feature("bulk", {\n` +
       `  operations: {\n` +
@@ -460,7 +460,7 @@ describe("agent index compiler", () => {
     const temporary = temporaryFixture("valid");
     writeFileSync(
       join(temporary, "src/features/billing.ts"),
-      `import { feature, query, s } from "@agentix/core";\n\n` +
+      `import { feature, query, s } from "@agentixdev/core";\n\n` +
       `export const billing = feature("billing", {\n` +
       `  operations: {\n` +
       `    list: query({ input: s.object({}), output: s.object({}), async execute() { return {}; } }),\n` +
@@ -494,7 +494,7 @@ describe("agent index compiler", () => {
     const temporary = temporaryFixture("valid");
     writeFileSync(
       join(temporary, "src/features/broken.ts"),
-      `import { feature } from "@agentix/core";\n\n` +
+      `import { feature } from "@agentixdev/core";\n\n` +
       `const dynamicId = "broken" as string;\n` +
       `export const broken = feature(dynamicId, { operations: {} });\n`,
       "utf8",
@@ -628,7 +628,7 @@ describe("agent index compiler", () => {
     );
     writeFileSync(
       join(temporary, "src/orders.acceptance.test.ts"),
-      `import { associateOperationTest } from "@agentix/testing";\n` +
+      `import { associateOperationTest } from "@agentixdev/testing";\n` +
       `import { orders } from "./features/orders/feature.js";\n\n` +
       `export const acceptance = associateOperationTest(orders.operations.create, "orders.acceptance");\n`,
       "utf8",
@@ -672,7 +672,7 @@ describe("agent index compiler", () => {
     const temporary = temporaryFixture("valid");
     writeFileSync(
       join(temporary, "src/features/alpha.ts"),
-      `import { command, feature, port, query, s } from "@agentix/core";\n\n` +
+      `import { command, feature, port, query, s } from "@agentixdev/core";\n\n` +
       `export const Note = s.object({ id: s.string({ min: 1 }) });\n` +
       `export const NoteStorage = port.store("noteStorage2", Note);\n\n` +
       `const extraOps = {\n` +
@@ -717,7 +717,7 @@ describe("agent index compiler", () => {
     const temporary = temporaryFixture("valid");
     writeFileSync(
       join(temporary, "src/features/gadgets.ts"),
-      `import { feature, port, s } from "@agentix/core";\n\n` +
+      `import { feature, port, s } from "@agentixdev/core";\n\n` +
       `const extra = {\n` +
       `  ping: port.external({ input: s.object({}), output: s.object({}) }),\n` +
       `};\n\n` +
@@ -747,7 +747,7 @@ describe("agent index compiler", () => {
     const temporary = temporaryFixture("valid");
     writeFileSync(
       join(temporary, "src/features/alpha.ts"),
-      `import { command, event, feature, port, s } from "@agentix/core";\n\n` +
+      `import { command, event, feature, port, s } from "@agentixdev/core";\n\n` +
       `export const Note = s.object({ id: s.string({ min: 1 }) });\n` +
       `export const NoteStorage = port.store("noteStorage", Note);\n` +
       `export const NoteCreated = event("alpha.note-created", 1, Note);\n\n` +
@@ -800,7 +800,7 @@ describe("agent index compiler", () => {
     const temporary = temporaryFixture("valid");
     writeFileSync(
       join(temporary, "src/features/pair.ts"),
-      `import { command, feature, s } from "@agentix/core";\n\n` +
+      `import { command, feature, s } from "@agentixdev/core";\n\n` +
       `export const first = feature("first", {\n` +
       `  operations: {\n` +
       `    create: command({ input: s.object({}), output: s.boolean(), async execute() { return true; } }),\n` +
@@ -867,7 +867,7 @@ describe("agent index compiler", () => {
     );
     writeFileSync(
       join(temporary, "src/features/notes.ts"),
-      `import { command, feature, s } from "@agentix/core";\n` +
+      `import { command, feature, s } from "@agentixdev/core";\n` +
       `import { normalizeTitle } from "./notes.helpers.js";\n\n` +
       `export const notes = feature("notes", {\n` +
       `  operations: {\n` +
@@ -947,7 +947,7 @@ describe("agent index compiler", () => {
     );
     writeFileSync(
       join(temporary, "--shard.test.ts"),
-      `import { associateOperationTest } from "@agentix/testing";\n` +
+      `import { associateOperationTest } from "@agentixdev/testing";\n` +
       `import { orders } from "./src/features/orders/feature.js";\n\n` +
       `export const sharded = associateOperationTest(orders.operations.create, "orders.sharded");\n`,
       "utf8",

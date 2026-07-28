@@ -6,7 +6,7 @@ import {
   type ScheduleDocument,
   type ScheduledRun,
   type TaskReference,
-} from "@agentix/benchmark-harness";
+} from "@agentixdev/benchmark-harness";
 
 import type {
   AnalysisConfiguration,

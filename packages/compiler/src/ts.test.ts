@@ -45,9 +45,9 @@ describe("typescript unstable API guard", () => {
       assertUnstableApiShape("typescript/unstable/sync", simulated, UNSTABLE_SYNC_API_SHAPE),
     ).toThrowError(
       new RegExp(
-        String.raw`^@agentix/compiler could not load the unstable TypeScript compiler API ` +
+        String.raw`^@agentixdev/compiler could not load the unstable TypeScript compiler API ` +
           String.raw`"typescript/unstable/sync": missing or renamed symbols: API\. ` +
-          String.raw`This @agentix/compiler build supports exactly typescript@${PINNED_TYPESCRIPT_VERSION}\. ` +
+          String.raw`This @agentixdev/compiler build supports exactly typescript@${PINNED_TYPESCRIPT_VERSION}\. ` +
           String.raw`Install that release \(npm install --save-exact typescript@${PINNED_TYPESCRIPT_VERSION}\)`,
         "u",
       ),

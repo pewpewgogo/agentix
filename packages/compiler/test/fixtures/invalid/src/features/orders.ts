@@ -1,4 +1,4 @@
-import { feature, port, query, s } from "@agentix/core";
+import { feature, port, query, s } from "@agentixdev/core";
 import { privateCustomerState } from "./customers/model.js";
 
 const Store = port("store", {

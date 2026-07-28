@@ -2,10 +2,10 @@
 
 Every public export of the five packages, grouped by module. Packages are
 ESM-only, one coordinated pre-1.0 version; supported entry points are the
-package roots plus `@agentix/adapters-http/web` and `/node`. Each package also
+package roots plus `@agentixdev/adapters-http/web` and `/node`. Each package also
 ships this reference offline as `API.md`.
 
-## `@agentix/core`
+## `@agentixdev/core`
 
 ### Schemas (`s` namespace; types also exported top-level)
 
@@ -90,7 +90,7 @@ ships this reference offline as `API.md`.
   `EventTraceEntry`, `Principal`, `RuntimeMode`,
   `ApplicationDefinitionIssue`, `ApplicationDefinitionIssueCode`.
 
-## `@agentix/adapters-http`
+## `@agentixdev/adapters-http`
 
 Root re-exports `./web` plus `serveNode`; `./web` is edge-safe.
 
@@ -129,7 +129,7 @@ Root re-exports `./web` plus `serveNode`; `./web` is edge-safe.
 - `serveNode(handler, {port, host?, maxBodyBytes?, gracefulTimeoutMs?, closeApplication?}): Promise<NodeHttpServer>` — raw `node:http` fast path; `{server, url, close()}`. `close()` drains in-flight requests up to `gracefulTimeoutMs` (default 10 000 ms) before destroying sockets; with `closeApplication` it then awaits `handler.app.close()`. Client disconnects abort the in-flight dispatch; aborted requests never write.
 - Types: `ServeNodeOptions`, `NodeHttpServer`.
 
-## `@agentix/testing`
+## `@agentixdev/testing`
 
 ### Test application
 
@@ -189,7 +189,7 @@ Root re-exports `./web` plus `serveNode`; `./web` is edge-safe.
   `AssociableOperation`, `OperationTestAssociation`,
   `DefineOperationTestOptions`.
 
-## `@agentix/compiler`
+## `@agentixdev/compiler`
 
 - `analyzeProject({rootDir, files?, include?}): AgentIndex` — static analysis to the schema-2 index.
 - `generateIndex({rootDir, outputFile?, write?, ...}): GeneratedIndex` — deterministic `{index, json, outputFile}`.
@@ -215,7 +215,7 @@ Root re-exports `./web` plus `serveNode`; `./web` is edge-safe.
   `OperationContextOmission`, `OperationContextProjection`,
   `OperationContextVerification`, `OperationDetail`.
 
-## `@agentix/cli`
+## `@agentixdev/cli`
 
 - `runCli(argv, {cwd?, io?, runProcess?}?): Promise<number>` — the `agentix` binary's contract, programmable.
 - `ExitCode` — `{success: 0, verificationFailure: 1, invalidInvocation: 2, internalFailure: 3}`.

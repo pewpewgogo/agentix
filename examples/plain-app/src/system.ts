@@ -2,7 +2,7 @@ import {
   COMMERCE_HTTP_CONTRACT,
   type CommerceSystem,
   type CommerceSystemOptions,
-} from "@agentix/shared-contract";
+} from "@agentixdev/shared-contract";
 
 import type { Clock } from "./features/customers/customer.js";
 import { CustomerService } from "./features/customers/customer.js";

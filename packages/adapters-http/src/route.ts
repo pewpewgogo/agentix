@@ -1,4 +1,4 @@
-import type { AnyBoundOperation, HttpMethod, Infer } from "@agentix/core";
+import type { AnyBoundOperation, HttpMethod, Infer } from "@agentixdev/core";
 
 import { normalizeRoutePath } from "./router.js";
 import type { Awaitable, HttpRequestContext, HttpRouteOverride } from "./router.js";

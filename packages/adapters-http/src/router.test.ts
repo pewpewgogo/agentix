@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createApplication, feature, query, s } from "@agentix/core";
-import type { AnyBoundOperation } from "@agentix/core";
+import { createApplication, feature, query, s } from "@agentixdev/core";
+import type { AnyBoundOperation } from "@agentixdev/core";
 
 import { defineHttpRoute } from "./route.js";
 import { compileRouteTable, matchRoute } from "./router.js";

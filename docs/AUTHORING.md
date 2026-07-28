@@ -9,7 +9,7 @@ file and its colocated test.
 `src/features/notes.ts` — schema, store port, operations, HTTP wiring, errors:
 
 ```ts
-import { command, feature, port, query, s } from "@agentix/core";
+import { command, feature, port, query, s } from "@agentixdev/core";
 
 export const Note = s.object({
   id: s.string({ min: 1 }),

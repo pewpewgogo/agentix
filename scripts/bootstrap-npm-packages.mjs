@@ -1,19 +1,19 @@
 // One-time, LOCAL bootstrap for npm trusted publishing.
 //
 // npm cannot attach a trusted publisher to a package that has never been
-// published, so the five @agentix/* names must exist once before the OIDC
+// published, so the five @agentixdev/* names must exist once before the OIDC
 // release workflow can publish them. This script publishes a minimal
 // placeholder version for each name FROM YOUR LOCAL npm login session
 // (browser + 2FA) — no automation token is created at any point.
 //
 // The placeholders:
 //   - version 0.0.0-bootstrap.0 under the dist-tag "bootstrap" (never
-//     "latest", so `npm install @agentix/core` fails until a real release);
+//     "latest", so `npm install @agentixdev/core` fails until a real release);
 //   - contain only a package.json and a README pointing at the repository;
 //   - are deprecated immediately with a pointer to the first real release.
 //
 // Usage:
-//   npm login          # as an owner of the @agentix scope
+//   npm login          # as an owner of the @agentixdev scope
 //   node scripts/bootstrap-npm-packages.mjs [--dry-run]
 //
 // Afterwards configure each package's trusted publisher on npmjs.com
@@ -25,11 +25,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const PACKAGES = [
-  "@agentix/core",
-  "@agentix/compiler",
-  "@agentix/cli",
-  "@agentix/testing",
-  "@agentix/adapters-http",
+  "@agentixdev/core",
+  "@agentixdev/compiler",
+  "@agentixdev/cli",
+  "@agentixdev/testing",
+  "@agentixdev/adapters-http",
 ];
 const VERSION = "0.0.0-bootstrap.0";
 const DEPRECATION =
@@ -38,8 +38,10 @@ const DEPRECATION =
 
 const dryRun = process.argv.includes("--dry-run");
 
-const npm = (args, options = {}) =>
-  execFileSync("npm", args, { encoding: "utf8", stdio: "pipe", ...options }).trim();
+const npm = (args, options = {}) => {
+  const output = execFileSync("npm", args, { encoding: "utf8", stdio: "pipe", ...options });
+  return typeof output === "string" ? output.trim() : "";
+};
 
 let user;
 try {

@@ -22,7 +22,7 @@ import {
   type GraphEdge,
   type IndexedHttp,
   type OperationContext,
-} from "@agentix/compiler";
+} from "@agentixdev/compiler";
 
 export const ExitCode = {
   success: 0,
@@ -486,7 +486,7 @@ const featureName = (name: string): FeatureNames => {
  */
 const scaffoldTemplates = (name: string): ReadonlyMap<string, string> => {
   const { camel, pascal, constant, storeId } = featureName(name);
-  const featureFile = `import { command, feature, port, query, s } from "@agentix/core";
+  const featureFile = `import { command, feature, port, query, s } from "@agentixdev/core";
 
 export const ${pascal} = s.object({
   id: s.string({ min: 1 }),
@@ -524,7 +524,7 @@ export const ${camel} = feature("${name}", {
   },
 });
 `;
-  const testFile = `import { createApplication } from "@agentix/core";
+  const testFile = `import { createApplication } from "@agentixdev/core";
 import { describe, expect, it } from "vitest";
 
 import { ${camel}, ${pascal}Storage } from "./${name}.js";

@@ -1,5 +1,5 @@
 {
-  "name": "@agentix/compiler",
+  "name": "@agentixdev/compiler",
   "version": "0.1.0",
   "description": "Static architecture analysis and bounded context projection for Agentix applications.",
   "license": "MIT",

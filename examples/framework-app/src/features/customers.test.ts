@@ -1,5 +1,5 @@
-import { createApplication } from "@agentix/core";
-import { testCommand } from "@agentix/testing";
+import { createApplication } from "@agentixdev/core";
+import { testCommand } from "@agentixdev/testing";
 import { describe, expect, it } from "vitest";
 
 import {

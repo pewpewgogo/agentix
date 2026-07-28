@@ -1,9 +1,9 @@
 ---
-"@agentix/core": minor
-"@agentix/compiler": minor
-"@agentix/cli": minor
-"@agentix/testing": minor
-"@agentix/adapters-http": minor
+"@agentixdev/core": minor
+"@agentixdev/compiler": minor
+"@agentixdev/cli": minor
+"@agentixdev/testing": minor
+"@agentixdev/adapters-http": minor
 ---
 
 Production runtime and agent-leverage features on top of the v2 authoring

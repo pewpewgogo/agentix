@@ -1,4 +1,4 @@
-import { feature, port, s } from "@agentix/core";
+import { feature, port, s } from "@agentixdev/core";
 
 /** Declines are expected outcomes, so they live in the output schema. */
 export const ChargeResult = s.object({

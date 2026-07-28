@@ -1,6 +1,6 @@
 # pg-notes
 
-A production-shaped notes service on `@agentix/core` + `@agentix/adapters-http`
+A production-shaped notes service on `@agentixdev/core` + `@agentixdev/adapters-http`
 backed by a **real PostgreSQL adapter** (`pg`). It is the canonical reference
 for [docs/PERSISTENCE.md](../../docs/PERSISTENCE.md): adapter pattern,
 lifecycle hooks, a transactional unit of work, bearer auth, structured logs,

@@ -2,11 +2,11 @@
 
 Agentix publishes five public npm packages as one fixed, pre-1.0 version:
 
-- `@agentix/core`
-- `@agentix/compiler`
-- `@agentix/cli`
-- `@agentix/testing`
-- `@agentix/adapters-http`
+- `@agentixdev/core`
+- `@agentixdev/compiler`
+- `@agentixdev/cli`
+- `@agentixdev/testing`
+- `@agentixdev/adapters-http`
 
 Examples, sandboxes, benchmarks, and the repository root remain private. The
 unscoped `agentix` npm name belongs to an unrelated project and is not a release
@@ -17,7 +17,7 @@ target.
 Public GitHub Packages npm artifacts require authentication even when the
 package is public. For frictionless testing, Agentix instead publishes immutable
 package tarballs as GitHub prerelease assets. They keep the canonical
-`@agentix/*` names and can be installed directly from HTTPS release URLs without
+`@agentixdev/*` names and can be installed directly from HTTPS release URLs without
 a registry token.
 
 Run the `Publish GitHub test packages` workflow manually, or push an immutable
@@ -68,7 +68,7 @@ npm cannot attach a trusted publisher to a name that has never been published,
 so the five packages must exist once. Bootstrap, one time, from a maintainer's
 local npm login session (browser + 2FA — still no token):
 
-1. Create or confirm ownership of the `@agentix` npm organization.
+1. Create or confirm ownership of the `@agentixdev` npm organization.
 2. `npm login`, then `node scripts/bootstrap-npm-packages.mjs` (add
    `--dry-run` to preview). It publishes a deprecated
    `0.0.0-bootstrap.0` placeholder for each missing name under the
