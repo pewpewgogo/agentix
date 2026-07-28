@@ -20,8 +20,8 @@
 // (see docs/RELEASING.md) and delete nothing: there is no token to revoke.
 
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
 const PACKAGES = [
@@ -37,6 +37,43 @@ const DEPRECATION =
   "publishing; install a real release (>=0.2.0).";
 
 const dryRun = process.argv.includes("--dry-run");
+
+const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+
+const wasDuplicatePublishRejection = () => {
+  try {
+    const logsDir = join(homedir(), ".npm", "_logs");
+    const newest = readdirSync(logsDir).sort().at(-1);
+    if (newest === undefined) return false;
+    const text = readFileSync(join(logsDir, newest), "utf8");
+    return /previously published|cannot publish over|EPUBLISHCONFLICT/i.test(text);
+  } catch {
+    return false;
+  }
+};
+
+// A freshly published package is not immediately visible to the registry's
+// write-lookup (eventual consistency), so deprecation retries with backoff
+// and NEVER aborts the bootstrap: an undeprecated placeholder is cosmetic,
+// a missing package name is not.
+const deprecateWithRetry = async (name) => {
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    try {
+      npm(["deprecate", `${name}@${VERSION}`, DEPRECATION]);
+      console.log(`deprecated: ${name}@${VERSION}`);
+      return;
+    } catch {
+      if (attempt < 6) {
+        console.log(`  deprecate not yet possible (registry lag), retry ${attempt}/5 in 10s...`);
+        await sleep(10_000);
+      }
+    }
+  }
+  console.warn(
+    `WARN: could not deprecate ${name}@${VERSION}; run later:\n` +
+      `  npm deprecate ${name}@${VERSION} "${DEPRECATION}"`,
+  );
+};
 
 const npm = (args, options = {}) => {
   const output = execFileSync("npm", args, { encoding: "utf8", stdio: "pipe", ...options });
@@ -97,11 +134,20 @@ for (const name of PACKAGES) {
       ...(dryRun ? ["--dry-run"] : []),
     ];
     console.log(`publish: ${name}@${VERSION}${dryRun ? " (dry run)" : ""}`);
-    npm(publishArgs, { cwd: dir, stdio: "inherit" });
-    if (!dryRun) {
-      npm(["deprecate", `${name}@${VERSION}`, DEPRECATION]);
-      console.log(`deprecated: ${name}@${VERSION}`);
+    try {
+      npm(publishArgs, { cwd: dir, stdio: "inherit" });
+    } catch (error) {
+      // The exists-check can miss a just-published package during registry
+      // read-path propagation; a duplicate-version rejection means it is
+      // already there. With stdio "inherit" the error object carries no
+      // stderr, so consult npm's newest debug log for the rejection text.
+      if (wasDuplicatePublishRejection()) {
+        console.log(`already published (propagation lag): ${name}@${VERSION}`);
+      } else {
+        throw error;
+      }
     }
+    if (!dryRun) await deprecateWithRetry(name);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
