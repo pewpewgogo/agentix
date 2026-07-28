@@ -30,7 +30,6 @@ export default defineConfig({
     include: [
       "packages/**/*.test.ts",
       "examples/**/*.test.ts",
-      "apps/**/*.test.ts",
       "benchmarks/**/*.test.ts",
       "sandbox/**/*.test.ts"
     ],

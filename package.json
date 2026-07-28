@@ -16,7 +16,6 @@
   "workspaces": [
     "packages/*",
     "examples/*",
-    "apps/*",
     "benchmarks/*",
     "sandbox/*"
   ],
