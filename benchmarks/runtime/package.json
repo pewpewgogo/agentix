@@ -18,9 +18,9 @@
     "test": "vitest run --root ../.. benchmarks/runtime"
   },
   "dependencies": {
-    "@agentixdev/adapters-http": "0.1.0",
-    "@agentixdev/compiler": "0.1.0",
-    "@agentixdev/core": "0.1.0",
+    "@agentixdev/adapters-http": "0.2.0",
+    "@agentixdev/compiler": "0.2.0",
+    "@agentixdev/core": "0.2.0",
     "@agentixdev/framework-app": "0.0.0",
     "@agentixdev/plain-app": "0.0.0",
     "@nestjs/common": "11.1.28",
