@@ -10,6 +10,7 @@
     { "path": "examples/framework-app" },
     { "path": "examples/pg-notes" },
     { "path": "examples/plain-app" },
+    { "path": "apps/ton-invoices" },
     { "path": "benchmarks/evaluator" },
     { "path": "benchmarks/harness" },
     { "path": "benchmarks/reports" },

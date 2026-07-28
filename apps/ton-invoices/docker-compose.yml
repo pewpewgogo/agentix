@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ton_invoices
+      POSTGRES_USER: ton_invoices
+      POSTGRES_PASSWORD: ton_invoices
+    ports:
+      # Host 55433 avoids clashing with a locally installed PostgreSQL and
+      # with examples/pg-notes (which claims 55432).
+      - "127.0.0.1:55433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ton_invoices -d ton_invoices"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    volumes:
+      - ton-invoices-data:/var/lib/postgresql/data
+
+volumes:
+  ton-invoices-data:

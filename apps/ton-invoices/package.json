@@ -1,0 +1,30 @@
+{
+  "name": "@agentixdev/ton-invoices",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "TON payment-request (invoice) API on @agentixdev/core + @agentixdev/adapters-http: PostgreSQL persistence, toncenter chain watcher, invoice.paid notifications.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false && tsc -p tsconfig.test.json --pretty false",
+    "test": "vitest run --root ../.. apps/ton-invoices",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@agentixdev/adapters-http": "0.1.0",
+    "@agentixdev/core": "0.1.0",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@agentixdev/cli": "0.1.0",
+    "@agentixdev/testing": "0.1.0",
+    "@types/pg": "^8.20.0",
+    "vitest": "4.1.10"
+  }
+}
